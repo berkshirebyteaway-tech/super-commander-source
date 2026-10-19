@@ -1,0 +1,66 @@
+{
+  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "scenarios": 10,
+  "ticks": 1025,
+  "sources": {
+    "src/core/game/Game.ts": {
+      "sha256": "0f2045babcdc50e4c696bd5d63129c605058df7559377dc55afc6bd79696eca7"
+    },
+    "src/core/DetMath.ts": {
+      "sha256": "dc40f2e576e9cc871b22d3369e1a0153db935055ba19bd4139230d8645fa1f69"
+    },
+    "src/core/Util.ts": {
+      "sha256": "e4d1dd3687a9c07b07e006689e1e6761fce25a8ecdb88d79c61ef3b586a2097a"
+    },
+    "src/core/configuration/Config.ts": {
+      "sha256": "96ae8fb7be0d9622a697cc8f03ee694440053ced3ed07412b148dd49b35970ba"
+    },
+    "src/core/PseudoRandom.ts": {
+      "sha256": "70a87d651b7367173dbdd0deb7ca21432d6afdb011b1440b6f93a2575473ab6b"
+    },
+    "src/core/execution/utils/FlatBinaryHeap.ts": {
+      "sha256": "941dbb5b137057bd0565ba9e806baa5f5b107b26ca21426ac1da170e0a36a267"
+    },
+    "src/core/game/GameMap.ts": {
+      "sha256": "a537540512803d95ed64701ad72b55e54dee7ee16554f0f12793de778f5ada9b"
+    },
+    "src/core/game/AttackImpl.ts": {
+      "sha256": "21e76c969d258101fc59e578b58805da67fae161453e030c1aa1071ea982686f"
+    },
+    "src/core/game/TileSet.ts": {
+      "sha256": "0b5cca82b0447ef802ebb63c62d97d1bb47cdef44c71f210d896fc873f6b2d10"
+    },
+    "src/core/game/PlayerImpl.ts": {
+      "sha256": "c227c6d405f7011b62393ba2f19fdf9e8cbe7ab9197e46e0814217792056090e"
+    },
+    "src/core/game/GameImpl.ts": {
+      "sha256": "4993171e0eb98bb0bfdd47177afcba126bdce763bd3949209a100070bb3b1dbb"
+    },
+    "src/core/execution/AttackExecution.ts": {
+      "sha256": "2e6c4ca9bffd6f2bf08c44b37889c08b9452aeaeb07bfd1c4f1d123fbd92177a"
+    },
+    "src/core/execution/RetreatExecution.ts": {
+      "sha256": "72973e713e9a7cda8d0cc6adde990680f056a22a83384a8bc1446bc40b6af0f6"
+    }
+  },
+  "fixtureModules": [
+    "CombatGolden",
+    "CombatGolden_plains_1",
+    "CombatGolden_mixed_1",
+    "CombatGolden_mixed_2",
+    "CombatGolden_channels_1",
+    "CombatGolden_channels_2",
+    "CombatGolden_neutral_1",
+    "CombatGolden_retreat_1",
+    "CombatGolden_merge_1",
+    "CombatGolden_opposing_1",
+    "CombatGolden_elimination_1",
+    "CombatGolden_bot_default_1",
+    "CombatGolden_source_tile_1"
+  ],
+  "limitations": [
+    "Fixture adapters disable diplomacy, units, gold, fallout, regeneration.",
+    "AttackExecution/RetreatExecution/AttackImpl and Player troop + Game conquest methods run from actual source.",
+    "No full-game or production parity claim."
+  ]
+}

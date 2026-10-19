@@ -1,0 +1,196 @@
+{
+  "repository": "https://github.com/openfrontio/OpenFrontIO",
+  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "generatedOn": "2026-10-04",
+  "sources": {
+    "src/core/game/Game.ts": {
+      "sha256": "0f2045babcdc50e4c696bd5d63129c605058df7559377dc55afc6bd79696eca7"
+    },
+    "src/core/DetMath.ts": {
+      "sha256": "dc40f2e576e9cc871b22d3369e1a0153db935055ba19bd4139230d8645fa1f69"
+    },
+    "src/core/Util.ts": {
+      "sha256": "e4d1dd3687a9c07b07e006689e1e6761fce25a8ecdb88d79c61ef3b586a2097a"
+    },
+    "src/core/configuration/Config.ts": {
+      "sha256": "96ae8fb7be0d9622a697cc8f03ee694440053ced3ed07412b148dd49b35970ba"
+    },
+    "src/core/PseudoRandom.ts": {
+      "sha256": "70a87d651b7367173dbdd0deb7ca21432d6afdb011b1440b6f93a2575473ab6b"
+    },
+    "src/core/execution/utils/FlatBinaryHeap.ts": {
+      "sha256": "941dbb5b137057bd0565ba9e806baa5f5b107b26ca21426ac1da170e0a36a267"
+    },
+    "src/core/game/GameMap.ts": {
+      "sha256": "a537540512803d95ed64701ad72b55e54dee7ee16554f0f12793de778f5ada9b"
+    }
+  },
+  "counts": {
+    "attack": 2910,
+    "math": 143,
+    "random": 11,
+    "terrain": 256,
+    "neighbors": 279,
+    "heap": 4,
+    "constants": 55
+  },
+  "constantLocations": {
+    "traitorDefenseDebuff": 287,
+    "traitorSpeedDebuff": 290,
+    "traitorDuration": 293,
+    "teamLandShareWinThresholdTenths": 297,
+    "cityTroopIncrease": 358,
+    "msPerTick": 367,
+    "SAMCooldown": 370,
+    "SiloCooldown": 373,
+    "defensePostRange": 377,
+    "defensePostDefenseBonus": 381,
+    "defensePostSpeedBonus": 385,
+    "trainStationMinRange": 506,
+    "trainStationMaxRange": 509,
+    "donateCooldown": 779,
+    "embargoAllCooldown": 782,
+    "deletionMarkDuration": 785,
+    "deleteUnitCooldown": 789,
+    "emojiMessageDuration": 792,
+    "emojiMessageCooldown": 795,
+    "quickChatCooldown": 798,
+    "targetDuration": 801,
+    "targetCooldown": 804,
+    "allianceRequestDuration": 807,
+    "allianceRequestCooldown": 810,
+    "temporaryEmbargoDuration": 820,
+    "minDistanceBetweenPlayers": 823,
+    "armyLimitWarningThreshold": 847,
+    "warshipShellLifetime": 979,
+    "tradeShipShortRangeDebuff": 987,
+    "nukeAllianceBreakThreshold": 1115,
+    "mirvNormalizeTargetTicks": 1132,
+    "defaultNukeTargetableRange": 1136,
+    "defaultSamRange": 1140,
+    "maxSamRange": 1149,
+    "defaultSamMissileSpeed": 1172,
+    "structureMinDist": 1195,
+    "shellLifetime": 1199,
+    "warshipPatrolRange": 1203,
+    "warshipTargettingRange": 1207,
+    "warshipShellAttackRate": 1211,
+    "warshipDockingRange": 1215,
+    "warshipPortHealingBonusPerLevel": 1219,
+    "warshipRetreatHealthPercent": 1225,
+    "warshipPassiveHealing": 1229,
+    "warshipPassiveHealingRange": 1233,
+    "warshipPortSwitchThreshold": 1237,
+    "warshipMaxVeterancy": 1244,
+    "warshipVeterancyHealthBonus": 1250,
+    "warshipVeterancyShellDamageBonus": 1256,
+    "warshipVeterancyTransportKills": 1261,
+    "warshipVeterancyTradeCaptures": 1266,
+    "defensePostShellAttackRate": 1270,
+    "safeFromPiratesCooldownMax": 1274,
+    "defensePostTargettingRange": 1278,
+    "allianceExtensionPromptOffset": 1282
+  },
+  "fixtureModules": [
+    {
+      "name": "Golden_attack_001",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_002",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_003",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_004",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_005",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_006",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_007",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_008",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_009",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_010",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_011",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_012",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_013",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_014",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_015",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_016",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_017",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_018",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_attack_019",
+      "key": "attack"
+    },
+    {
+      "name": "Golden_math_001",
+      "key": "math"
+    },
+    {
+      "name": "Golden_random_001",
+      "key": "random"
+    },
+    {
+      "name": "Golden_random_002",
+      "key": "random"
+    },
+    {
+      "name": "Golden_terrain_001",
+      "key": "terrain"
+    },
+    {
+      "name": "Golden_neighbors_001",
+      "key": "neighbors"
+    },
+    {
+      "name": "Golden_heap_001",
+      "key": "heap"
+    }
+  ]
+}

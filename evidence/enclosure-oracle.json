@@ -1,0 +1,584 @@
+{
+  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "sources": {
+    "src/core/game/GameMap.ts": "a537540512803d95ed64701ad72b55e54dee7ee16554f0f12793de778f5ada9b",
+    "src/core/game/TileSet.ts": "0b5cca82b0447ef802ebb63c62d97d1bb47cdef44c71f210d896fc873f6b2d10",
+    "src/core/game/GameImpl.ts": "4993171e0eb98bb0bfdd47177afcba126bdce763bd3949209a100070bb3b1dbb",
+    "src/core/game/TileTraversalScratch.ts": "faebef619230ed3a48eeea76e7f6b6220a7713034724ea80d25a7228b9ba25c1",
+    "src/core/game/Game.ts": "0f2045babcdc50e4c696bd5d63129c605058df7559377dc55afc6bd79696eca7",
+    "src/core/execution/PlayerExecution.ts": "f64137566138b27f35d3d0d35afb52f6abb3586ff12d8d63035ceffabe91925f"
+  },
+  "fixtureModules": [
+    "EnclosureGolden_001",
+    "EnclosureGolden_002",
+    "EnclosureGolden_003"
+  ],
+  "cases": [
+    {
+      "name": "closed-neutral-bot-pocket",
+      "captured": 9,
+      "whole": []
+    },
+    {
+      "name": "whole-neutral-bot-conquest",
+      "captured": 9,
+      "whole": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "allied-pocket",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "unowned-wilderness-is-not-a-player",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "neutral-exit",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "ocean-exit",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "lake-exit",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "impassable-edge",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "multiple-captors-largest-attack",
+      "captured": 9,
+      "whole": []
+    },
+    {
+      "name": "multiple-captors-border-majority",
+      "captured": 9,
+      "whole": []
+    },
+    {
+      "name": "hole-in-an-open-empire",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "map-edge-is-an-exit",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-0",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-1",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-2",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-3",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-4",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-5",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-6",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-7",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-8",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-9",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-10",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-11",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-12",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-13",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-14",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-15",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-16",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-17",
+      "captured": 8,
+      "whole": []
+    },
+    {
+      "name": "mixed-18",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-19",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-20",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-21",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-22",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-23",
+      "captured": 4,
+      "whole": []
+    },
+    {
+      "name": "mixed-24",
+      "captured": 6,
+      "whole": []
+    },
+    {
+      "name": "mixed-25",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-26",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-27",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-28",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-29",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-30",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-31",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-32",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-33",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-34",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-35",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-36",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-37",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-38",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-39",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-40",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-41",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-42",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-43",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-44",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-45",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-46",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-47",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-48",
+      "captured": 8,
+      "whole": []
+    },
+    {
+      "name": "mixed-49",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-50",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-51",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-52",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-53",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-54",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-55",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-56",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-57",
+      "captured": 4,
+      "whole": []
+    },
+    {
+      "name": "mixed-58",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-59",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-60",
+      "captured": 7,
+      "whole": []
+    },
+    {
+      "name": "mixed-61",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-62",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-63",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-64",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-65",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-66",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-67",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-68",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-69",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-70",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-71",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-72",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-73",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-74",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-75",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-76",
+      "captured": 6,
+      "whole": []
+    },
+    {
+      "name": "mixed-77",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-78",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-79",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-80",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-81",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-82",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-83",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-84",
+      "captured": 7,
+      "whole": []
+    },
+    {
+      "name": "mixed-85",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-86",
+      "captured": 4,
+      "whole": []
+    },
+    {
+      "name": "mixed-87",
+      "captured": 4,
+      "whole": []
+    },
+    {
+      "name": "mixed-88",
+      "captured": 8,
+      "whole": []
+    },
+    {
+      "name": "mixed-89",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-90",
+      "captured": 0,
+      "whole": []
+    },
+    {
+      "name": "mixed-91",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-92",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-93",
+      "captured": 3,
+      "whole": []
+    },
+    {
+      "name": "mixed-94",
+      "captured": 5,
+      "whole": []
+    },
+    {
+      "name": "mixed-95",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-96",
+      "captured": 1,
+      "whole": []
+    },
+    {
+      "name": "mixed-97",
+      "captured": 4,
+      "whole": []
+    },
+    {
+      "name": "mixed-98",
+      "captured": 2,
+      "whole": []
+    },
+    {
+      "name": "mixed-99",
+      "captured": 3,
+      "whole": []
+    }
+  ],
+  "scope": "Actual upstream removeClusters, topology/ownership/order/conquest calls; no production gold/economy or full engine tick"
+}

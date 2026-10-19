@@ -1,0 +1,87 @@
+{
+  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "sources": {
+    "src/core/game/Game.ts": {
+      "sha256": "0f2045babcdc50e4c696bd5d63129c605058df7559377dc55afc6bd79696eca7"
+    },
+    "src/core/DetMath.ts": {
+      "sha256": "dc40f2e576e9cc871b22d3369e1a0153db935055ba19bd4139230d8645fa1f69"
+    },
+    "src/core/Util.ts": {
+      "sha256": "e4d1dd3687a9c07b07e006689e1e6761fce25a8ecdb88d79c61ef3b586a2097a"
+    },
+    "src/core/configuration/Config.ts": {
+      "sha256": "96ae8fb7be0d9622a697cc8f03ee694440053ced3ed07412b148dd49b35970ba"
+    },
+    "src/core/PseudoRandom.ts": {
+      "sha256": "70a87d651b7367173dbdd0deb7ca21432d6afdb011b1440b6f93a2575473ab6b"
+    },
+    "src/core/execution/utils/FlatBinaryHeap.ts": {
+      "sha256": "941dbb5b137057bd0565ba9e806baa5f5b107b26ca21426ac1da170e0a36a267"
+    },
+    "src/core/game/GameMap.ts": {
+      "sha256": "a537540512803d95ed64701ad72b55e54dee7ee16554f0f12793de778f5ada9b"
+    }
+  },
+  "cases": 900,
+  "fixtureModules": [
+    "EconomyGolden",
+    "EconomyGolden_1",
+    "EconomyGolden_2",
+    "EconomyGolden_3",
+    "EconomyGolden_4",
+    "EconomyGolden_5",
+    "EconomyGolden_6",
+    "EconomyGolden_7",
+    "EconomyGolden_8",
+    "EconomyGolden_9",
+    "EconomyGolden_10",
+    "EconomyGolden_11",
+    "EconomyGolden_12",
+    "EconomyGolden_13",
+    "EconomyGolden_14",
+    "EconomyGolden_15",
+    "EconomyGolden_16",
+    "EconomyGolden_17",
+    "EconomyGolden_18",
+    "EconomyGolden_19",
+    "EconomyGolden_20",
+    "EconomyGolden_21",
+    "EconomyGolden_22",
+    "EconomyGolden_23",
+    "EconomyGolden_24",
+    "EconomyGolden_25",
+    "EconomyGolden_26",
+    "EconomyGolden_27",
+    "EconomyGolden_28",
+    "EconomyGolden_29",
+    "EconomyGolden_30",
+    "EconomyGolden_31",
+    "EconomyGolden_32",
+    "EconomyGolden_33",
+    "EconomyGolden_34",
+    "EconomyGolden_35",
+    "EconomyGolden_36",
+    "EconomyGolden_37",
+    "EconomyGolden_38",
+    "EconomyGolden_39",
+    "EconomyGolden_40",
+    "EconomyGolden_41",
+    "EconomyGolden_42",
+    "EconomyGolden_43",
+    "EconomyGolden_44",
+    "EconomyGolden_45",
+    "EconomyGolden_46",
+    "EconomyGolden_47",
+    "EconomyGolden_48",
+    "EconomyGolden_49",
+    "EconomyGolden_50",
+    "EconomyGolden_51",
+    "EconomyGolden_52",
+    "EconomyGolden_53",
+    "EconomyGolden_54",
+    "EconomyGolden_55",
+    "EconomyGolden_56",
+    "EconomyGolden_57"
+  ]
+}

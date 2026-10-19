@@ -1,0 +1,60 @@
+local Run=game:GetService('RunService')
+local M={}
+M.defaults={
+    xpBoost=1,
+    invites=true,
+    groupPerk=true,
+    badges=true,
+    dailyOp=true,
+    clans=true,
+    ranked=true,
+    sales=true,
+    commsOpen=false,
+    spectate=true,
+    replays=true,
+    notice='',
+    noticeEn='',
+    seasonEnd='',
+    telemetryDetail=.1,
+    telemetryPerf=.1,
+    telemetryRaw=true,
+}
+local snapshot
+local function load()
+    if Run:IsStudio()or game.GameId==0 then return end
+    local ok,service=pcall(function()return game:GetService('ConfigService')end)
+    if not ok or not service then return end
+    local got,snap=pcall(function()return service:GetConfigAsync()end)
+    if not got or not snap then return end
+    snapshot=snap
+    pcall(function()snap.UpdateAvailable:Connect(function()pcall(function()snap:Refresh()end);M.publish()end)end)
+end
+function M.get(key)
+    local default=M.defaults[key]
+    if snapshot then
+        local ok,value=pcall(function()return snapshot:GetValue(key)end)
+        if ok and value~=nil and typeof(value)==typeof(default)then return value end
+    end
+    return default
+end
+function M.xpBoost()local v=M.get('xpBoost');return math.clamp(v==v and v or 1,1,3)end
+function M.enabled(key)return M.get(key)~=false end
+function M.salesOpen()
+    local ok,Config=pcall(require,script.Parent.CommerceConfig)
+    return ok and Config.purchasesEnabled==true and M.get('sales')==true and not Run:IsStudio()
+end
+function M.publish()
+    local pack=game.ReplicatedStorage:FindFirstChild('FrontierNative');if not pack then return end
+    local function short(t)return utf8.len(t)and utf8.len(t)>80 and t:sub(1,utf8.offset(t,81)-1)or t end
+    pack:SetAttribute('LiveNotice',short(M.get('notice')));pack:SetAttribute('LiveNoticeEn',short(M.get('noticeEn')))
+    pack:SetAttribute('LiveXPBoost',M.xpBoost())
+    pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
+    require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())
+end
+local started=false
+function M.start()
+    if started then return M end;started=true
+    task.spawn(function()load();M.publish();while not snapshot and not(Run:IsStudio()or game.GameId==0)do task.wait(60);load();if snapshot then M.publish()end end end)
+    return M
+end
+return M

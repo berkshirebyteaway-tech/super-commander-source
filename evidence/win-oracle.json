@@ -1,0 +1,16 @@
+{
+  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "sources": {
+    "src/core/configuration/Config.ts": "96ae8fb7be0d9622a697cc8f03ee694440053ced3ed07412b148dd49b35970ba",
+    "src/core/execution/WinCheckExecution.ts": "a77c68ce107ab1e5730b8aad478a73736164aa132502da3678e98500210c785a"
+  },
+  "cases": 672,
+  "fixtureModules": [
+    "WinGolden",
+    "WinGolden_1",
+    "WinGolden_2",
+    "WinGolden_3",
+    "WinGolden_4"
+  ],
+  "scope": "FFA WinCheck and Config overtime, including AI leader, stable ties, timer boundaries and fallout denominator"
+}
