@@ -120,7 +120,7 @@ local function territoryMotif(model,style,fill,add)
     local motif=style.motif;local light,dark=fill:Lerp(Color3.new(1,1,1),.34),fill:Lerp(Color3.new(),.38)
     local accent,trim=rgb(style.accent),rgb(style.secondary);local y=.066
     if style.flat then
-        local Pattern=require(script.Parent.TerritoryCollection);local t=Pattern.texture(motif);local spec=Pattern.spec(style,1)
+        local Pattern=require(script.Parent.TerritoryCollection);local spec=Pattern.spec(style,1);local t=spec
         if not t or not spec then return nil end
         local step=math.max(1,t.w//16);local cell=4.6/16
         for j=0,15 do local i=0

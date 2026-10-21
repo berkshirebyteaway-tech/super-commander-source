@@ -1,4 +1,5 @@
-local M={version=4}
+local Standards=if script then require(script.Parent.CommanderStandardRules)else require('./CommanderStandardRules')
+local M={version=5}
 M.series={
     {id='carbon',name='카본',rarity='normal',tier=1,primary={48,57,70},secondary={151,165,180},accent={185,198,211}},
     {id='cobalt',name='코발트',rarity='rare',tier=2,primary={35,57,88},secondary={175,202,231},accent={80,165,255}},
@@ -12,6 +13,11 @@ M.series={
     {id='crown',name='크라운',rarity='legendary',tier=4,primary={30,34,64},secondary={250,232,170},accent={255,204,70}},
     {id='phoenix',name='피닉스',rarity='legendary',tier=4,primary={70,30,18},secondary={255,224,150},accent={255,170,40}},
     {id='eclipse',name='이클립스',rarity='mythic',tier=5,primary={10,10,18},secondary={235,230,255},accent={200,120,255}},
+    {id='dragon',name='청룡',rarity='legendary',tier=4,primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    {id='diamond',name='다이아몬드',rarity='legendary',tier=4,primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    {id='seraph',name='세라핌',rarity='mythic',tier=5,primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    {id='glitch',name='글리치',rarity='mythic',tier=5,primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    {id='leviathan',name='리바이어던',rarity='mythic',tier=5,primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
 }
 M.order={};for i,s in ipairs(M.series)do M.order[i]=s end
 table.sort(M.order,function(a,b)if a.tier~=b.tier then return a.tier<b.tier end return table.find(M.series,a)<table.find(M.series,b)end)
@@ -116,6 +122,41 @@ M.themes={
     crown_motion={name='왕관 강림',desc='금빛 왕관이 내려오고 깃발이 펼쳐져요.',theme='coronation',primary={30,34,80},secondary={255,232,160},accent={255,204,70}},
     phoenix_motion={name='불사조 비상',desc='불사조가 솟아올라 날개를 펼쳐요.',theme='rise',primary={100,48,18},secondary={255,220,140},accent={255,170,40}},
     eclipse_motion={name='검은 태양',desc='하늘이 어두워지고 검은 태양의 코로나가 퍼져요.',theme='totality',primary={10,10,18},secondary={235,230,255},accent={200,120,255}},
+    dragon_territory={name='청룡 비늘',desc='옥빛 비늘 위로 금빛 용 그림자가 국경을 따라 헤엄쳐요.',theme='dragon',motif='dragonscale',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_territory={name='다이아 컷',desc='영토가 보석 면처럼 잘리고 빛줄기가 쓸고 지나가요.',theme='diamond',motif='facets',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_territory={name='천상의 깃털',desc='흰 깃털 문양이 덮이고, 영토가 넓어지면 수도 위로 빛기둥이 서요.',theme='seraph',motif='plumes',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_territory={name='데이터 오류',desc='내 영토가 픽셀 블록으로 깜빡이고, 넓어질수록 더 크게 깨져요.',theme='glitch',motif='pixels',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_territory={name='심연의 눈',desc='심해 물빛이 일렁이고, 영토가 넓어지면 수도에서 거대한 눈이 떠요.',theme='leviathan',motif='abyss',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_buildings={name='용궁 누각',desc='겹지붕 누각, 용 한 마리가 탑을 휘감고 돌아요.',theme='pagoda',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_buildings={name='크리스탈 타워',desc='금 테두리 크리스탈 빌딩, 꼭대기에서 큰 보석이 돌아요.',theme='crystal',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_buildings={name='천공 성전',desc='떠 있는 흰 성전, 영토가 넓어질수록 날개가 돋아요.',theme='sanctum',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_buildings={name='해킹 서버',desc='홀로그램 서버 건물, 영토가 넓어질수록 와이어프레임으로 폭주해요.',theme='server',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_buildings={name='심해 신전',desc='촉수가 감싼 신전, 영토가 넓어질수록 촉수가 솟고 눈이 떠요.',theme='deeptemple',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_nuclear={name='용의 숨결',desc='용머리 탄두와 굽이치는 용 궤적, 옥빛 불꽃 소용돌이 폭발.',theme='dragonbreath',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_nuclear={name='다이아 탄두',desc='보석 컷 탄두와 반짝이 궤적, 터지면 보석 조각이 쏟아져요.',theme='gem',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_nuclear={name='심판의 빛',desc='하늘에서 빛의 창이 꽂히고 빛기둥과 깃털 비가 내려요.',theme='judgment',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_nuclear={name='시스템 삭제',desc='픽셀 큐브 탄두, 터진 자리가 네모나게 지워졌다 다시 짜여요.',theme='delete',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_nuclear={name='심해의 포효',desc='떨어진 자리에서 리바이어던이 솟아 물 소용돌이로 삼켜요.',theme='maw',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_commanderTrail={name='용의 꼬리',desc='비늘이 반짝이는 긴 용 몸통이 뒤를 따라와요.',theme='dragontail',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_commanderTrail={name='보석 가루',desc='반짝이 가루와 작은 보석이 통통 튀며 떨어져요.',theme='gemdust',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_commanderTrail={name='천사의 깃털',desc='빛나는 깃털이 흩날리고, 오래 달릴수록 후광이 생겨요.',theme='plume',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_commanderTrail={name='데이터 스트림',desc='픽셀 잔상과 흐르는 코드, 오래 달릴수록 크게 깨져요.',theme='datastream',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_commanderTrail={name='발광 물결',desc='발밑에 빛나는 물결이 번지고, 오래 달릴수록 촉수가 따라와요.',theme='biolume',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_parachute={name='용 연',desc='용 모양 연 캐노피, 수염과 꼬리가 바람에 나부껴요.',theme='kite',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_parachute={name='다이아 캐노피',desc='각진 보석 캐노피, 빛이 비치면 번쩍여요.',theme='gemcanopy',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_parachute={name='여섯 날개',desc='캐노피가 날개가 되고, 내려갈수록 2장, 4장, 6장으로 늘어요.',theme='seraphwings',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_parachute={name='버그 캐노피',desc='캐노피가 픽셀로 찢어졌다 다시 붙어요.',theme='bugcanopy',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_parachute={name='촉수 캐노피',desc='발광 촉수가 달린 심해 생물 캐노피.',theme='tendril',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_vehicle={name='청룡',desc='용을 타고 낮게 날아다녀요. 멈추면 지휘관 둘레를 감아요.',theme='serpent',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_vehicle={name='다이아 슈퍼카',desc='다이아로 만든 호버 슈퍼카, 출발할 때 금빛 불꽃.',theme='supercar',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_vehicle={name='세라핌 날개',desc='등에 날개를 달고 날아요. 영토가 넓어질수록 날개가 늘어요.',theme='seraph',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_vehicle={name='광속 바이크',desc='빛의 벽을 남기며 달리는 사이버 바이크.',theme='lightcycle',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_vehicle={name='심해 만타',desc='발광 만타를 타고 미끄러지듯 날아요.',theme='manta',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
+    dragon_motion={name='용 승천',desc='용이 나선으로 솟아올라 포효해요.',theme='ascend',primary={18,58,60},secondary={170,240,215},accent={255,206,90}},
+    diamond_motion={name='잭팟',desc='발밑에서 보석이 분수처럼 솟았다 흩어져요.',theme='jackpot',primary={226,236,246},secondary={170,215,255},accent={255,214,120}},
+    seraph_motion={name='강림',desc='날개가 펼쳐지고 후광이 내려와요.',theme='descent',primary={244,244,252},secondary={255,232,170},accent={255,143,216}},
+    glitch_motion={name='해킹',desc='픽셀이 모여 커서가 되어 목표를 찍어요.',theme='hack',primary={8,10,16},secondary={80,240,255},accent={255,90,220}},
+    leviathan_motion={name='소환',desc='촉수가 솟았다 가라앉아요.',theme='summon',primary={6,20,36},secondary={60,240,220},accent={170,120,255}},
 }
 M.flat={
     {key='lined_territory',name='사선 줄무늬',rarity='normal',tier=1,motif='stripes',desc='영토에 가는 사선만 그어지는 평면 무늬.',primary={48,57,70},secondary={176,198,214},accent={150,190,214}},
@@ -126,7 +167,7 @@ M.flat={
 }
 M.names={};for key,t in pairs(M.themes)do M.names[key]=t.name end
 for _,f in ipairs(M.flat)do M.names[f.key]=f.name end
-M.familyNames={territory='영토',buildings='건물',nuclear='핵',commanderTrail='트레일',parachute='낙하산',vehicle='탈것',motion='지휘 연출'}
+M.familyNames={commanderStandard='깃발',territory='영토',buildings='건물',nuclear='핵',commanderTrail='트레일',parachute='낙하산',vehicle='탈것',motion='지휘 연출'}
 function M.styles()
     local out={}
     for _,family in ipairs(M.families)do for _,series in ipairs(M.order)do
@@ -152,6 +193,9 @@ function M.items()
     end end
     for _,f in ipairs(M.flat)do
         table.insert(out,{id='supply:'..f.key,name=f.name,category='territory',rarity=f.rarity,tier=f.tier,style=f.key,loadout={territory=f.key},ready=true,artVersion=1})
+    end
+    for _,f in ipairs(Standards.series)do
+        table.insert(out,{id=Standards.supplyId(f.id),name=f.name,category='commanderStandard',rarity=f.rarity,tier=f.tier,style=f.id,standard=true,loadout={},ready=true,artVersion=1})
     end
     return out
 end

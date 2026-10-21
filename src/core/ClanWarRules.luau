@@ -1,5 +1,10 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+-- © OpenFront and Contributors. Clan war (클랜전). 근 10/17: two members of one clan against two of
 local M={}
 M.teamSize=2
+M.minSize=2;M.maxSize=5
+M.minClans=2;M.maxClans=4
+M.gatherSeconds=15
 M.winPoints=20
 M.lossPoints=-10
 M.winContribution=10
@@ -50,7 +55,16 @@ function M.repeatFactor(u,opponent,now)
     local v=u.warPairs[opponent]or {t=now,n=0};v.n+=1;u.warPairs[opponent]=v
     return v.n>=6 and 0 or v.n>=4 and .5 or 1
 end
-function M.apply(u,matchId,season,won,players,now,opponent)
+function M.winFor(clans,size)
+    clans=math.clamp(math.floor(tonumber(clans)or 2),M.minClans,M.maxClans)
+    size=math.clamp(math.floor(tonumber(size)or M.teamSize),M.minSize,M.maxSize)
+    return 5*(clans-1)*(size+2)
+end
+function M.opponentKey(clans,own)
+    local list={};for _,c in ipairs(clans)do if c~=own then table.insert(list,tostring(c))end end
+    table.sort(list);return table.concat(list,',')
+end
+function M.apply(u,matchId,season,won,players,now,opponent,winPoints)
     if type(u)~='table'then return nil,'unit-missing'end
     local prior=M.award(u,matchId);if prior then return u,false,prior.share end
     if u.disbanded then return nil,'unit-missing'end
@@ -59,7 +73,7 @@ function M.apply(u,matchId,season,won,players,now,opponent)
     table.insert(u.warSeen,matchId);while #u.warSeen>M.history do table.remove(u.warSeen,1)end
     local w=M.record(u,season)
     local factor=M.repeatFactor(u,opponent,now)
-    if won then w.wins+=1;w.points+=math.floor(M.winPoints*factor)else w.losses+=1;w.points=math.max(0,w.points+M.lossPoints)end
+    if won then w.wins+=1;w.points+=math.floor((tonumber(winPoints)or M.winPoints)*factor)else w.losses+=1;w.points=math.max(0,w.points+M.lossPoints)end
     local share=won and math.floor(M.winContribution*factor)or M.lossContribution
     local week=math.floor((math.floor(now/86400)+3)/7)
     u.contrib=type(u.contrib)=='table'and u.contrib or {}
@@ -85,10 +99,30 @@ function M.personal(l,matchId,share)
     return l,true
 end
 function M.party(clans)
-    if #clans~=M.teamSize then return nil,'war-size'end
+    if #clans<M.minSize or #clans>M.maxSize then return nil,'war-size'end
     local first=clans[1];if not first then return nil,'war-clan'end
     for _,c in ipairs(clans)do if c~=first then return nil,'war-clan'end end
     return first
+end
+function M.sides(r)
+    if type(r)~='table'then return nil end
+    if type(r.sides)=='table'then return r.sides end
+    return {{clan=r.winnerClan,players=r.winners or {},won=true},{clan=r.loserClan,players=r.losers or {},won=false}}
+end
+M.smallMaps={'australia','iceland','asia','europeclassic'}
+M.largeMaps={'europe','asia','africa','northamerica','southamerica','australia'}
+M.smallMax=6
+function M.rules(clans,size,roll)
+    local Ranked=if script then require(script.Parent.RankedRules)else require('./RankedRules')
+    clans=math.clamp(math.floor(clans),M.minClans,M.maxClans);size=math.clamp(math.floor(size),M.minSize,M.maxSize)
+    local players=clans*size;local small=players<=M.smallMax
+    local maps=small and M.smallMaps or M.largeMaps
+    local r=Ranked.rules('2v2',0)
+    r.map=maps[(roll or 0)%#maps+1];r.maximum=players;r.ranked=nil;r.clanwar={clans=clans,size=size}
+    r.teamFormat=clans;r.teamCount=clans
+    local st=r.settings;st.rankedType='clanwars';st.maxTimerValue=small and 15 or 20;st.teamFormat=clans;st.teamCount=clans
+    st.spawnImmunityDuration=60*10;st.donateGold=true;st.donateTroops=true;st.nations='disabled'
+    return r
 end
 function M.summary(w)if not w then return 0,0,0 end;return w.points or 0,w.wins or 0,w.losses or 0 end
 return M

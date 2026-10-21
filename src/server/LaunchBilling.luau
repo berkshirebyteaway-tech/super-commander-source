@@ -183,12 +183,13 @@ function M:request(player,a,action,value)
             local next,info,medals
             if value.currency=='studio'then next,info,medals=Testing.draw(p.commerce,value,entropy,p.outgame.medals,drawAt,player.UserId,game:GetService('RunService'):IsStudio(),self.accounts.localMode)
             else next,info,medals=Supply.draw(p.commerce,value.kind,value.currency,value.requestId,entropy,p.outgame.medals,paidAllowed,drawAt,nil,value.sequence,player.UserId)end
-            if not next then return nil,info end;p.commerce=next;p.outgame.medals=medals;result=info
+            if not next then return nil,info end;p.commerce=next;p.outgame.medals=medals;result=info;require(Core.CollectionSets).sync(p.outgame,next.owned)
         elseif action=='supplyTestGrant'then
-            local next,why=Testing.grant(p.commerce,game:GetService('RunService'):IsStudio(),self.accounts.localMode);if not next then return nil,why end;p.commerce=next
+            local next,why=Testing.grant(p.commerce,game:GetService('RunService'):IsStudio(),self.accounts.localMode);if not next then return nil,why end;p.commerce=next;require(Core.CollectionSets).sync(p.outgame,next.owned)
         elseif action=='equipSupply'then
             local loadout=type(value)=='string'and Supply.ownedLoadout(p.commerce,value)
             if not loadout then return nil,'invalid-request'end
+            local item=Catalog.find(value);if item and item.standard then p.commanderStandard=item.style end
             for slot,style in pairs(loadout)do if not Styles.validSlot(slot)or not Styles.styles[style]then return nil,'invalid-catalog'end end
             for slot,style in pairs(loadout)do p.loadout[slot]=style;p.outgame.ownedSlots[slot..':'..style]=true end
             require(Core.ProfileModel).syncPreset(p)

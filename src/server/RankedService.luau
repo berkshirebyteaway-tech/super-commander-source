@@ -3,6 +3,7 @@ local Run=if script then game:GetService('RunService')else nil
 local Core=script and game.ReplicatedStorage.FrontierNative.Core
 local Rules=if Core then require(Core.RankedRules)else require('../core/RankedRules')
 local Season=if Core then require(Core.MonthlySeason)else require('../core/MonthlySeason')
+local Outgame=if Core then require(Core.OutgameRules)else require('../core/OutgameRules')
 local BoardWriter=if script then require(script.Parent.RankedBoardWriter)else require('./RankedBoardWriter')
 local S={};S.__index=S
 S.boardSize=50
@@ -90,19 +91,31 @@ end
 local reasonOf={['랭크전은 곧 열려요.']='paused',['클랜전은 곧 열려요.']='paused'}
 function S:join(queue,ids,ladder,now)
     local ok,msg=self:joinNow(queue,ids,ladder,now)
-    for _,id in ipairs(ids)do log(id,'join',{item=ladder=='clanwar'and 'clanwar'or 'r'..tostring(ladder),count=#ids,result=ok and 'accepted'or 'rejected',reason=not ok and (reasonOf[msg]or (tostring(msg):find('불러오')and 'not_loaded')or 'invalid')or nil})end
+    for _,id in ipairs(ids)do log(id,'join',{item=ladder=='clanwar'and 'clanwar'or 'r'..tostring(ladder),count=#ids,result=ok and 'accepted'or 'rejected',reason=not ok and (reasonOf[msg]or (tostring(msg):find('불러오')and 'not_loaded')or (tostring(msg):find('레벨')and 'locked')or 'invalid')or nil})end
     return ok,msg
+end
+function S:level(id)
+    local p=self.a.players and self.a.players:GetPlayerByUserId(id)
+    local a=p and self.accounts and self.accounts.accounts and self.accounts.accounts[p]
+    local xp=a and a.ready and a.profile and a.profile.outgame and a.profile.outgame.xp
+    return type(xp)=='number'and (Outgame.level(xp))or nil
 end
 function S:joinNow(queue,ids,ladder,now)
     if not self:allowed()then return false,'랭크전은 곧 열려요.'end
-    if type(ids)~='table'or #ids<1 or #ids>2 then return false,'랭크 전장을 다시 골라 주세요.'end
+    if type(ids)~='table'or #ids<1 or #ids>(ladder=='clanwar'and 5 or 2)then return false,ladder=='clanwar'and '클랜전은 클랜원 2~5명이 파티로 함께 참가해요.'or '랭크 전장을 다시 골라 주세요.'end
     local unique={};for _,id in ipairs(ids)do
         if type(id)~='number'or id%1~=0 or id==math.huge or unique[id]then return false,'랭크 전장을 다시 골라 주세요.'end
         unique[id]=true
     end
+    for i,id in ipairs(ids)do
+        local level=self:level(id)
+        if level==nil then return false,'전적을 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요.'end
+        if not Rules.levelOk(level)then return false,i==1 and string.format('랭크전은 레벨 %d부터 참가할 수 있어요.',Rules.minLevel)or string.format('함께하는 친구도 레벨 %d 이상이어야 해요.',Rules.minLevel)end
+    end
     if ladder=='clanwar'then return self:joinClanWar(queue,ids,now)end
     if not Rules.size[ladder]then return false,'랭크 전장을 다시 골라 주세요.'end
     if ladder=='1v1'and #ids>1 then return false,'1대1 랭크전은 혼자 참가해요. 파티를 나간 뒤 다시 눌러 주세요.'end
+    if ladder=='ffa'and #ids>1 then return false,'개인전 랭크는 혼자 참가해요. 파티를 나간 뒤 다시 눌러 주세요.'end
     if #ids>2 then return false,'2대2 랭크전은 둘까지 함께 참가할 수 있어요.'end
     local ratings={}
     for _,id in ipairs(ids)do
@@ -115,11 +128,11 @@ function S:clans()local c=self.accounts and self.accounts.clans;return c and typ
 function S:joinClanWar(queue,ids,now)
     local clans=self:clans();if not clans then return false,'클랜전은 곧 열려요.'end
     local live=self.accounts and self.accounts.live;if live and live.enabled and not live.enabled('clans')then return false,'클랜 기능을 잠시 점검 중이에요.'end
-    if #ids~=2 then return false,'클랜전은 같은 클랜원과 둘이 함께 참가해요.'end
+    if #ids<2 or #ids>5 then return false,'클랜전은 클랜원 2~5명이 파티로 함께 참가해요.'end
     local ok,w=pcall(clans.warParty,clans,ids)
     if not ok or type(w)~='table'then return false,'클랜 정보를 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요.'end
     local clan=w.clanId or w.clan
-    local reasons={['war-size']='클랜전은 같은 클랜원과 둘이 함께 참가해요.',['war-clan']='같은 클랜원과 함께 참가해 주세요.',busy='클랜 정보를 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요.'}
+    local reasons={['war-size']='클랜전은 클랜원 2~5명이 파티로 함께 참가해요.',['war-clan']='같은 클랜원과 함께 참가해 주세요.',busy='클랜 정보를 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요.'}
     if not w.ok or clan==nil then return false,reasons[w.reason]or '같은 클랜원과 함께 참가해 주세요.'end
     local ratings={}
     for _,id in ipairs(ids)do
@@ -130,18 +143,28 @@ function S:joinClanWar(queue,ids,now)
 end
 function S:clanWarResult(room)
     local clans=self:clans();if not clans or type(clans.warResult)~='function'then return end
-    local s=room.session;local winners,losers,winnerClan,loserClan={},{},nil,nil
+    local s=room.session;local byClan,order,winnerClan={},{},nil
     for id,faction in pairs(room.members)do
         local p=s.sim.players[faction];local clan=room.clanwar.clans and room.clanwar.clans[id]
-        if s.winnerTeam~=nil and p.team==s.winnerTeam then
-            winnerClan=winnerClan or clan
-            if not s.resources[faction].forfeited then table.insert(winners,id)end
-        else table.insert(losers,id);loserClan=loserClan or clan end
+        if clan~=nil then
+            local side=byClan[clan];if not side then side={clan=clan,players={},won=false};byClan[clan]=side;table.insert(order,side)end
+            if s.winnerTeam~=nil and p.team==s.winnerTeam then
+                winnerClan=winnerClan or clan;side.won=true
+                if not s.resources[faction].forfeited then table.insert(side.players,id)end
+            else table.insert(side.players,id)end
+        end
     end
-    if #winners==0 or not winnerClan or not loserClan then return end
-    table.sort(winners);table.sort(losers)
+    if not winnerClan or #order<2 then return end
+    local winners,losers,loserClan={},{},nil
+    for _,side in ipairs(order)do
+        table.sort(side.players)
+        if side.clan==winnerClan then side.won=true;winners=side.players else side.won=false;loserClan=loserClan or side.clan;for _,id in ipairs(side.players)do table.insert(losers,id)end end
+    end
+    if #winners==0 then return end
+    table.sort(losers);table.sort(order,function(a,b)return tostring(a.clan)<tostring(b.clan)end)
     room.resultTime=room.resultTime or self.a.time()
-    pcall(clans.warResult,clans,{matchId=room.id,time=room.resultTime,season=Season.at(room.resultTime).key,winners=winners,losers=losers,winnerClan=winnerClan,loserClan=loserClan})
+    pcall(clans.warResult,clans,{matchId=room.id,time=room.resultTime,season=Season.at(room.resultTime).key,winners=winners,losers=losers,winnerClan=winnerClan,loserClan=loserClan,
+        sides=order,size=room.clanwar.size or 2})
 end
 function S:clanWarBoard(id)
     local c=self.accounts and self.accounts.clans;if not c or type(c.rankedBoard)~='function'then return nil end
@@ -158,7 +181,17 @@ function S:result(room,id,won)
     end
     table.sort(opponents)
     room.resultTime=room.resultTime or self.a.time()
-    return {ladder=ladder,time=room.resultTime,team=teamN>0 and math.floor(team/teamN+.5)or nil,opponent=oppN>0 and math.floor(opp/oppN+.5)or Rules.start,opponents=opponents}
+    local out={ladder=ladder,time=room.resultTime,team=teamN>0 and math.floor(team/teamN+.5)or nil,opponent=oppN>0 and math.floor(opp/oppN+.5)or Rules.start,opponents=opponents}
+    if ladder=='ffa'then
+        local rp=function(uid)return (room.ratings or {})[uid]or Rules.start end
+        local winner;for other,faction in pairs(room.members)do if faction==s.winnerId then winner=other end end
+        local list={}
+        if won then for _,other in ipairs(opponents)do table.insert(list,rp(other))end
+        elseif winner and winner~=id then list={rp(winner)}
+        else list={out.opponent}end
+        out.pairs=list;out.players=oppN+1
+    end
+    return out
 end
 function S:retryClaim(player)
     self.claimTries=self.claimTries or {};local id=player.UserId;local n=(self.claimTries[id]or 0)+1
@@ -205,7 +238,7 @@ end
 function S:view(id)
     local now=os.time();local s=Season.at(now);local p=self.a.players:GetPlayerByUserId(id)
     local out={enabled=self:allowed(),live=self.config.rankedEnabled==true and self:allowed()and not (Run and Run:IsStudio()),paused=self.config.rankedEnabled==true and not self:allowed()or nil,season={n=s.n,key=s.key,label=s.label,daysLeft=Season.daysLeft(now),finish=s.finish},
-        loaded=self.careers.profiles[id]~=nil,ladders={},boards={},rewards=Rules.rewards}
+        loaded=self.careers.profiles[id]~=nil,ladders={},boards={},rewards=Rules.rewards,level=self:level(id),minLevel=Rules.minLevel}
     for _,ladder in ipairs(Rules.ladders)do
         out.ladders[ladder]=self:ladderView(id,ladder,now)
         local rows=self:cachedBoard(s.key,ladder);local list={}

@@ -23,8 +23,10 @@ function M.show(text,timeout)
     task.delay(timeout or 12,function()if token==mine then M.hide()end end)
 end
 function M.settle(seconds)local mine=token;task.delay(seconds or 3,function()if token==mine then M.hide()end end)end
+local function hop()local pg=Players.LocalPlayer:FindFirstChildOfClass('PlayerGui');return pg and pg:FindFirstChild('FrontierTeleport')end
 function M.hide()
     token=(token or 0)+1
+    local card=hop();if card then card.Enabled=false end
     if spin then spin:Disconnect();spin=nil end
     if gui then gui.Enabled=false end
 end
@@ -32,6 +34,8 @@ function M.bind(ui)ui:GetAttributeChangedSignal('Phase'):Connect(function()if to
 function M.shown()return gui~=nil and gui.Enabled end
 function M.teleport(text)
     M.show(text,20)
-    pcall(function()game:GetService('TeleportService'):SetTeleportGui(gui)end)
+    local card=hop()
+    if card then local line=card:FindFirstChild('Status',true);if line and text then line.Text=L.text(text)end;card.Enabled=true end
+    pcall(function()local ride=(card or gui):Clone();ride.Enabled=true;game:GetService('TeleportService'):SetTeleportGui(ride)end)
 end
 return M

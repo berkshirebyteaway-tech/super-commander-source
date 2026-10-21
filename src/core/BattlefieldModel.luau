@@ -55,7 +55,7 @@ local function teamView(s,f,list)
 end
 local function viable(m)
     local users={};for uid in pairs(m.members)do table.insert(users,tonumber(uid))end
-    if m.kind=='ranked'then return #users==m.rules.maximum end
+    if m.kind=='ranked'then return Ranked.viable(m,#users)end
     if m.kind=='custom'then
         if #users<m.rules.minimum then return false end
         if m.rules.mode=='teams'and m.rules.teamFormat~='HumansVsNations'and m.teams then
@@ -106,7 +106,7 @@ function M.apply(previous,now,op)
         else f.emptyAt=nil;f.rotateAt=nil end
     end
     if op.kind=='joinGroup'and Ranked.ladderOf(op.field)then
-        local ids,seen={},{};local valid=type(op.users)=='table'and #op.users>=1 and #op.users<=2 and type(op.tokens)=='table'
+        local ids,seen={},{};local valid=type(op.users)=='table'and #op.users>=1 and #op.users<=(Ranked.ladderOf(op.field)=='clanwar'and 5 or 2)and type(op.tokens)=='table'
         if valid then for _,id in ipairs(op.users)do local uid=tostring(id)
             if type(id)~='number'or id~=id or math.abs(id)==math.huge or id%1~=0 or id==0 or seen[uid]or type(op.tokens[uid])~='string'then valid=false;break end
             seen[uid]=true;table.insert(ids,uid)
@@ -261,11 +261,12 @@ function M.apply(previous,now,op)
     end end
     for slot,f in ipairs(s.fields)do
         local n=count(s,f)
-        if n==0 then f.lockedTeams=nil;f.emptyAt=f.emptyAt or now;f.rotateAt=f.rotateAt or now+R.emptySeconds else f.emptyAt=nil;f.rotateAt=nil end
+        if n==0 then f.lockedTeams=nil;f.fillFirst=nil;f.fillTarget=nil;f.emptyAt=f.emptyAt or now;f.rotateAt=f.rotateAt or now+R.emptySeconds else f.emptyAt=nil;f.rotateAt=nil end
         local users,groups=roster(s,f)
         if not R.canFill(f.rules,users,groups)then f.deadline=nil else
             local first=now;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id then first=math.min(first,t.joined or now)end end
-            f.deadline=math.min(f.deadline or math.huge,first+R.fillSeconds)
+            f.fillFirst=math.min(f.fillFirst or first,first);local target=f.fillFirst+R.fillFor(n)
+            if f.deadline==nil or f.deadline==f.fillTarget then f.deadline=target else f.deadline=math.min(f.deadline,target)end;f.fillTarget=target
             if n>=f.rules.maximum then f.deadline=math.min(f.deadline,now+R.fullSeconds)end
             if f.rules.mode=='teams'and not f.lockedTeams and now>=f.deadline-5 then
                 f.lockedTeams={};for uid,team in pairs(R.selection(f.rules,users,groups).teams)do f.lockedTeams[tostring(uid)]=team end
@@ -338,7 +339,7 @@ function M.selection(m,users)
         local sorted=table.clone(users);table.sort(sorted);local teams,ratings={},{}
         for _,id in ipairs(sorted)do teams[id]=m.rules.mode=='teams'and m.teams[tostring(id)]or nil;ratings[id]=m.ratings[tostring(id)]end
         local parties={};for _,id in ipairs(sorted)do local g=m.groups and m.groups[tostring(id)];if g then parties[g]=parties[g]or {leader=m.leaders[g],users={}};table.insert(parties[g].users,id)end end
-        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,clanwar=m.clanwar and {clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties}
+        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,clanwar=m.clanwar and {size=m.warSize or 2,count=m.warCount or 2,clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties}
     end
     local out=(m.kind=='custom'and C or R).selection(m.rules,users,m.groups,m.teams);out.field=m.field;out.fieldRevision=m.revision
     if m.kind~='custom'and m.teams then for _,id in ipairs(users)do out.teams[id]=m.teams[tostring(id)]or out.teams[id]end;out.fill=R.fill(m.rules,users,out.teams)end

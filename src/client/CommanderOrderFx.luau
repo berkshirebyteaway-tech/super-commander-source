@@ -151,6 +151,71 @@ themes.domain=function(rig,s)
     rig.lightAt=rig.items[#rig.items-12].part
 end
 require(script.Parent.OrderVolume)(themes,{piece=piece,disc=disc,dash=dash,out=out,rgb=rgb,cool=cool})
+require(script.Parent.OrderVolume2)(themes,{piece=piece,disc=disc,dash=dash,out=out,rgb=rgb,cool=cool})
+local Meshes=require(script.Parent.CosmeticMeshes)
+local SPREAD={spread=true}
+local beats={
+    carbon={Ground={spread=true,spin=30},Mark={spread=true,t0=.05}},
+    cobalt={Ground={spread=true,spin=-40},Chevron={t0=.05,t1=.9,slide=.3},Bracket={grow={1.3,1,.2}}},
+    pulse={Ground={spread=true,spin=20},Ring={ring={0,.5,.9,1.25},stagger=.12}},
+    venom={Ground={grow={.4,1,.18}},Splash={t0=.05,t1=.6,ring={.05,.55,.8,1.15}},Bubble={t0=.2,blink=.1},Ring={spin=25}},
+    tidal={Ground={spread=true,spin=15},Wave={spin=90},Spray={t0=.15,t1=.7,ring={.15,.55,.9,1.15}},Swirl={spin=220}},
+    ember={Ground=SPREAD,Flame={spin=45,wobble=.12},Ember={t0=.1,t1=.8,ring={.1,.7,.8,1.2}},Ring={}},
+    storm={Ground={spread=true,spin=-30},Bolt={flash={.05,.35,.65}},Target={grow={1.2,1,.2}},Ring={spin=60}},
+    solaris={Ground={spread=true,spin=12},Laurel={t0=.08,grow={.7,1,.25}},Crest={t0=.15,grow={.8,1,.2}},Rim={spin=-8},Glow={ring={0,.5,.9,1.25}}},
+    crown={Ground=SPREAD,Jewel={t0=.1,grow={0,1,.3}},Banner={t0=.05,grow={.85,1,.2}},Sapphire={t0=.05,grow={.85,1,.2}},Rim={spin=10},Glow={ring={0,.5,.9,1.25}}},
+    phoenix={Ground=SPREAD,Feather={t0=.05,growX={.5,1,.25}},Flame={spin=50,wobble=.12},Rim={},Glow={ring={0,.5,.9,1.25}}},
+    parallax={Ground={spread=true,spin=18},Prism={spin=-18},Orbit={spin=40,alternate=true},Halo={pulse=true},Rune={t0=.05,spin=30},Star={t0=.2,blink=.05},Crown={t0=.1,grow={.85,1,.2},spin=-12}},
+    eclipse={Ground=SPREAD,Diamond={t0=.15,t1=.5,spark=true},Corona={spin=10,wobble=.2},Halo={pulse=true},Ray={t0=.1,spin=-20},Ring={spin=25}},
+    dragon={Ground={spread=true,spin=12},Dragon={t0=.05,grow={.6,1,.3},spin=40},Pearl={t0=.2,spin=40},Rim={spin=-10},Glow={ring={0,.5,.9,1.25}}},
+    diamond={Ground=SPREAD,Gem={t0=.1,grow={0,1,.36}},Spark={t0=.3,t1=.8,spark=true},Rim={spin=8},Glow={ring={0,.5,.9,1.25}}},
+    seraph={Ground=SPREAD,Wing={t0=.05,grow={.5,1,.3},spin=15},Feather={t0=.05,grow={.5,1,.3},spin=15},Halo={pulse=true},Pillar={t0=.2,t1=.9,blink=.05},Ring={spin=20}},
+    glitch={Ground={jitter=true},Cursor={t1=1,slide=1.2},Corner={t0=.1,blink=.1},Halo={spin=30},Shift={blink=.1},Grid={t0=.1,spin=-25}},
+    leviathan={Ground={spread=true,spin=10},Tentacle={t0=.05,grow={.8,1,.3},spin=35},Sucker={t0=.05,grow={.8,1,.3},spin=35},Halo={pulse=true},Ripple={t0=.1,grow={.9,1.1,.9}},Eye={t0=.3,growZ={0,1,.15}}},
+}
+local function partBeat(series,name)
+    local core=name:gsub('^Order',''):gsub('Top$','');local n=tonumber(core:match('%d+$'));core=core:gsub('%d+$','')
+    local b=(beats[series]or {})[core]or {}
+    if series=='seraph'and core=='Wing'and n==2 then b={t0=.15,spin=-15}end
+    return b,n
+end
+local function meshTheme(rig,style)
+    local series=style.id:match('^(%a+)_motion$')
+    local list=Meshes.build(rig.model,style.id,{colors={primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)}})
+    if not list then return false end
+    local life0=rig.life
+    for _,r in ipairs(list)do
+        local d=r.def;local b,n=partBeat(series,d.name);local base=r.part.Transparency
+        local home=CFrame.new(r.home.Position)*r.home.Rotation;local size0=r.part.Size
+        local t0,t1=(b.t0 or 0)+((b.stagger and n)and(n-1)*b.stagger or 0),b.t1 or 1
+        local ring=b.ring and{b.ring[1]+((b.stagger and n)and(n-1)*b.stagger or 0),b.ring[2],b.ring[3],b.ring[4]}
+        local spin=b.spin and(b.alternate and n==2 and -b.spin or b.spin)
+        local item={part=r.part,mode=0,phase=d.phase or 1,color=r.part.Color}
+        item.anim=function(t,sec)
+            if t<t0 or t>t1 then return home,size0,1 end
+            local g,gx,gz,tr=1,1,1,base
+            if b.spread then local u=math.clamp(t/.18,0,1);g=u<1 and .6+.44*out(u)or 1.04-.04*math.clamp((t-.18)/.1,0,1)end
+            if b.grow then g*=b.grow[1]+(b.grow[2]-b.grow[1])*out((t-t0)/b.grow[3])end
+            if b.growX then gx=b.growX[1]+(b.growX[2]-b.growX[1])*out((t-t0)/b.growX[3])end
+            if b.growZ then gz=b.growZ[1]+(b.growZ[2]-b.growZ[1])*out((t-t0)/b.growZ[3])end
+            if ring then local u=math.clamp((t-ring[1])/ring[2],0,1);if t<ring[1]then return home,size0,1 end;g*=ring[3]+(ring[4]-ring[3])*u;tr=math.max(tr,.1+.9*u)end
+            if b.spark then local u=math.clamp((t-t0)/math.max(.01,t1-t0),0,1);g*=1+.6*math.sin(u*math.pi)end
+            if b.wobble then g*=1+.05*math.sin(sec*TAU/b.wobble)end
+            if b.pulse then tr=math.max(tr,.1+.3*(.5+.5*math.sin(sec*TAU/.3)))end
+            if b.blink and math.floor((sec-t0*life0)/b.blink)%2==1 then tr=1 end
+            if b.flash then local on=false;for _,f in ipairs(b.flash)do if t>=f and t<f+.06/life0 then on=true end end;if not on then tr=1 end end
+            g*=1+.08*math.max(0,(t-.75)/.25)
+            local cf=home
+            if spin then cf=CFrame.Angles(0,-math.rad(spin)*sec,0)*cf end
+            if b.slide then cf=CFrame.new(0,0,-b.slide*(1-out((t-t0)/math.max(.05,(t1-t0)*.4))))*cf end
+            if b.jitter then local k=math.floor(sec*10);cf=CFrame.new((k%3-1)*.08,0,((k//3)%3-1)*.08)*cf end
+            cf=CFrame.new(cf.Position*Vector3.new(g*gx,1,g*gz))*cf.Rotation
+            return cf,Vector3.new(size0.X*g*gx,size0.Y,size0.Z*g*gz),tr
+        end
+        table.insert(rig.items,item)
+    end
+    rig.mesh=true;return true
+end
 local byTier={'signal','tactic','wave','crest','domain'}
 local function pose(rig,t,sec,pivot,scale,phase)
     for _,item in ipairs(rig.items)do
@@ -175,7 +240,7 @@ function M.model(style)
         Art.apply(m,style,'motion',CFrame.new(0,.06,0),.95);m:SetAttribute('AppearanceOnly',true);return m
     end
     local tier=style.tier;local rig={model=m,items={},tier=tier,life=life[tier],preview=true};rigs[m]=rig
-    themes[theme](rig,style)
+    if not(style.id and Meshes.ready(style.id)and meshTheme(rig,style))then themes[theme](rig,style)end
     pose(rig,rig.show or show[tier],0,CFrame.identity,1,3)
     local state=Art.apply(m,style,'motion',CFrame.new(0,.06,0),.95)
     if state then
@@ -186,6 +251,7 @@ function M.model(style)
             item.part:SetAttribute('BaseTransparency',item.part.Transparency)
             table.insert(state.parts,{part=item.part,home=item.part.CFrame,mode=item.mode,color=item.color,phase=item.phase})
         end
+        if tier>=4 and not rig.lightAt and rig.mesh then rig.lightAt=rig.items[1]and rig.items[1].part end
         if tier>=4 and rig.lightAt then
             local light=Instance.new('PointLight');light.Name='CollectionLight';light.Color=rgb(style.accent);light.Range=4;light.Brightness=.6;light.Shadows=false;light.Parent=rig.lightAt;state.light=light
         end
@@ -210,7 +276,9 @@ function M:step(dt,reduced)
     for i=#self.active,1,-1 do local v=self.active[i];v.age+=dt
         if reduced or not v.root.Parent or v.age>=v.life then v.model:Destroy();table.remove(self.active,i)
         else
-            local scale=math.clamp(v.root.Size.Y/2,.65,1.45)*1.35
+            local camera=workspace.CurrentCamera
+            local want=camera and .256*2*(camera.CFrame.Position-v.root.Position).Magnitude*math.tan(math.rad(camera.FieldOfView)/2)/3.6 or 0
+            local scale=math.clamp(math.max(math.clamp(v.root.Size.Y/2,.65,1.45)*1.35,want),.65,4.5)
             local h=v.root.Parent and v.root.Parent:FindFirstChildOfClass('Humanoid')
             local at=v.root.Position-Vector3.new(0,h and h.HipHeight+v.root.Size.Y/2-.05 or v.root.Size.Y*.9,0);local look=v.root.CFrame.LookVector*Vector3.new(1,0,1)
             local pivot=look.Magnitude>.01 and CFrame.lookAt(at,at+look)or CFrame.new(at)

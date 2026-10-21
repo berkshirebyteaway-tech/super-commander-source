@@ -13,7 +13,7 @@ function M.new(parent,renderer,effects)
     self.banner=UI.button(layer,"UnderAttack","",function()
         if self.incoming[1] and self.incoming[1].frontTile then renderer:focusAt(self.incoming[1].frontTile,true) end
     end)
-    self.banner.BackgroundColor3=UI.colors.bg;self.banner.BackgroundTransparency=.1;self.banner.TextColor3=UI.colors.danger;self.banner.TextSize=14;self.banner.Visible=false;local bs=self.banner:FindFirstChildOfClass("UIStroke")or UI.stroke(self.banner);bs.Color=UI.colors.danger
+    self.banner.BackgroundColor3=UI.colors.bg;self.banner.BackgroundTransparency=.1;self.banner.TextColor3=UI.colors.danger;self.banner.TextSize=14;self.banner.TextTruncate=Enum.TextTruncate.AtEnd;self.banner.Visible=false;local bs=self.banner:FindFirstChildOfClass("UIStroke")or UI.stroke(self.banner);bs.Color=UI.colors.danger
     self.troopsIcon=Icons.create(self.banner,'troops',20);UI.box(self.troopsIcon,-24,12,20,20);self.troopsIcon.ImageColor3=UI.colors.danger
     self.bannerPadding=UI.make('UIPadding',self.banner,{PaddingLeft=UDim.new(0,30),PaddingRight=UDim.new(0,6)})
     self.frontLabels=require(script.Parent.FrontlineTroops).new(layer,renderer)
@@ -75,10 +75,10 @@ function M:layout(w,h,obscured,compact,nuclear)
     self.banner.Text=compact and self.compactWarning or self.fullWarning or ''
     self.banner:SetAttribute('Compact',compact==true)
     local touch=require(script.Parent.InputMode).touch()
-    local bh=touch and 44 or 32;local icon=self.troopsIcon.Visible and (touch and 30 or 24)or 6
+    local bh=touch and 40 or 32;local icon=self.troopsIcon.Visible and (touch and 30 or 24)or 6
     local fit=game:GetService('TextService'):GetTextSize(require(script.Parent.Localization).text(self.banner.Text),14,self.banner.Font,Vector2.new(1000,bh)).X+icon+18
-    local bw=math.min(w<900 and 188 or 356,w-24,touch and math.huge or math.max(140,fit))
-    UI.box(self.troopsIcon,touch and -24 or -20,touch and 12 or 8,touch and 20 or 16,touch and 20 or 16)
+    local bw=math.min(touch and 320 or (w<900 and 188 or 356),w-24,math.max(140,fit))
+    UI.box(self.troopsIcon,touch and -24 or -20,touch and 10 or 8,touch and 20 or 16,touch and 20 or 16)
     UI.box(self.banner,(w-bw)/2,h<500 and 8 or 70,bw,bh)
     UI.box(self.edges[1],0,0,w,4);UI.box(self.edges[2],0,h-4,w,4)
     UI.box(self.edges[3],0,0,4,h);UI.box(self.edges[4],w-4,0,4,h)

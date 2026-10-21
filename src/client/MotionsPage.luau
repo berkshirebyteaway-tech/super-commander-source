@@ -34,7 +34,7 @@ function M.draw(lobby,body,w,startY)
     local p=lobby.account and lobby.account.progress or {};local level=p.level or 1;local y=startY or 0
     local list=Loadout.copy((lobby.account.preferences or {}).motionLoadout,level);local shop=lobby.callbacks.shop()
     local club=VipLock.allows('motion')
-    local hint=UI.label(body,'Hint',club and '6개 장착 / M으로 모션 사용'or 'VIP 클럽 전용, 레벨로 모션이 열려요',12,club and UI.colors.muted or UI.colors.gold);UI.box(hint,4,y,w-8,20);y+=28
+    local hint=UI.label(body,'Hint',club and '6개 장착 / M으로 모션 사용'or 'VIP 클럽 전용, 레벨로 모션이 열려요',12,club and UI.colors.muted or UI.colors.vip);UI.box(hint,4,y,w-8,20);y+=28
     local short=lobby.root.AbsoluteSize.Y/require(script.Parent.Theme).scale<500
     local cols=w>=300 and 3 or 2;local gap=8;local tw=math.floor((w-6-gap*(cols-1))/cols);local th=short and 112 or math.clamp(math.floor(tw*.85),136,144)
     local is,iy=short and 24 or 36,short and 8 or 14
@@ -51,8 +51,8 @@ function M.draw(lobby,body,w,startY)
         name.TextXAlignment=Enum.TextXAlignment.Center;name.TextWrapped=false;name.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(name,6,iy+is+(open and 10 or 4),tw-12,18)
         if open and not club then
             local vip=UI.button(body,'VipMotion_'..m.id,'VIP 클럽',function()VipLock.open('motion',true)end)
-            UI.box(vip,2+col*(tw+gap)+4,y+row*(th+gap)+th-46,tw-8,44);vip.TextColor3=UI.colors.gold
-            local edge=vip:FindFirstChildOfClass('UIStroke');if edge then edge.Color=UI.colors.gold end
+            UI.box(vip,2+col*(tw+gap)+4,y+row*(th+gap)+th-46,tw-8,44);vip.TextColor3=UI.colors.vip
+            local edge=vip:FindFirstChildOfClass('UIStroke');if edge then edge.Color=UI.colors.vip end
         elseif open then
             local selected=table.find(list,m.id)
             local equip=UI.button(body,'EquipMotion_'..m.id,selected and '해제'or '장착',function()

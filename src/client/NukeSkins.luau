@@ -78,6 +78,31 @@ M.themes={
         trail={core=rgb(240,236,255),hot=rgb(200,120,255),smoke=rgb(20,18,34),haze=rgb(70,56,110),width=.9,smokeWidth=2.6,coreLife=.6,smokeLife=3.4,ribbon=rgb(235,230,255)},
         impact={flash=rgb(255,255,255),core=rgb(240,236,255),fire=rgb(200,120,255),ember=rgb(40,20,70),smoke=rgb(22,20,36),cap=rgb(46,40,74),shock=rgb(235,230,255),dust=rgb(70,64,96),scorch=rgb(6,6,12),void=rgb(4,4,8),corona=rgb(235,230,255),ring=rgb(200,120,255)},
     },
+    dragonbreath={
+        warhead={body=rgb(30,96,90),nose=rgb(170,240,215),fins=rgb(18,58,60),trim=rgb(255,206,90),core=rgb(210,255,234),eye=rgb(255,214,100),mane=rgb(140,240,200),glow=rgb(90,230,180),light=rgb(110,240,190)},
+        trail={core=rgb(220,255,236),hot=rgb(90,230,180),smoke=rgb(24,70,66),haze=rgb(90,170,150),width=1,smokeWidth=2.2,coreLife=.8,smokeLife=3,ribbon=rgb(120,236,196),scale=rgb(170,240,215),gold=rgb(255,206,90)},
+        impact={flash=rgb(236,255,246),core=rgb(210,255,234),fire=rgb(80,226,176),ember=rgb(20,90,76),smoke=rgb(26,64,60),cap=rgb(40,96,88),shock=rgb(190,250,226),dust=rgb(70,110,100),scorch=rgb(10,28,26),flame=rgb(150,250,210),jade=rgb(30,96,90),gold=rgb(255,206,90),ring=rgb(120,240,200)},
+    },
+    gem={
+        warhead={body=rgb(226,236,246),nose=rgb(244,250,255),fins=rgb(190,206,224),trim=rgb(255,214,120),core=rgb(200,235,255),gem=rgb(214,236,255),spark=rgb(250,252,255),glow=rgb(170,215,255),light=rgb(190,225,255)},
+        trail={core=rgb(250,252,255),hot=rgb(170,215,255),smoke=rgb(150,170,196),haze=rgb(226,236,246),width=.9,smokeWidth=1.8,coreLife=.8,smokeLife=2.8,ribbon=rgb(214,236,255),spark=rgb(255,255,255),gold=rgb(255,214,120)},
+        impact={flash=rgb(255,255,255),core=rgb(236,246,255),fire=rgb(170,215,255),ember=rgb(90,120,170),smoke=rgb(120,136,160),cap=rgb(170,186,210),shock=rgb(236,246,255),dust=rgb(170,180,196),scorch=rgb(60,74,96),gem=rgb(214,236,255),gold=rgb(255,214,120),ring=rgb(170,215,255)},
+    },
+    judgment={
+        warhead={body=rgb(244,244,252),nose=rgb(255,250,236),fins=rgb(232,226,214),trim=rgb(255,224,150),core=rgb(255,252,240),blade=rgb(255,246,214),feather=rgb(246,244,250),halo=rgb(255,143,216),glow=rgb(255,232,170),light=rgb(255,236,190)},
+        trail={core=rgb(255,252,240),hot=rgb(255,226,160),smoke=rgb(214,210,222),haze=rgb(250,246,236),width=1,smokeWidth=1.9,coreLife=.9,smokeLife=3,ribbon=rgb(255,232,170),feather=rgb(250,248,255),halo=rgb(255,143,216)},
+        impact={flash=rgb(255,255,255),core=rgb(255,252,240),fire=rgb(255,226,160),ember=rgb(170,140,180),smoke=rgb(200,196,214),cap=rgb(232,226,240),shock=rgb(255,246,226),dust=rgb(210,204,214),scorch=rgb(130,120,140),pillar=rgb(255,250,230),feather=rgb(248,246,255),gold=rgb(255,224,150),halo=rgb(255,143,216),ring=rgb(255,232,170)},
+    },
+    delete={
+        warhead={body=rgb(8,10,16),nose=rgb(80,240,255),fins=rgb(20,24,36),trim=rgb(80,240,255),core=rgb(255,90,220),pixel=rgb(255,90,220),code=rgb(150,250,255),glow=rgb(80,240,255),light=rgb(120,220,255)},
+        trail={core=rgb(220,252,255),hot=rgb(80,240,255),smoke=rgb(14,18,28),haze=rgb(40,60,90),width=.8,smokeWidth=2,coreLife=.6,smokeLife=3,ribbon=rgb(80,240,255),pixel=rgb(255,90,220)},
+        impact={flash=rgb(230,252,255),core=rgb(200,250,255),fire=rgb(80,240,255),ember=rgb(110,40,140),smoke=rgb(14,18,28),cap=rgb(30,36,56),shock=rgb(160,250,255),dust=rgb(40,50,70),scorch=rgb(4,6,10),void=rgb(4,6,10),pixel=rgb(255,90,220),ring=rgb(80,240,255)},
+    },
+    maw={
+        warhead={body=rgb(10,30,52),nose=rgb(60,240,220),fins=rgb(6,20,36),trim=rgb(220,236,240),core=rgb(60,240,220),water=rgb(40,140,170),eye=rgb(160,255,240),maw=rgb(190,130,255),halo=rgb(200,120,255),glow=rgb(60,240,220),light=rgb(80,230,220)},
+        trail={core=rgb(210,255,248),hot=rgb(60,240,220),smoke=rgb(8,26,44),haze=rgb(30,80,100),width=.9,smokeWidth=2.4,coreLife=.7,smokeLife=3.2,ribbon=rgb(60,240,220),violet=rgb(200,120,255),bubble=rgb(170,250,240)},
+        impact={flash=rgb(220,255,250),core=rgb(190,255,244),fire=rgb(60,240,220),ember=rgb(30,70,110),smoke=rgb(10,30,48),cap=rgb(20,54,76),shock=rgb(170,250,240),dust=rgb(40,70,90),scorch=rgb(4,14,24),water=rgb(30,120,150),foam=rgb(200,255,248),abyss=rgb(6,20,36),flesh=rgb(14,40,64),eye=rgb(160,255,240),violet=rgb(200,120,255),teeth=rgb(220,236,240),ring=rgb(170,120,255)},
+    },
 }
 M.default='classic'
 for id,s in pairs(require(script.Parent.Parent.Core.CosmeticCatalog).styles)do if s.category=='nuclear'then

@@ -4,6 +4,7 @@ local Shortcut=require(script.Parent.CornerShortcut)
 local Placement=require(script.Parent.Parent.Core.InterfacePlacement)
 local M={};M.__index=M
 local NAMES={FavoriteEmojis='이모지',QuickMessages='대화',MotionShortcut='모션'}
+local COLUMN={FavoriteEmojis='이모지',QuickMessages='대화',MotionShortcut='모션',EventLogButton='기록',CameraShortcut='내 위치'}
 function M.new(panel,menu,a)
     local p={panel=panel,menu=menu,menuPlate=a.menuPlate,emoji=a.chat.emojiButton,quick=a.chat.quickButton,motion=a.motionShortcut,
         mode={bar=a.modeBar,title=a.modeTitle,hint=a.modeHint,cancel=a.modeCancel,all=a.modeAll}}
@@ -13,11 +14,16 @@ function M.new(panel,menu,a)
     Style.round(self.backdrop,10);Style.line(self.backdrop,Style.colors.line,1)
     self.toggle=Shortcut.new(p.panel,'CommsShortcut',nil,'comms',function()self:set(not self.open)end,'소통');self.toggle.Visible=false
     self.members={p.emoji,p.quick,p.motion}
+    self.more=Shortcut.new(p.panel,'MoreShortcut',nil,'more',function()self:set(not self.open)end,'펼치기');self.more.Visible=false
+    self.column={p.emoji,p.quick,p.motion,a.eventLog and a.eventLog.button,a.cameraShortcut,p.menu}
+    for _,b in ipairs(self.column)do if b and b~=p.emoji and b~=p.quick and b~=p.motion then
+        b.Activated:Connect(function()if self.portrait and self.open then task.defer(function()self:set(false)end)end end)
+    end end
     self.stack={a.cameraShortcut,a.eventLog and a.eventLog.button}
     if a.tactical then a.tactical.frame:GetPropertyChangedSignal('Visible'):Connect(function()self:aside()end)end
     if p.mode then p.mode.bar:GetPropertyChangedSignal('Visible'):Connect(function()if p.mode.bar.Visible and self.open then self:set(false)end end)end
     for _,b in ipairs(self.members)do
-        b.Activated:Connect(function()if self.phone and self.open then task.defer(function()self:set(false)end)end end)
+        b.Activated:Connect(function()if (self.phone or self.portrait)and self.open then task.defer(function()self:set(false)end)end end)
         b:GetPropertyChangedSignal('Visible'):Connect(function()self:refresh()end)
     end
     return self
@@ -42,6 +48,7 @@ function M:aside()
 end
 function M:set(open)
     self.open=open==true
+    if self.portrait and self.last then self:layout(table.unpack(self.last,1,7));return end
     self:refresh()
     if self.open and self.screen then
         local b=self.backdrop;local base=b.Position;b.Position=base+UDim2.fromOffset(8,0)
@@ -89,31 +96,54 @@ function M:placementBand(w,h,phone)
     end
 end
 function M:layout(w,h,touch,shown,sheet,buildTop,grid)
+    self.last={w,h,touch,shown,sheet,buildTop,grid}
     local a=self.a;local busy=sheet or a.modeBar.Visible
     shown=shown and not(a.tactical and a.tactical.frame.Visible)
     local p=self.p;self.screen={w=w,h=h};self.shown=shown;p.dropping=a.drop and a.drop.active
     local phone=Placement.phone(w,h,touch);self.phone=phone
-    if (not phone or busy) and self.open then self.open=false end
+    self.portrait=grid~=nil and buildTop~=nil
+    if (not (phone or self.portrait) or busy or not shown) and self.open then self.open=false end
     self:placementBand(w,h,phone);self:radial()
     for _,b in ipairs(self.members)do b.Parent=phone and self.tray or p.panel end
     self.stow=self.stow or UI.make('Frame',p.panel,{Name='BuildStow',BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Visible=false})
     self.stowed=self.stowed or {}
-    for _,b in ipairs({p.emoji,p.quick,p.motion,a.cameraShortcut,a.eventLog and a.eventLog.button})do
-        if grid and grid.open and b==p.motion then if b.Parent~=self.stow then self.stowed[b]=b.Parent;b.Parent=self.stow end
+    local fold=self.portrait and not p.dropping
+    for _,b in ipairs(self.column)do if b then
+        if fold and not self.open then if b.Parent~=self.stow then self.stowed[b]=b.Parent;b.Parent=self.stow end
         elseif self.stowed[b]then b.Parent=self.stowed[b];self.stowed[b]=nil end
-    end
-    if grid then
-        local x0=grid.x+math.floor((grid.w-102)/2)
-        for i,b in ipairs({p.emoji,p.quick,a.eventLog and a.eventLog.button,a.cameraShortcut})do if b then
-            UI.box(b,x0+((i-1)%2)*54,grid.y+math.floor((i-1)/2)*54,48,48)
-        end end
-        if p.motion.Parent~=self.stow then UI.box(p.motion,w-52-52,buildTop-48-4,48,48)end
+    end end
+    self.more.Visible=fold and shown~=false
+    if fold then
+        local x=w-52;local y=buildTop-48-4
+        UI.box(self.more,x,y,48,48);self.more:SetAttribute('TouchLayout',true);self.more.Key.Visible=false;self.more.Tip.Visible=false
+        if self.open then
+            local r=a.ranks and a.ranks.frame;local top=r and r.Visible and r.Position.Y.Offset+r.Size.Y.Offset+4 or 8
+            local rows=math.max(1,math.floor((y-top)/52));local k=0
+            for _,b in ipairs(self.column)do if b and b.Visible then
+                local row,col=k%rows+1,math.floor(k/rows);k+=1;UI.box(b,x-col*120,y-row*52,48,48)
+                local tip=b:FindFirstChild('Tip')
+                if tip then
+                    if tip:GetAttribute('Full')==nil then tip:SetAttribute('Full',tip.Text)end
+                    tip.Text=COLUMN[b.Name]or tip.Text;tip.Visible=true;tip.BackgroundTransparency=.12;tip.TextColor3=UI.colors.ink;UI.box(tip,-62,13,58,22)
+                end
+            end end
+        else
+            for _,b in ipairs(self.column)do local tip=b and b:FindFirstChild('Tip');if tip then tip.Visible=false;if tip:GetAttribute('Full')then tip.Text=tip:GetAttribute('Full')end end end
+        end
+        local plate=self.more:FindFirstChild('Plate')
+        if plate then
+            local m=Shortcut.PLATE.touch;UI.box(plate,(48-m)/2,(48-m)/2,m,m);plate.AnchorPoint=Vector2.zero;Style.round(plate,8)
+            plate.BackgroundColor3=self.open and UI.colors.ink or Color3.new(0,0,0);plate.BackgroundTransparency=self.open and 0 or .28
+            local icon=plate:FindFirstChild('Icon')
+            if icon then for _,o in ipairs(icon:GetDescendants())do if o:IsA('Frame')and o.BackgroundTransparency<1 then o.BackgroundColor3=self.open and UI.colors.bg or UI.colors.ink end end end
+        end
     end
     local menu=p.menu;local plate=p.menuPlate
+    Shortcut.scale(menu,menu.Parent==p.panel and not p.dropping and not grid and Placement.pcScale(touch,w,h)or 1)
     if menu.Parent==p.panel and not p.dropping then
         local spot=Placement.shortcuts(w,h,touch).Menu;local size=48
-        UI.box(menu,grid and w-52 or spot.x,buildTop and math.min(spot.y,buildTop-size-4)or spot.y,size,size)
-        local s=phone and 36 or touch and 40 or 44
+        if not fold then UI.box(menu,spot.x,buildTop and math.min(spot.y,buildTop-size-4)or spot.y,size,size)end
+        local s=phone and Shortcut.PLATE.phone or touch and not Placement.desk(w,h,touch) and Shortcut.PLATE.touch or 44
         UI.box(plate,(size-s)/2,(size-s)/2,s,s);Style.round(plate,phone and 10 or 8)
         plate.BackgroundColor3=phone and Color3.new(0,0,0)or Style.colors.cell;plate.BackgroundTransparency=phone and .28 or .04
         for i=1,3 do local bar=plate:FindFirstChild('Bar'..i);if bar then local bw=math.floor(s*.42);UI.box(bar,(s-bw)/2,math.floor(s/2)-6+(i-1)*5,bw,2)end end

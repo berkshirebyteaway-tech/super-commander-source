@@ -2,15 +2,15 @@ local Spawn=if script then require(script.Parent.SpawnRules)else require('./Spaw
 local Format=if script then require(script.Parent.TeamFormat)else require('./TeamFormat')
 local Terrain=if script then require(script.Parent.Terrain)else require('./Terrain')
 local M={};M.__index=M
-M.spread=32;M.seconds=20;M.planeSeconds=2;M.minimumLanding=3;M.readySeconds=12;M.inputTimeout=.5
-M.diveMultiplier=1.8
+M.spread=32;M.planeSeconds=2;M.pickSeconds=8;M.plungeSeconds=2;M.seconds=M.planeSeconds+M.pickSeconds+M.plungeSeconds
+M.minimumLanding=3;M.readySeconds=12;M.inputTimeout=.5
+M.crossSeconds=2.5
 M.nearestRadius=40
-M.steerScale=1.5
 local function finite(n)return type(n)=='number'and n==n and math.abs(n)<math.huge end
 function M.new(world,roster,now,random)
     local self=setmetatable({world=world,roster=table.clone(roster),created=now,lastStep=now,random=random==true,players={},ready={}},M)
     local w,h=world.map.meta.width,world.map.meta.height
-    self.speed=math.max(w,h)/(M.seconds-M.planeSeconds-2)*M.steerScale
+    self.speed=math.max(w,h)/M.crossSeconds
     local hash=#roster;for i=1,#tostring(world.settings and world.settings.seed or '')do hash=(hash*31+string.byte(tostring(world.settings.seed),i))%2147483647 end
     local turn=hash%6283/1000
     for id,r in ipairs(roster)do
@@ -26,8 +26,14 @@ function M.new(world,roster,now,random)
 end
 function M:setDiving(id,value,now)
     local p=self.players[id]
-    if type(value)~='boolean'or not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.minimumLanding or now>=self.startAt+M.seconds then return false end
-    p.diving=value;return true
+    if type(value)~='boolean'or not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+M.seconds then return false end
+    if value and not p.plungeAt then p.plungeAt=now;p.diving=true end
+    return true
+end
+function M:plungeStart(p)
+    if self.random then return M.planeSeconds end
+    local pickEnd=M.planeSeconds+M.pickSeconds
+    return p.plungeAt and math.min(pickEnd,p.plungeAt-self.startAt)or pickEnd
 end
 function M:markReady(id,now)
     if not self.players[id]or self.finished then return false end
@@ -38,7 +44,7 @@ function M:markReady(id,now)
 end
 function M:input(id,x,y,seq,now)
     local p=self.players[id]
-    if not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+M.seconds then return false end
+    if not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+self:plungeStart(p)then return false end
     if not finite(x)or not finite(y)or math.abs(x)>1 or math.abs(y)>1 or not finite(seq)or seq%1~=0 or seq<=p.seq or seq>1e9 then return false end
     local length=math.sqrt(x*x+y*y);if length>1 then x/=length;y/=length end
     p.dx,p.dy,p.seq,p.inputAt=x,y,seq,now;return true
@@ -115,16 +121,16 @@ function M:step(now,onLanding,onRecovery)
         table.insert(landed,{id=id,tile=tile})
     end
     if elapsed>=M.planeSeconds then
-        local fallDt=math.min(dt,elapsed-M.planeSeconds)
+        local stepStart=elapsed-dt
         for id,p in ipairs(self.players)do if not p.landed then
-            local fall=fallDt*(p.diving and M.diveMultiplier or 1)/(M.seconds-M.planeSeconds)
-            local travel=fall>0 and fallDt*math.min(1,p.altitude/fall)or 0
-            if not self.random then
+            local plunge=self:plungeStart(p)
+            local travel=math.max(0,math.min(elapsed,plunge)-math.max(stepStart,M.planeSeconds))
+            if not self.random and travel>0 then
                 local active=p.inputAt and now-p.inputAt<=M.inputTimeout
                 p.x=math.clamp(p.x+(active and p.dx or 0)*self.speed*travel,p.area and p.area.x or 0,p.area and p.area.x+p.area.w-1 or w-1)
                 p.y=math.clamp(p.y+(active and p.dy or 0)*self.speed*travel,p.area and p.area.y or 0,p.area and p.area.y+p.area.h-1 or h-1)
             end
-            p.altitude=math.max(0,p.altitude-fall)
+            if elapsed>=plunge then p.diving=true;p.altitude=math.max(0,1-(elapsed-plunge)/M.plungeSeconds)end
             if p.altitude<=1e-6 then land(id)end
         end end
     end
@@ -150,11 +156,12 @@ function M:frame(now)
     local elapsed=self.startAt and math.max(0,now-self.startAt)or 0
     local list,rallies={},{}
     for id,p in ipairs(self.players)do
-        table.insert(list,table.freeze({id=id,matchId=id,userId=p.userId,name=p.name,team=p.team,partyKey=p.partyKey,partyIndex=p.partyIndex,x=p.x,y=p.y,tile=p.tile,landed=p.landed==true,fallback=p.fallback==true,altitude=p.altitude,diving=p.diving}))
+        table.insert(list,table.freeze({id=id,matchId=id,userId=p.userId,name=p.name,team=p.team,partyKey=p.partyKey,partyIndex=p.partyIndex,x=p.x,y=p.y,tile=p.tile,landed=p.landed==true,fallback=p.fallback==true,altitude=p.altitude,diving=p.diving,
+            plunge=self.startAt and self:plungeStart(p)or nil}))
         if p.rally and p.rally.expires>now then table.insert(rallies,table.freeze(table.clone(p.rally)))end
     end
     return table.freeze({active=not self.finished,preparing=self.startAt==nil,elapsed=elapsed,left=math.max(0,M.seconds-elapsed),seconds=M.seconds,planeSeconds=M.planeSeconds,
-        random=self.random,players=table.freeze(list),rallies=table.freeze(rallies),speed=self.speed,diveMultiplier=M.diveMultiplier})
+        random=self.random,players=table.freeze(list),rallies=table.freeze(rallies),speed=self.speed,pickSeconds=M.pickSeconds,plungeSeconds=M.plungeSeconds})
 end
 function M:snapshot(viewer,now,frame)
     local shared=frame or self:frame(now);local result=table.clone(shared)

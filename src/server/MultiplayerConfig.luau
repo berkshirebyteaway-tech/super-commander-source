@@ -1,7 +1,7 @@
 return {
     rankedEnabled=true,
     globalPvpEnabled=true,
-    queueProtocol=4,
+    queueProtocol=5,
     profileStore="ToyfrontCareer_v1",winsStore="ToyfrontWins_v1",
     spawnSeconds=20,resultSeconds=18,reconnectSeconds=180,
     disconnectMarkSeconds=30,

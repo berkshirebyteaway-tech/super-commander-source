@@ -1,5 +1,6 @@
 local G=require(script.Parent.ToyGeometry)
 local V=require(script.Parent.TrailVolume)
+local V2=require(script.Parent.TrailVolume2)
 local T={};local states=setmetatable({},{__mode='k'})
 local function rgb(a)return Color3.fromRGB(table.unpack(a))end
 local function hash(n)local x=math.sin(n*12.9898)*43758.5453;return x-math.floor(x)end
@@ -161,7 +162,8 @@ function T.display(style)
             e.u0=(i-1)/n;e.span=span;e.from=from;e.life=life or e.spec.life;e.phase=phase or 1;table.insert(state.elements,e)
         end
     end
-    if V.display[style.theme]then V.display[style.theme](model,state,style,stream,ribbon)
+    local themed=V.display[style.theme]or V2.display[style.theme]
+    if themed then themed(model,state,style,stream,ribbon)
     elseif tier==0 then ribbon(model,state,'Ribbon',0,.03,.1,2,6,.18,.04,accent,trim,false)
     elseif tier==1 then stream('puff',9,1.9,.05)
     elseif tier==2 then
@@ -237,5 +239,5 @@ function T.step(model,age,reduced,phase)
         end
     end
 end
-V.install(T)
+V.install(T);V2.install(T)
 return T

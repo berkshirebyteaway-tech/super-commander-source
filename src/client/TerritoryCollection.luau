@@ -1,4 +1,5 @@
 local Catalog=require(script.Parent.Parent.Core.CosmeticCatalog)
+local Authored=require(script.Parent.TerritoryPatterns)
 local M={}
 local floor,sin,pi=math.floor,math.sin,math.pi
 local band,bxor,rshift=bit32.band,bit32.bxor,bit32.rshift
@@ -137,30 +138,67 @@ local ink={
         {'ice',{.3,.36,.44}},{'ice',{0,.34,.42}},{'ice',{0,0,.4}},{'ice',{0,.5,.6}}},
 }
 require(script.Parent.TerritoryVolume).install(build,ink,{hash=hash,noise=noise,tex=tex,put=put,bayer=bayer})
+require(script.Parent.TerritoryVolume2).install(build,ink,{hash=hash,noise=noise,tex=tex,put=put,bayer=bayer})
 require(script.Parent.TerritoryFlat).install(build,ink,{hash=hash,noise=noise,tex=tex,put=put,bayer=bayer})
+local decoded={}
+local function authored(set,name)
+    local key=set..name;local t=decoded[key];if t then return t end
+    local src=Authored[set][name];if not src then return nil end
+    t={w=src.w,h=src.h,buf=buffer.create(src.w*src.h)};local s,buf=src.rle,t.buf
+    local i,o,n,last=1,0,#src.rle,0
+    while i<=n do
+        local b=string.byte(s,i)
+        if b>=65 and b<=90 then
+            local c=0;while i<=n do b=string.byte(s,i);if b<65 or b>90 then break end;c=c*26+b-65;i+=1 end
+            buffer.fill(buf,o,last,c);o+=c
+        else last=b<=57 and b-48 or b-87;buffer.writeu8(buf,o,last);o+=1;i+=1 end
+    end
+    decoded[key]=t;return t
+end
 local specs={}
+local function inks(s,table_,tones,phase)
+    for code=1,35 do s.to[code]=LIGHT;s.k[code]=0 end
+    for code,i in pairs(table_)do s.to[code]=tones[i[1]]or LIGHT;s.k[code]=type(i[2])=='table'and i[2][phase]or i[2]end
+end
 function M.spec(style,phase)
-    local motif=style and style.motif;if not motif or not ink[motif]then return nil end
+    local skin=style and style.id and Authored.skins[style.id]
+    local motif=style and style.motif;if not skin and(not motif or not ink[motif])then return nil end
     phase=math.clamp(phase or 1,1,3);local key=tostring(style.id)..':'..phase
     local s=specs[key];if s then return s end
-    local t=texture(motif);if not t then return nil end
+    local t=skin and authored('motifs',skin.motif)or texture(motif);if not t then return nil end
     local accent,trim=rgb(style.accent,LIGHT),rgb(style.secondary,LIGHT)
     local tones={light=LIGHT,dark=DARK,accent=accent,gold=accent,bright=trim:Lerp(accent,.35),ice=trim,teal=accent,violet=Color3.fromRGB(206,184,255),
         base=rgb(style.primary,DARK),trim=trim,hot=trim:Lerp(LIGHT,.4),fire=accent,white=LIGHT,black=Color3.fromRGB(3,3,9),corona=trim,
-        cyan=Color3.fromRGB(120,236,255),magenta=Color3.fromRGB(236,130,255)}
-    s={motif=motif,tier=style.tier,phase=phase,w=t.w,h=t.h,buf=t.buf,to={},k={}}
-    for code,i in ipairs(ink[motif])do s.to[code]=tones[i[1]];s.k[code]=type(i[2])=='table'and i[2][phase]or i[2]end
+        cyan=Color3.fromRGB(120,236,255),magenta=Color3.fromRGB(236,130,255),
+        pink=rgb(Authored.tones.pink),orchid=rgb(Authored.tones.orchid),gleam=rgb(Authored.tones.gleam)}
+    s={motif=skin and skin.motif or motif,tier=style.tier,phase=phase,w=t.w,h=t.h,buf=t.buf,to={},k={}}
+    if skin then
+        inks(s,skin.ink,tones,phase)
+        local b=authored('bands',skin.band)
+        if b then s.band={w=b.w,h=b.h,buf=b.buf,to={},k={}};inks(s.band,skin.bandInk,tones,phase)end
+    else for code,i in ipairs(ink[motif])do s.to[code]=tones[i[1]];s.k[code]=type(i[2])=='table'and i[2][phase]or i[2]end end
     specs[key]=s;return s
+end
+function M.bandRow(owned,x,y,rows)
+    for k=2,rows+1 do
+        if not(owned(x-k,y)and owned(x+k,y)and owned(x,y-k)and owned(x,y+k))then return k-2 end
+    end
+    return nil
 end
 local series={'carbon','cobalt','pulse','solaris','parallax'}
 local function fallback(tier)return series[tier]and M.spec(Catalog.get(series[tier]..'_territory'),1)end
-function M.pattern(c,tile,width,spec)
+function M.pattern(c,tile,width,spec,row)
     if not spec or not tile then return c end
     if type(spec)~='table'then spec=fallback(spec);if not spec then return c end end
     local w=spec.w;local x=tile%width;local y=(tile-x)//width
+    local b=row and spec.band
+    if b then
+        local code=buffer.readu8(b.buf,row*b.w+(x+y)%b.w)
+        if code~=0 then local k=b.k[code];if k>0 then return c:Lerp(b.to[code],k)end end
+    end
     local code=buffer.readu8(spec.buf,(y%spec.h)*w+x%w)
     if code==0 then return c end
-    local k=spec.k[code];if k==0 then return c end
+    local k=spec.k[code];if not k or k==0 then return c end
     return c:Lerp(spec.to[code],k)
 end
 M.texture=texture

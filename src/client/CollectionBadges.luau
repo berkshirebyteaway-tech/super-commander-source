@@ -8,7 +8,7 @@ function M.place(button)
     if thumb then local tw=button.Size.X.Offset
         b.AnchorPoint=Vector2.new(0,0);b.TextSize=9;b.Size=UDim2.fromOffset(dot and 7 or 24,dot and 7 or 13)
         b.Position=UDim2.new(0,math.floor(tw/2)+(dot and 9 or 4),0,-(button:FindFirstChildOfClass('UIPadding')and button:FindFirstChildOfClass('UIPadding').PaddingTop.Offset or 0)+(dot and 3 or 1))
-    else b.AnchorPoint=Vector2.new(1,0);b.TextSize=13;b.Size=UDim2.fromOffset(dot and 7 or 38,dot and 7 or 18);b.Position=UDim2.new(1,-3,0,2)end
+    else b.AnchorPoint=Vector2.new(1,0);b.TextSize=11;b.Size=UDim2.fromOffset(dot and 7 or 30,dot and 7 or 14);local pad=button:FindFirstChildOfClass('UIPadding');b.Position=UDim2.new(1,(dot and -3 or 4)+(pad and pad.PaddingRight.Offset or 0),0,(dot and 2 or -1)-(pad and pad.PaddingTop.Offset or 0))end
 end
 function M.badge(button,status)
     local b=button:FindFirstChild('CollectionBadge')

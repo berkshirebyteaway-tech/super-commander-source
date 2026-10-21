@@ -15,7 +15,7 @@ local function command(room,faction,kind,target,value)
 end
 function M.new(entries)
     local folder=Chat:FindFirstChild('TextChannels')or Instance.new('Folder');folder.Name='TextChannels';folder.Parent=Chat
-    local self=setmetatable({chat=Chat,http=Http,entries=entries,folder=folder,channels={},pending={},last={},issued={},busy={}},M)
+    local self=setmetatable({chat=Chat,http=Http,entries=entries,folder=folder,channels={},last={},issued={},busy={},chatPairs={},studio=game:GetService('RunService'):IsStudio()},M)
     self.voice=require(script.Parent.VoiceGate).new(entries)
     local function general(c)
         if c.Name=='RBXGeneral'and c:IsA('TextChannel')then c.ShouldDeliverCallback=function(message,to)
@@ -47,23 +47,7 @@ function M:channel(room,scope,requester,target)
         if requester and source.UserId~=requester.UserId then return false end
         local allowed=Routing.allowed(a,b,scope,record.target)
         if not allowed then return false end
-        if message.Metadata~=''then
-            local ok,meta=pcall(self.http.JSONDecode,self.http,message.Metadata)
-            local packet=ok and type(meta)=='table'and self.pending[meta.commander]or nil
-            if not packet or packet.owner~=source.UserId or packet.record~=record or packet.expires<os.clock()or packet.metadata~=message.Metadata then return false end
-            if message.MessageId~=''then
-                if packet.messageId and packet.messageId~=message.MessageId then return false end
-                packet.messageId=packet.messageId or message.MessageId
-            end
-            if not packet.executed then packet.executed=true
-                if self.telemetry then self.telemetry:communication(a.player,packet.kind,scope,'accepted',true,meta.commander)end
-                task.defer(function()
-                if self.entries[packet.owner]==a and a.room==room and Routing.active(a)then
-                    if packet.kind=='signal'then
-                        if packet.value.key=='attack'and not room.session:friendly(a.faction,packet.target)then command(room,a.faction,'target',packet.target)end
-                    else command(room,a.faction,packet.kind,packet.target,packet.value)end
-                end
-            end)end
+        if message.Metadata~=''then return false
         elseif not (Vip.matchText and Vip.allows('text',nil,self:vip(a)))then return false
         elseif self.telemetry and message.MessageId~=''then self.telemetry:communication(a.player,'text',scope,'accepted',true,message.MessageId)end
         return true
@@ -178,31 +162,48 @@ function M:prepareRequest(e,kind,payload)
     local requester=(scope=='player'or scope=='allies')and e.player or nil
     if requester then
         local ids={};for _,r in ipairs(recipients)do table.insert(ids,r.player.UserId)end
-        local ok,allowed=pcall(function()return self.chat:CanUsersDirectChatAsync(e.player.UserId,ids)end)
+        local ok,allowed=pcall(function()if self.studio and e.player.UserId<=0 then return ids end;return self.chat:CanUsersDirectChatAsync(e.player.UserId,ids)end)
         if not ok or type(allowed)~='table'then return {ok=false,message='Roblox 소통 권한을 확인할 수 없어요.'}end
         local set={};for _,id in ipairs(allowed)do set[id]=true end
         local filtered={};for _,r in ipairs(recipients)do if set[r.player.UserId]then table.insert(filtered,r)end end;recipients=filtered
-        if #recipients==0 then return {ok=false,message='Roblox에서 이 참가자와 소통할 수 없어요.'}end
+        if #recipients==0 then return {ok=false,message=kind=='emoji'and '이 상대에게는 Roblox 설정 때문에 못 보내요. 전체에게 보내 보세요.'or 'Roblox에서 이 참가자와 소통할 수 없어요.'}end
+    end
+    return self:deliver(e,{kind=kind,scope=scope,target=target,value=value,text=text,subject=subject,tile=tile},recipients,requester~=nil,issueKey,now,current)
+end
+function M:canChat(from,to)
+    if self.studio and (from<=0 or to<=0)then return true end
+    self.chatPairs=self.chatPairs or {};local key=from..':'..to;local hit=self.chatPairs[key]
+    if hit and hit.expires>os.clock()then return hit.ok end
+    local ok,can=pcall(function()return self.chat:CanUsersChatAsync(from,to)end)
+    if not ok then return false end
+    self.chatPairs[key]={ok=can==true,expires=os.clock()+300};return can==true
+end
+function M:deliver(e,m,recipients,checked,issueKey,now,current)
+    local room=e.room;local to={}
+    for _,r in ipairs(recipients)do
+        if checked or self:canChat(e.player.UserId,r.player.UserId)then table.insert(to,r)end
+        if not current()then return {ok=false}end
     end
     if not current()then return {ok=false}end
-    local record=self:channel(room,scope,requester,scope=='team'and s.sim.players[e.faction].team or target)
-    if not self:add(record,e,true)then return {ok=false,message='Roblox 채팅을 사용할 수 없어요.'}end
-    if not current()then return {ok=false}end
-    local added=0;for _,r in ipairs(recipients)do if self:add(record,r,not requester)then added+=1 end;if not current()then return {ok=false}end end
-    if added==0 then return {ok=false,message='Roblox에서 이 참가자와 소통할 수 없어요.'}end
-    if not current()then return {ok=false}end
-    local token=self.http:GenerateGUID(false):sub(1,18)
-    local metadata=self.http:JSONEncode({commander=token,v=1,subject=subject,tile=tile,scope=scope,key=type(value)=='table'and value.key or nil,kind=kind})
-    assert(#metadata<=200,'Fixed-message metadata must fit Roblox limit')
-    self.pending[token]={owner=e.player.UserId,record=record,target=target,kind=kind,value=value,metadata=metadata,expires=now+10}
+    local key=type(m.value)=='table'and m.value.key or m.kind=='quickChat'and m.value or nil
+    local ok,message
+    if m.kind=='signal'then
+        ok,message=true,'신호를 지도에 표시했어요.'
+        if key=='attack'and not room.session:friendly(e.faction,m.target)then local done,why=command(room,e.faction,'target',m.target);if done then message=why end end
+    else ok,message=command(room,e.faction,m.kind,m.target,m.value)end
+    if not ok then return {ok=false,message=message}end
     self.issued[issueKey]=now
-    return {ok=true,channel=record.channel.Name,text=text,metadata=metadata}
+    local packet={v=1,room=room.id,from=e.player.UserId,kind=m.kind,key=key,text=m.text,scope=m.scope,subject=m.subject,tile=m.tile}
+    for _,r in ipairs(to)do
+        if self.entries[r.player.UserId]==r and r.room==room and self.deliveryRemote then self.deliveryRemote:FireClient(r.player,packet)end
+    end
+    return {ok=true,npc=true,message=message,echo=packet,ping=m.kind=='signal'and {v=1,kind='signal',key=key,scope=m.scope,subject=m.subject,tile=m.tile}or nil}
 end
 function M:clean()
+    for key,hit in pairs(self.chatPairs or {})do if hit.expires<os.clock()then self.chatPairs[key]=nil end end
     if self.voice then self.voice:clean()end
     for id in pairs(self.last)do if not self.entries[id]then self.last[id]=nil end end
     for key,issued in pairs(self.issued)do if os.clock()-issued>30 then self.issued[key]=nil end end
-    for token,p in pairs(self.pending)do if p.expires<os.clock()then self.pending[token]=nil end end
     for key,r in pairs(self.channels)do
         local retained=false;for _,e in pairs(self.entries)do if e.room==r.room then retained=true;break end end
         if not retained then r.channel:Destroy();self.channels[key]=nil end

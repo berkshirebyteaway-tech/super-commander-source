@@ -11,7 +11,7 @@ game:GetService('RunService').RenderStepped:Connect(function(dt)
             parent=parent.Parent
         end
         if shown and(not parent or parent.Enabled)and count<12 then
-            count+=1;v.rig:step(CFrame.new(1.35,-.7,0),time,0,1,0,nil,game.Players.LocalPlayer:GetAttribute('CommanderReducedEffects')==true)
+            count+=1;v.rig:step(CFrame.new(1.35,-.7,0),time,0,1,0,nil,game.Players.LocalPlayer:GetAttribute('CommanderReducedEffects')==true,nil,v.ground)
         end
     end
 end)
@@ -29,7 +29,8 @@ function M.create(parent,slot,style,opts)
     if slot=='commanderStandard'then
         local rig=require(script.Parent.CommanderStandardRig).new(viewport,style,Color3.fromRGB(54,226,208))
         rig:step(CFrame.new(1.35,-.7,0),0,0,1,0)
-        previews[viewport]={rig=rig};viewport.Destroying:Once(function()previews[viewport]=nil;rig:destroy()end)
+        local ground=not(opts and opts.flagOnly)and CFrame.new(0,-2.9,0)or nil;rig:step(CFrame.new(1.35,-.7,0),0,0,1,0,nil,nil,nil,ground)
+        previews[viewport]={rig=rig,ground=ground};viewport.Destroying:Once(function()previews[viewport]=nil;rig:destroy()end)
         camera.FieldOfView=26
         if opts and opts.flagOnly then
             model:Destroy()

@@ -4,12 +4,17 @@ local Placement=require(script.Parent.Parent.Core.InterfacePlacement)
 local Icons=require(script.Parent.OutgameIcons)
 local Step=require(script.Parent.TelemetryStep)
 local L=require(script.Parent.Localization)
+local Teams=require(script.Parent.TeamStandings)
 local C=UI.colors
 local SKY=Color3.fromRGB(110,190,255)
 local M={SKY=SKY};M.__index=M
 
 function M.touch()return require(script.Parent.InputMode).touch()end
 function M.rect(w,h,touch,bottom)
+    if touch and not Placement.desk(w,h,touch) and h>=w then
+        local top=84;local limit=math.min(bottom or h-152,h-12)
+        return {x=12,y=top,w=w-24,h=math.max(180,limit-top-12),phone=true}
+    end
     if Placement.phone(w,h,touch)then
         local width=math.min(300,w-24-56)
         return {x=w-56-width,y=8,w=width,h=math.max(140,h-Placement.PHONE_HUD-4-8),phone=true}
@@ -22,7 +27,7 @@ function M.paint(frame)
     frame.BackgroundColor3=Style.colors.panel;frame.BackgroundTransparency=.04;Style.round(frame,10);Style.line(frame,Style.colors.line,1)
 end
 function M.frame(parent,name)
-    local f=UI.panel(parent,name);f.ZIndex=24;f.Visible=false;f.Active=true;M.paint(f);return f
+    local f=UI.panel(parent,name);f.ZIndex=24;f.Visible=false;f.Active=true;f:SetAttribute('HudSolid',true);M.paint(f);return f
 end
 function M.header(frame,title,onClose)
     local t=UI.label(frame,'Title',title,18);t.Font=Enum.Font.BuilderSansBold;t.TextWrapped=false;t.TextTruncate=Enum.TextTruncate.AtEnd;t.ZIndex=frame.ZIndex+1
@@ -155,6 +160,19 @@ function M:drawRanks(w)
     for _,f in ipairs(self.sorted)do if (f.tiles or 0)>0 and not f.eliminated then table.insert(list,f);if f.id==1 then mine=#list end end end
     self.head.title.Text='순위';self.head.sub.Text=string.format('%d명',#list)
     local phone=self.r.phone;local y=0;local body=self.body
+    local teamGame=Teams.active(s);if not teamGame then self.rankMode=nil end
+    if teamGame then
+        local ch=self.touch and 48 or 34
+        for i,k in ipairs({{'players','개인'},{'teams','팀'}})do
+            local b=M.chip(body,'RankTab_'..k[1],k[2],function()
+                if (self.rankMode or 'players')==k[1]then return end
+                self.rankMode=k[1];Step.step('hud','rankMode',{item=k[1]});self.signature=nil;self.body.CanvasPosition=Vector2.zero;self:draw()
+            end,(self.rankMode or 'players')==k[1],self.touch)
+            UI.box(b,(i-1)*76,y,72,ch)
+        end
+        y+=ch+6
+        if self.rankMode=='teams'then return self:drawTeams(w,y)end
+    end
     if not phone and s.player then
         local p=s.player;local t=math.floor((s.tick or 0)/10)
         local line=caption(body,'Economy',string.format('내 생산  병력 +%s/s  골드 +%s/s',UI.troops(p.growth or 0),UI.number(p.income or 0)),0,y,w-90,C.muted)
@@ -184,6 +202,44 @@ function M:drawRanks(w)
         return r
     end
     for i,f in ipairs(list)do if f.id~=1 then row(body,f,i,y,false);y+=rowH end end
+    body.CanvasSize=UDim2.fromOffset(0,y+4)
+    for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
+    if mine then row(self.pinned,list[mine],mine,0,true)end
+    return mine and rowH+6 or 0
+end
+function M:drawTeams(w,y)
+    local s=self.state;local list=Teams.build(s,self.sorted);local mine
+    for i,t in ipairs(list)do if t.mine then mine=i end end
+    self.head.title.Text='순위';self.head.sub.Text=string.format('%d개 팀',#list)
+    local phone=self.r.phone;local body=self.body
+    local cols=UI.make('Frame',body,{Name='Columns',BackgroundTransparency=1,ZIndex=26});UI.box(cols,0,y,w,20)
+    caption(cols,'Rank','#',4,0,20);caption(cols,'Name','팀',32,-1,120);local land=caption(cols,'Land','영토',w-130,0,64);land.TextXAlignment=Enum.TextXAlignment.Right
+    local troops=caption(cols,'Troops','병력',w-58,0,54);troops.TextXAlignment=Enum.TextXAlignment.Right;y+=22
+    local rowH=phone and 30 or 34
+    local function row(parent,t,rank,yy,me)
+        local r=UI.make('Frame',parent,{Name=me and 'MyTeam'or 'Team'..rank,BackgroundColor3=me and Style.colors.rateBg or Style.colors.cell,BackgroundTransparency=me and .06 or 1,BorderSizePixel=0,Active=true,ZIndex=26})
+        UI.box(r,0,yy,w,rowH-2);Style.round(r,6);if me then Style.line(r,C.accent,1,.3)end
+        local rk=caption(r,'Rank',tostring(rank),4,(rowH-24)/2,24,me and C.accent or rank<=3 and C.gold or C.muted);rk.Font=Enum.Font.BuilderSansBold
+        local dot=UI.make('Frame',r,{Name='TeamColor',BackgroundColor3=t.color,BorderSizePixel=0,ZIndex=27});UI.box(dot,34,(rowH-2-12)/2,12,12);Style.round(dot,6)
+        local nw=w-30-28-136
+        local name=caption(r,'Name',string.format('%s  %d명',t.name,t.alive),58,(rowH-24)/2,nw,me and C.accent or C.ink);name.Font=Enum.Font.BuilderSansBold
+        if not phone then
+            local track=UI.make('Frame',r,{Name='LandBar',BackgroundColor3=Style.colors.line,BorderSizePixel=0,ZIndex=27});UI.box(track,w-178,(rowH-2)/2-2,44,4);Style.round(track,2)
+            local fill=UI.make('Frame',track,{Name='Fill',BackgroundColor3=t.color,BorderSizePixel=0,ZIndex=28,Size=UDim2.new(math.clamp(t.share/math.max(.0001,(list[1]and list[1].share or 1)),0,1),0,1,0)});Style.round(fill,2)
+        end
+        local v=t.share*100
+        local l=caption(r,'Land',string.format(v>=10 and '%.1f%%'or '%.2f%%',v),w-130,(rowH-24)/2,64,C.ink);l.TextXAlignment=Enum.TextXAlignment.Right
+        local tr=caption(r,'Troops',UI.troops(t.troops),w-62,(rowH-24)/2,56,C.ink);tr.TextXAlignment=Enum.TextXAlignment.Right
+        r.InputBegan:Connect(function(i)
+            if (i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch)and self.a.focusTile then
+                for _,f in ipairs(self.sorted)do if f.team==t.team and f.kind~='BOT'and not f.eliminated and (f.tiles or 0)>0 then
+                    if f.labelTile then Step.step('hud','rankFocus',{value=rank,item='team'});self.a.focusTile(f.labelTile)end;break
+                end end
+            end
+        end)
+        return r
+    end
+    for i,t in ipairs(list)do if not t.mine then row(body,t,i,y,false);y+=rowH end end
     body.CanvasSize=UDim2.fromOffset(0,y+4)
     for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
     if mine then row(self.pinned,list[mine],mine,0,true)end
@@ -222,7 +278,7 @@ function M:drawDiplomacy(w)
         section('IncomingTitle',string.format('받은 요청 %d',#incoming))
         for _,r in ipairs(incoming)do
             local card=UI.make('Frame',body,{Name='Request'..r.from,BackgroundColor3=Style.colors.rateBg,BackgroundTransparency=.3,BorderSizePixel=0,ZIndex=26});UI.box(card,0,y,w,bh+12);Style.round(card,8);Style.line(card,C.accent,1,.5)
-            local edge=UI.make('Frame',card,{Name='Edge',BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=27});UI.box(edge,0,8,3,bh-4)
+            local edge=require(script.Parent.EdgeMask).fit(UI.make('Frame',card,{Name='Edge',BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=27}));UI.box(edge,0,8,3,bh-4)
             nation(card,self.factions[r.from]or {name=r.name},false,w-170)
             local left=math.max(0,math.ceil(((r.expires or 0)-(s.tick or 0))/10))
             caption(card,'Detail',string.format('동맹 요청 %d초',left),50,(bh+12)/2+1,w-220,C.muted)
@@ -291,7 +347,7 @@ end
 function M:signatureOf()
     local s=self.state;local parts={self.page,self.r and self.r.w,tostring(self.touch),s.phase,tostring(s.paused)}
     for _,f in ipairs(self.sorted)do table.insert(parts,table.concat({f.id,(f.tiles or 0)>0 and 1 or 0,tostring(f.allied),tostring(f.embargoed),tostring(f.canDonateGold),tostring(f.canDonateTroops),math.ceil(f.donationAvailableIn or 0)>0 and 1 or 0},','))end
-    if self.page=='ranks'then table.insert(parts,s.tick and s.tick//10 or 0)
+    if self.page=='ranks'then table.insert(parts,s.tick and s.tick//10 or 0);table.insert(parts,self.rankMode or 'players')
     else
         local d=s.diplomacy or {};for _,r in ipairs(d.incoming or {})do table.insert(parts,'i'..r.from..':'..math.ceil(((r.expires or 0)-(s.tick or 0))/10))end
         for _,r in ipairs(d.outgoing or {})do table.insert(parts,'o'..r.to)end

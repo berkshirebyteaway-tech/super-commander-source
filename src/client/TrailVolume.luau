@@ -283,7 +283,7 @@ V.specs={
     toxic={pieces={{kind='miasma',every=.15,life=1.4,cap=8}}},
     spray={pieces={{kind='splash',every=.1,life=.8,cap=7}}},
     embers={pieces={{kind='print',every=.2,life=2,cap=10}}},
-    static={pieces={{kind='ghost',every=.14,life=.55,cap=5}}},
+    static={pieces={{kind='ghost',every=.18,life=.9,cap=5,at=.45}}},
     stardust={pieces={{kind='stardust',every=.1,life=1.4,cap=10,at=.9}}},
     phoenix={pieces={{kind='feather',every=.2,life=1.2,cap=5},{kind='ember',every=.12,life=1,cap=8,at=.6}}},
     eclipse={pieces={{kind='glint',every=.12,life=.8,cap=6,at=.3},{kind='eclipseRing',every=.8,life=1.4,cap=3,phase=2,at=.5},{kind='eclipseRing',every=.8,life=1.4,cap=3,phase=3,at=.9}}},

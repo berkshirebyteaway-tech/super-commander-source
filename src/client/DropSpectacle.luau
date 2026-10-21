@@ -134,7 +134,7 @@ function M:step(dt,info)
     if not self.clouds and me and me.free>.5 and not info.shot.active then
         self.clouds=true
         local deck=info.surfaceY+info.top*.6
-        if me.position.Y>deck+20 then
+        if me.position.Y>deck+20 and (info.wide or 0)<.5 then
             self.deckY=deck
             self.cloudEmitters={}
             local holder=part(self.folder,'CloudDeck',Vector3.one*.2,CFrame.new(me.position.X,deck,me.position.Z),Color3.new(1,1,1));holder.Transparency=1;self.deck=holder

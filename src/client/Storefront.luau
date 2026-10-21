@@ -7,6 +7,7 @@ local Models=require(script.Parent.BuildingModels)
 local Requests=require(pack.Core.RequestLifecycle)
 local BillingPrice=require(pack.Core.BillingPrice)
 local Telemetry=require(script.Parent.TelemetryClient)
+local Pending=require(script.Parent.PressPending)
 local S={};S.__index=S
 function S.new(onAccount,notify,redraw)
     task.spawn(function()require(script.Parent.SupplyAnnouncements).watch()end)
@@ -49,16 +50,17 @@ function S:run(fn)
     if self.busy then return end
     self.requests=self.requests or Requests.new(12)
     local operation=self.requests:begin(os.clock());if not operation then return end
+    local pend=Pending.begin()
     self.busy=true;self.redraw()
     task.delay(12,function()
         if self.requests:expire(operation,os.clock())then
-            Telemetry.step('shop','requestFailed',{reason='timeout'});self.busy=self.promptOpen==true;self.redraw();self.notify('응답이 늦어지고 있어요. 연결을 확인한 뒤 다시 시도하세요.',true)
+            Pending.finish(pend);Telemetry.step('shop','requestFailed',{reason='timeout'});self.busy=self.promptOpen==true;self.redraw();self.notify('응답이 늦어지고 있어요. 연결을 확인한 뒤 다시 시도하세요.',true)
         end
     end)
     task.spawn(function()
         local ok,err=pcall(fn)
         if not self.requests:complete(operation)then return end
-        self.busy=self.promptOpen==true;self.redraw()
+        Pending.finish(pend);self.busy=self.promptOpen==true;self.redraw()
         if not ok then warn("Storefront request failed",err);self.notify("요청을 완료하지 못했어요. 다시 시도하세요.",true) end
     end)
 end

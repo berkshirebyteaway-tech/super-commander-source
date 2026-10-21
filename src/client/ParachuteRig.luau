@@ -91,7 +91,7 @@ function M:step(cf,motion,airborne,flightFrame,batch)
     if self.visible then
         local scale=math.max(.035,motion.inflation)
         if not self.scale or math.abs(scale-self.scale)>.001 then self.canopy:ScaleTo(scale);self.scale=scale end
-        local collapsed=motion.landed and math.min(1,motion.landAge/.38)or 0
+        local collapsed=motion.landed and math.min(1,(motion.landAge or 0)/.38)or 0
         self.canopy:PivotTo((flightFrame or cf)*CFrame.new(collapsed*2.5,7.7-collapsed*5.8,-.25)*CFrame.Angles(motion.canopyPitch,0,motion.canopyRoll+collapsed*.65))
         if self.skin.collection then
             local phase=(motion.landed or (motion.inflation or 0)>.98)and 3 or (motion.inflation or 0)>.5 and 2 or 1

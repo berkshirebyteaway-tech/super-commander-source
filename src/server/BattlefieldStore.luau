@@ -4,6 +4,7 @@ local Copy=require(Core.BattlefieldRules).copy
 local M={};M.__index=M
 local function official(bucket)return bucket=='official'or bucket:match('^official:[%w%-]+$')~=nil end
 local function waiting(s)local n=0;for _,t in pairs(s and s.tickets or {})do if not t.match then n+=1 end end;return n end
+local function freshSeed(http)local h=0;for c in http:GenerateGUID(false):gmatch('%x')do h=(h*16+tonumber(c,16))%2147483646 end;return h+1 end
 function M.new(hash,index,http,demand)
     return setmetatable({hash=hash,index=index,demand=demand,http=http,cache={},pulsed={},public={},publicAt=-math.huge,gen={}},M)
 end
@@ -13,7 +14,7 @@ function M:read(bucket)
     local s=self.hash:GetAsync(bucket);if self.gen[bucket]==gen then self.cache[bucket]=s end;return s
 end
 function M:write(bucket,op,now)
-    op.partition=not official(bucket);op.fieldPrefix=bucket~='official'and official(bucket)and 'official~'..bucket:sub(10)..'~'or nil
+    op.seed=op.seed or freshSeed(self.http);op.partition=not official(bucket);op.fieldPrefix=bucket~='official'and official(bucket)and 'official~'..bucket:sub(10)..'~'or nil
     local s=self.hash:UpdateAsync(bucket,function(old)
         if not old and (op.kind=='join'or op.kind=='joinGroup')and bucket~='ranked'then return nil end
         local result=Model.apply(old,now,op)
@@ -72,7 +73,7 @@ function M:pulse(bucket,tokens,host,now,nextMatch)
     if observed and not renew and now-(observed.pulseAt or -math.huge)<3 then return observed end
     local result=self.hash:UpdateAsync(bucket,function(old)
         if old and not renew and now-(old.pulseAt or -math.huge)<3 then return nil end
-        local s=Model.apply(old,now,{kind='pulse',tokens=renew and tokens or {},host=host,nextMatch=nextMatch,partition=not official(bucket),fieldPrefix=bucket~='official'and official(bucket)and 'official~'..bucket:sub(10)..'~'or nil})
+        local s=Model.apply(old,now,{kind='pulse',seed=freshSeed(self.http),tokens=renew and tokens or {},host=host,nextMatch=nextMatch,partition=not official(bucket),fieldPrefix=bucket~='official'and official(bucket)and 'official~'..bucket:sub(10)..'~'or nil})
         s.pulseAt=now;assert(#self.http:JSONEncode(s)<30000,'Queue at safe capacity');return s
     end,official(bucket)and 300 or 180)
     if renew then self.pulsed[bucket]=now end

@@ -389,6 +389,8 @@ function M.slab(motif,c)
                 elseif e.mini then e.p.Transparency=.25*(.5+.5*sin(at*1.5+e.mini))end
             end
         end
+    else
+        return require(script.Parent.TerritoryVolume2).slab(motif,c)
     end
 end
 return M

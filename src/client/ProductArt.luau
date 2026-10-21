@@ -2,7 +2,7 @@ local G=require(script.Parent.ToyGeometry)
 local Art=require(script.Parent.CollectionArt)
 local M={}
 local rgb=Color3.fromRGB
-M.colors={club=rgb(191,239,255),permanent=rgb(245,196,81)}
+M.colors={club=rgb(245,196,81),permanent=rgb(191,239,255)}
 local DARK=rgb(22,28,38)
 local function metal(p,reflect)p.Material=Enum.Material.Metal;p.Reflectance=reflect or .1;p.CastShadow=false;return p end
 local function neon(p)p.Material=Enum.Material.Neon;p.CastShadow=false;return p end

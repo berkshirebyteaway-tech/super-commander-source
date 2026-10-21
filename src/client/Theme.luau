@@ -1,5 +1,6 @@
 local M={}
 M.colors={bg=Color3.fromRGB(11,15,20),panel=Color3.fromRGB(18,24,33),raised=Color3.fromRGB(24,33,44),line=Color3.fromRGB(38,50,65),ink=Color3.fromRGB(238,242,246),muted=Color3.fromRGB(138,151,168),accent=Color3.fromRGB(54,226,208),gold=Color3.fromRGB(245,196,81),danger=Color3.fromRGB(255,82,82),recruitmentGrow=Color3.fromRGB(85,214,163),recruitmentSlow=Color3.fromRGB(255,173,66),ocean=Color3.fromRGB(8,19,31),good=Color3.fromRGB(180,240,90),ice=Color3.fromRGB(191,239,255)}
+M.colors.vip=M.colors.gold;M.colors.prime=M.colors.ice
 local function face(family,weight)
     local ok,f=pcall(function()return Font.new("rbxasset://fonts/families/"..family..".json",weight or Enum.FontWeight.Bold)end)
     return ok and f or nil
@@ -52,7 +53,7 @@ function M.button(parent,name,text,callback,primary)
     b.InputBegan:Connect(function(i)if b:GetAttribute("Enabled")~=false and (i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch)then feedback(.975)end end)
     b.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then feedback(1)end end)
     b:GetAttributeChangedSignal('Enabled'):Connect(function()if b:GetAttribute('Enabled')==false then feedback(1)end end)
-    b.Activated:Connect(function() if b:GetAttribute("Enabled")~=false then require(script.Parent.ToyAudio).play("click");callback() end end);return b
+    b.Activated:Connect(function() if b:GetAttribute("Enabled")~=false then require(script.Parent.ToyAudio).play("click");local P=require(script.Parent.PressPending);P.current={button=b,at=os.clock()};callback();P.current=nil end end);return b
 end
 function M.box(o,x,y,w,h) o.Position=UDim2.fromOffset(x,y);o.Size=UDim2.fromOffset(w,h);return o end
 function M.enabled(b,enabled)

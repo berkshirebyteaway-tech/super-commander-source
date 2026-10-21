@@ -3,6 +3,7 @@ local Catalog=require(script.Parent.Parent.Core.CosmeticCatalog)
 local Art=require(script.Parent.CollectionArt)
 local G=require(script.Parent.ToyGeometry)
 local M={};local active={};local now=0
+local flags=setmetatable({},{__mode='k'})
 local function visible(frame)
     if not frame.Parent or frame.AbsoluteSize.X<1 then return false end
     local p=frame
@@ -16,7 +17,10 @@ local function visible(frame)
 end
 function M.model(item,role)
     local s=Catalog.get(item.style);local f=item.category
-    if f=='buildings'then return require(script.Parent.BuildingModels).create(role or 'City',s,2,true)
+    if f=='commanderStandard'then
+        local rig=require(script.Parent.CommanderStandardRig).new(nil,item.style,UI.colors.accent)
+        rig:step(CFrame.identity,0,0,1,0,nil,false,3);flags[rig.model]=rig;return rig.model,{flag=rig}
+    elseif f=='buildings'then return require(script.Parent.BuildingModels).create(role or 'City',s,2,true)
     elseif f=='nuclear'then
         local Skins=require(script.Parent.NukeSkins);local l=item.loadout
         return require(script.Parent.NukeFx).warhead('HydrogenBomb',Skins.get(l,'projectile'),Skins.get(l,'trail'),UI.colors.accent)
@@ -97,8 +101,12 @@ function M.create(parent,item,options)
     active[frame]=context
     frame.Destroying:Once(function()active[frame]=nil end)
     local cat=item and not(options.pod or options.crate or options.product)and item.category
-    local key=cat and(cat=='buildings'and item.style..'/'..(options.role or 'City')or(cat=='nuclear'or cat=='vehicle'or cat=='parachute')and item.style)
+    local key=cat and(cat=='buildings'and item.style..'/'..(options.role or 'City')or(cat=='nuclear'or cat=='vehicle'or cat=='parachute'or cat=='motion')and item.style)
     if key then require(script.Parent.CosmeticMeshes).watchModel(key,model,function()
+        if cat=='motion'then
+            local fresh=M.model(item,options.role);fresh:PivotTo(model:GetPivot());fresh.Parent=world;model:Destroy()
+            model=fresh;context.model=fresh;context.base=CFrame.identity
+        end
         local pivot=model:GetPivot();model:PivotTo(context.base)
         local b,sz=M.visibleBounds(model);context.center=b.Position;context.bounds=sz;context.viewSize=nil
         model:PivotTo(pivot)
@@ -119,7 +127,13 @@ function M.step(context,age,phase)
         context.camera.CFrame=CFrame.lookAt(context.center+context.direction*distance,context.center)
     end
     local model=context.model;local reduced=context.reduced or game.Players.LocalPlayer:GetAttribute('CommanderReducedEffects')==true
-    if context.extra and type(context.extra)=='table'and context.extra.rig then
+    local flag=type(context.extra)=='table'and context.extra.flag or flags[model]
+    if flag then
+        local grip=flag.lastGrip or CFrame.identity;local pivot=model:GetPivot()
+        if context.manual then if context.flagPivot and pivot~=context.flagPivot then grip=pivot*context.flagPivot:Inverse()*grip end
+        else grip=CFrame.Angles(0,reduced and 0 or math.sin(age*.22)*.2,0)end
+        flag:step(grip,age,0,model:GetScale(),0,nil,reduced,phase or 1+math.floor(age/2)%3);context.flagPivot=model:GetPivot()
+    elseif context.extra and type(context.extra)=='table'and context.extra.rig then
         local motion=context.extra.motion;motion.time=age;motion.canopyRoll=reduced and 0 or math.sin(age*.8)*.035;motion.reducedEffects=true
         context.extra.rig:step(CFrame.identity,motion,true)
         Art.step(context.extra.rig.canopy,age,reduced,phase or 1+math.floor(age/2)%3)

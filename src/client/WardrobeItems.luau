@@ -39,6 +39,12 @@ local function entries(hub,slot,shop)
                 preview=function(parent,hero)return Wearable.create(parent,'commanderStandard',id,{flagOnly=not hero})end,
                 equip=function()shop:run(function()shop:request('commanderStandard',id)end)end})
         end
+        for _,item in ipairs(Standards.series)do local id=item.id;local owned=a.billing and a.billing.owned and a.billing.owned[Standards.supplyId(id)]==true
+            table.insert(out,{id=id,name=item.name,color=Reveal.colors[item.rarity],grade=Launch.rarityNames[item.rarity],owned=owned,worn=worn==id,rarity=item.rarity,supply=Standards.supplyId(id),
+                lock='보급 상자에서 획득',key=owned and 'standard:'..id or nil,desc=item.desc,
+                preview=function(parent,hero)return Wearable.create(parent,'commanderStandard',id,{flagOnly=not hero})end,
+                equip=function()shop:run(function()shop:request('commanderStandard',id)end)end})
+        end
         return out
     end
     local family=Defs.family(slot);local slots=family.slots;local loadout={};for _,s in ipairs(slots)do loadout[s]=C.default end

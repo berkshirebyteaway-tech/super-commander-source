@@ -9,6 +9,7 @@ local VipLock=require(script.Parent.VipLock)
 local Step=require(script.Parent.TelemetryStep)
 local C=UI.colors
 local M={};M.__index=M
+M.RECENT=10
 local TABS={{'messages','대화'},{'emoji','이모지'},{'chat','채팅'},{'motion','모션'}}
 local GROUPS={{false,'전체'},{'작전 응답','응답'},{'인사','인사'},{'도움 요청','도움'},{'공격 제안','공격'},{'방어 제안','방어'},{'경고','경고'},{'작전 대화','작전'}}
 local SCOPES={{'all','전체'},{'team','팀'},{'spectators','관전'}}
@@ -60,14 +61,18 @@ function M:allowed()
     return s and s.phase=='playing'and not s.paused and not s.eliminated and s.player and s.player.tiles>0
         and (self.mode=='emoji'and self.targetId==0 or self:alive(f))
 end
+function M:contentSignature()
+    local ids={};for _,f in pairs(self.factions or {})do if self:alive(f)then table.insert(ids,f.id)end end
+    table.sort(ids)
+    return self.mode..','..tostring(self:allowed())..','..table.concat(ids,',')
+end
 function M:update(state,factions)
     local old=self.state;self.state=state;self.factions=factions
-    if state.phase=='menu'or old and old.version~=state.version then self:hide();return end
+    if state.phase=='menu'or old and old.version~=state.version then self.targetId=nil;self:hide();return end
     if not self.frame.Visible then return end
     if (state.phase~='playing'or state.eliminated)and self.mode~='chat'then self:open('chat');return end
-    if self.targetId and self.targetId~=0 and not self:alive(factions[self.targetId])then self.targetId=nil;self:draw();return end
-    local sig={self.mode,tostring(self:allowed())};for _,f in ipairs(self:recipients())do table.insert(sig,f.id)end
-    sig=table.concat(sig,',');if sig~=self.signature then self.signature=sig;self:draw()end
+    if self.targetId and self.targetId~=0 and not self:alive(factions[self.targetId])then self.targetId=nil;self:draw(true);return end
+    if self:contentSignature()~=self.signature then self:draw(true)end
 end
 function M:send(key,subject,anchor)
     local kind=self.mode=='emoji'and 'emoji'or 'quickChat'
@@ -75,7 +80,7 @@ function M:send(key,subject,anchor)
     if not self:allowed()then return end
     local target=self.targetId;self.sentNow=true
     Step.step('comms','quickSend',{item=kind=='emoji'and 'emoji'or Step.code(key),reason=self.query and self.query~=''and 'manual'or 'none'})
-    if kind~='emoji'then local r=self.recent;local at=table.find(r,key);if at then table.remove(r,at)end;table.insert(r,1,key);if #r>4 then table.remove(r)end end
+    if kind~='emoji'then local r=self.recent;local at=table.find(r,key);if at then table.remove(r,at)end;table.insert(r,1,key);if #r>M.RECENT then table.remove(r)end end
     self:hide()
     self.callbacks.send('comms',kind,{target=target,value=kind=='emoji'and key or {key=key,target=subject}})
 end
@@ -104,8 +109,12 @@ local function cell(parent,name,text,x,y,w,h,fn,locked,mark)
         local dot=UI.make('Frame',ring,{Name='Dot',BackgroundColor3=Sheet.SKY,BorderSizePixel=0,ZIndex=b.ZIndex+2});UI.box(dot,4,4,6,6);Style.round(dot,3)end
     return b
 end
-function M:draw()
+function M:draw(preserveScroll)
     if not self.r then return end
+    local bodyScroll=preserveScroll and self.body.CanvasPosition
+    local peopleScroll=preserveScroll and self.people.CanvasPosition
+    local groupsScroll=preserveScroll and self.groups.CanvasPosition
+    self.signature=self:contentSignature()
     local touch,r=self.touch,self.r;local w=r.w-32;local phone=r.phone
     local owner=self.callbacks.model
     if owner and owner.input.Parent==self.foot then owner.input.Parent=owner.frame;owner.sendButton.Parent=owner.frame end
@@ -321,6 +330,9 @@ function M:draw()
     UI.box(self.foot,16,r.h-8-footH,w,footH)
     UI.box(self.body,16,y,w+6,r.h-y-10-footH)
     if self.mode~='messages'or self.subject then body.CanvasSize=UDim2.fromOffset(0,by+4)end
+    if bodyScroll and self.mode~='chat'then self.body.CanvasPosition=bodyScroll end
+    if peopleScroll then self.people.CanvasPosition=peopleScroll end
+    if groupsScroll then self.groups.CanvasPosition=groupsScroll end
     if self.state then for _,b in ipairs(body:GetDescendants())do if b:IsA('GuiButton')and b:GetAttribute('Send')and not b:GetAttribute('VipLocked')then UI.enabled(b,self:allowed()==true)end end end
 end
 function M:phrases()
@@ -361,6 +373,6 @@ function M:layout(w,h)
     UI.box(self.frame,r.x,r.y,r.w,r.h)
     local changed=not self.r or self.r.w~=r.w or self.r.h~=r.h or self.touch~=touch
     self.r=r;self.touch=touch
-    if changed and self.frame.Visible then self:draw()end
+    if changed and self.frame.Visible then self:draw(true)end
 end
 return M

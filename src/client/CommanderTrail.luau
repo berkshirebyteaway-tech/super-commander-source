@@ -1,6 +1,7 @@
 local C=require(script.Parent.Parent.Core.CosmeticCatalog)
 local T=require(script.Parent.TrailThemes)
 local V=require(script.Parent.TrailVolume)
+local V2=require(script.Parent.TrailVolume2)
 local M={};M.__index=M
 local specs={
     dust={pieces={{kind='puff',every=.09,life=.8,cap=9}}},
@@ -10,6 +11,7 @@ local specs={
     comet={pieces={{kind='star',every=.09,life=1,cap=10}},head=true},
 }
 for theme,spec in pairs(V.specs)do specs[theme]=spec end
+for theme,spec in pairs(V2.specs)do specs[theme]=spec end
 local byTier={'dust','afterglow','lightning','flame','comet'}
 local folder
 local function fxFolder()
@@ -67,7 +69,7 @@ function M.attach(model,style)
         for _,p in ipairs({self.head.core,self.head.glow,self.head.coma})do table.insert(self.spawned,p)end
         for _,p in ipairs(self.head.halo)do table.insert(self.spawned,p)end
     end
-    if V.specs[theme]then V.attach(self,theme,trail,emitter,fxFolder())end
+    if V.specs[theme]then V.attach(self,theme,trail,emitter,fxFolder())elseif V2.specs[theme]then V2.attach(self,theme,trail,emitter,fxFolder())end
     for _,p in ipairs(self.spawned)do p.Transparency=1 end
     self.trail=self.trails[1]
     return self
@@ -133,7 +135,7 @@ function M:step(active,reduced)
         local body=(moving or self.open>0)and self:frame(delta)
         if self.wings and body then T.poseWings(self.wings,body*CFrame.new(.1*k,.92*k,0),now,k,self.open)end
         if self.head and body then T.poseHead(self.head,body*CFrame.new(.3*k,.44*k,0),now,k,phase,self.open>.3)end
-        if self.vol then V.step(self,body,now,moving,reduced,phase)end
+        if self.vol then (self.volStep or V.step)(self,body,now,moving,reduced,phase)end
         if self.lane1 then
             local y=-self.foot+.44*k;local r=(.08+.04*phase)*k
             for lane=1,2 do local a=now*6+lane*math.pi;local list=self['lane'..lane]

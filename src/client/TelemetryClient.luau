@@ -52,6 +52,8 @@ function M.start()
   local function bind(o)
    if o:IsA('GuiButton')and o.Parent and o.Parent.Name=='ResultActions'and not bound[o]then bound[o]=true;o.Activated:Connect(function()
     M.emit('result_action',{verb=o.Name=='Again'and 'again'or o.Name=='ChooseMode'and 'leave'or o.Name=='Spectate'and 'follow'or o.Name=='Share'and 'share'or o.Name=='Comrades'and 'invite'or o.Name=='Back'and 'cancel'or 'other',stage='selected',result=M.result or 'unknown',version=M.version})
+    local c=o.Name=='Again'and M.campaign;if type(c)=='table'and type(c.id)=='string'then local id=c.next or c.id
+     M.step('campaign',c.next and 'nextMission'or 'retryMission',{item='stage_'..tostring(id):gsub('%-','_'),result='selected',version=M.version})end
    end)end
   end
   gui.DescendantAdded:Connect(bind);for _,o in ipairs(gui:GetDescendants())do bind(o)end
@@ -73,7 +75,7 @@ end
 function M.state(s)
  if not s or s.ownershipOnly then return end
  local phase=s.phase=='menu'and (s.loading and 'boot'or 'lobby')or s.drop and s.drop.active and 'drop'or s.observer and 'spectate'or s.eliminated and 'spectate'or (s.phase=='won'or s.phase=='lost')and 'result'or 'playing'
- M.result=s.personalResult and s.personalResult.outcome or 'unknown'
+ M.result=s.personalResult and s.personalResult.outcome or 'unknown';M.campaign=s.personalResult and s.personalResult.campaign
  if phase~=M.phase then M.phase=phase;M.emit('screen_viewed',{screen=phase=='playing'and 'game'or phase=='drop'and 'game'or phase=='boot'and 'lobby'or phase,result='shown',version=s.version})end
  if M.version~=s.version then
   if M.version then M.flush()end;M.version=s.version

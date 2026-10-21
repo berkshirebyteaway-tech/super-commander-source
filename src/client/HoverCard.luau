@@ -6,6 +6,7 @@ local Catalog=require(script.Parent.BuildingCatalog)
 local Honor=require(script.Parent.CommanderHonor)
 local L=require(script.Parent.Localization)
 local Glyphs=require(script.Parent.ActionGlyphs)
+local Teams=require(script.Parent.TeamStandings)
 local C=UI.colors
 local M={};M.__index=M
 M.ships={TransportShip=true,Warship=true,TradeShip=true}
@@ -34,7 +35,7 @@ function M.new(parent)
     local self=setmetatable({counts={},countsFor=nil},M)
     local f=UI.make("Frame",parent,{Name="Hover",BackgroundColor3=C.panel,BackgroundTransparency=.04,BorderSizePixel=0,Visible=false,ZIndex=16,Size=UDim2.fromOffset(WIDTH,100)})
     UI.corner(f,3);UI.stroke(f,C.line,1);self.frame=f
-    self.edge=UI.make("Frame",f,{Name="RelationEdge",BorderSizePixel=0,BackgroundColor3=C.danger,Position=UDim2.fromOffset(0,0),Size=UDim2.new(0,3,1,0),ZIndex=17})
+    self.edge=require(script.Parent.EdgeMask).fit(UI.make("Frame",f,{Name="RelationEdge",BorderSizePixel=0,BackgroundColor3=C.danger,Position=UDim2.fromOffset(0,0),Size=UDim2.new(0,3,1,0),ZIndex=17}))
     local function text(name,size,color,font,parent2)
         return UI.make("TextLabel",parent2 or f,{Name=name,Text="",TextSize=size,TextColor3=color,Font=font or Enum.Font.BuilderSansMedium,BackgroundTransparency=1,BorderSizePixel=0,TextXAlignment=Left,TextYAlignment=Enum.TextYAlignment.Center,TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=17})
     end
@@ -49,13 +50,16 @@ function M.new(parent)
     self.pill=UI.make("TextLabel",f,{Name="Relation",AnchorPoint=Vector2.new(1,0),AutomaticSize=Enum.AutomaticSize.X,Text="",TextSize=12,Font=Enum.Font.BuilderSansBold,TextColor3=C.danger,BackgroundColor3=C.danger,BackgroundTransparency=1,BorderSizePixel=0,ZIndex=17})
     UI.corner(self.pill,3);self.pillStroke=UI.stroke(self.pill,C.danger,1);UI.make("UIPadding",self.pill,{PaddingLeft=UDim.new(0,7),PaddingRight=UDim.new(0,7)})
     self.sub=text("Kind",12,C.muted)
+    self.teamDot=UI.make("Frame",f,{Name="TeamDot",BorderSizePixel=0,ZIndex=17,Visible=false,Size=UDim2.fromOffset(8,8)});UI.corner(self.teamDot,4)
+    self.team=text("Team",12,C.ink,Enum.Font.BuilderSansBold);self.team.Visible=false
     self.capacity=UI.make('Frame',f,{Name='TroopCapacity',BackgroundColor3=C.raised,BorderSizePixel=0,ZIndex=16,ClipsDescendants=true});UI.corner(self.capacity,3)
-    self.capacityFill=UI.make('Frame',self.capacity,{Name='Fill',BackgroundColor3=C.accent,BackgroundTransparency=.62,BorderSizePixel=0,Size=UDim2.fromScale(0,1),ZIndex=16})
+    self.capacityFill=UI.make('Frame',self.capacity,{Name='Fill',BackgroundColor3=C.accent,BackgroundTransparency=.62,BorderSizePixel=0,Size=UDim2.fromScale(0,1),ZIndex=16});UI.corner(self.capacityFill,3)
     self.troops=text("Troops",13,C.ink,Enum.Font.BuilderSansBold);self.troops.TextXAlignment=Enum.TextXAlignment.Center;self.troops.ZIndex=18
     self.troopMark=Glyphs.create(f,"troops",14,C.ink);if self.troopMark then self.troopMark.ZIndex=18;self.troopMark.ImageTransparency=.15 end
     self.goldMark=Glyphs.create(f,"gold",15,C.gold)
     self.rows={}
-    for i=1,2 do local k=text("Key"..i,12,C.muted);local v=text("Value"..i,13,C.ink,Enum.Font.BuilderSansBold);v.TextXAlignment=Left;self.rows[i]={key=k,value=v}end
+    self.troops.TextTruncate=Enum.TextTruncate.None
+    for i=1,2 do local k=text("Key"..i,12,C.muted);local v=text("Value"..i,13,C.ink,Enum.Font.BuilderSansBold);v.TextXAlignment=Left;v.TextTruncate=Enum.TextTruncate.None;self.rows[i]={key=k,value=v}end
     self.timers=text("Timers",12,C.ink,Enum.Font.BuilderSansBold);self.timers.RichText=true
     self.icons={}
     for _,kind in ipairs(order)do
@@ -89,7 +93,7 @@ function M:show(ctx)
     self.shipEdge.Visible=false;self.shipText.Visible=false;if self.shipMark then self.shipMark.Visible=false end
     self.edge.Visible=true;self.swatch.Visible=true;self.name.Visible=true;self.troops.TextXAlignment=Enum.TextXAlignment.Center
     if not s or f and f.id==1 and not u or not f and not u and not(info and info.land and s.phase=="playing")then frame.Visible=false;return false end
-    local compact=ctx.compact==true;local w=math.min(ctx.width or WIDTH,WIDTH);local x0=12;local y=8
+    local compact=ctx.compact==true;local w=math.min(ctx.width or WIDTH,WIDTH);local x0=12;local y=compact and 8 or 6
     local showUnit=u~=nil and not compact
     for _,o in ipairs({self.unitIcon,self.unitName,self.unitRole,self.unitState,self.unitRule})do o.Visible=showUnit end
     if showUnit then
@@ -100,8 +104,9 @@ function M:show(ctx)
         self.unitRole.Text=b and b.role or (u.troops and u.troops>0 and string.format("병력 %s",UI.troops(u.troops)))or ""
         self.unitState.Text=u.building and "건설 중" or u.kind=="MissileSilo" and string.format("준비 %d/%d",u.readyMissiles or 0,u.level or 1)or b and "Lv."..(u.level or 1)or ""
         self.unitState.TextColor3=u.building and C.gold or C.accent
-        UI.box(self.unitIcon,x0,y,26,26);UI.box(self.unitName,x0+34,y-2,w-x0-34-84,16);UI.box(self.unitRole,x0+34,y+13,w-x0-34-84,14);UI.box(self.unitState,w-12-76,y,76,16)
-        y+=32;UI.box(self.unitRule,x0,y,w-x0-12,1);y+=6
+        local nw=width(self.unitName,self.unitName.Text);self.unitNeed=x0+30+nw+6+width(self.unitRole,self.unitRole.Text)+8+width(self.unitState,self.unitState.Text)+12
+        UI.box(self.unitIcon,x0,y,22,22);UI.box(self.unitName,x0+30,y,nw,22);UI.box(self.unitRole,x0+30+nw+6,y+1,math.max(0,w-x0-30-nw-6-84),20);UI.box(self.unitState,w-12-76,y+3,76,16)
+        y+=27;UI.box(self.unitRule,x0,y,w-x0-12,1);y+=5
     end
     y-=1
     local rel,relColor,filled
@@ -118,6 +123,12 @@ function M:show(ctx)
     self.pill.Visible=rel~=nil
     if rel then self.pill.Text=rel;self.pillStroke.Color=relColor;self.pill.BackgroundColor3=relColor;self.pill.BackgroundTransparency=filled and 0 or 1;self.pill.TextColor3=filled and C.bg or relColor end
     local right=w-12-(rel and width(self.pill,rel)+18 or 0)
+    local team=Teams.of(f,s);self.team.Visible=team~=nil;self.teamDot.Visible=team~=nil
+    if team then
+        local tc=FactionColors.team(f.team,Teams.myTeam(s));local tw=width(self.team,team)
+        self.team.Text=team;self.team.TextColor3=tc;self.teamDot.BackgroundColor3=tc
+        right-=tw+14;UI.box(self.teamDot,right+2,y+7,8,8);UI.box(self.team,right+12,y,tw,22);right-=6
+    end
     local kw=self.sub.Text~=""and math.min(120,width(self.sub,self.sub.Text))or 0
     self.sub.Visible=kw>0;self.sub.TextXAlignment=Right
     UI.box(self.swatch,x0,y+6,10,10);UI.box(self.name,x0+16,y,right-x0-16-kw-8,22);Honor.pill(self.name,self.honor and self.honor.plate)
@@ -141,6 +152,7 @@ function M:show(ctx)
         land.key.Visible=true;land.value.Visible=true;land.key.Text="영토";land.value.Text=share(f.share);land.value.TextColor3=C.ink
         local kw,vw=width(land.key,"영토"),width(land.value,land.value.Text);UI.box(land.key,rx,y,kw,22);UI.box(land.value,rx+kw+4,y,vw,22);rx+=kw+4+vw+14
     end
+    local rowStart=rx
     local status,dot
     if s.phase=="playing"then
         if u and f and f.id==1 then status=nil
@@ -188,7 +200,17 @@ function M:show(ctx)
     if #parts>0 then bottom=math.max(bottom,wordsY+(wordsY==rowY and f and 22 or 18))end
     if n>0 then bottom=math.max(bottom,stripY+(stripY==rowY and f and 22 or 18))end
     y=bottom+1
-    frame.Size=UDim2.fromOffset(w,y+6);frame.Visible=true;self.width=w;self.height=y+6
+    if not compact and not ctx.fitted then
+        local need=w-right+x0+16+width(self.name,self.name.Text)+8+(kw>0 and kw+6 or 0)+4
+        if showUnit then need=math.max(need,self.unitNeed)end
+        local one=rowStart+words+strip+(words>0 and strip>0 and 6 or 0)+12
+        local two=math.max(rowStart-2,x0+words+strip+(words>0 and strip>0 and 6 or 0)+12)
+        need=math.max(need,f and math.min(one,two)or one)
+        local fit=math.clamp(math.ceil(need),200,w)
+        if fit<w-4 then local c=table.clone(ctx);c.width=fit;c.fitted=true;return self:show(c)end
+    end
+    local pad=compact and 6 or 5
+    frame.Size=UDim2.fromOffset(w,y+pad);frame.Visible=true;self.width=w;self.height=y+pad
     return true
 end
 local shipParts={RelationEdge=true,ShipSwatch=true,ShipText=true,ShipMark=true,Troops=true}

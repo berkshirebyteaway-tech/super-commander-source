@@ -89,7 +89,7 @@ local function actionBar(hub,root,bar,e,shop,w,h,slim)
     local a=hub.account;local p=a.progress or {};local openSlots=a.billing and a.billing.benefits and a.billing.benefits.loadoutSlots or Launch.freeLoadouts
     local active=p.activeLoadout;if type(active)~='number'or active>openSlots then active=nil end
     local cs=48;local two=w<8+4*52+84+8;local x=slim and 8 or 12;local cy=two and 4 or (h-cs)/2
-    if not slim then K.text(bar,'PresetLabel','프리셋',14,0,54,h,14,UI.colors.muted);x=72 end
+    if not slim and w>=72+4*56+24+120 then K.text(bar,'PresetLabel','프리셋',14,0,54,h,14,UI.colors.muted);x=72 end
     for i=1,4 do
         local index,locked=i,i>openSlots;local saved=p.loadouts and p.loadouts[tostring(i)]~=nil
         local b

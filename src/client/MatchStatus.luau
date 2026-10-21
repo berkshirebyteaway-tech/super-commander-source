@@ -33,8 +33,10 @@ end
 function M:update(state)
     self.state=state
     if state then
-        local ladder=state.ranked=='2v2'and '랭크 2대2'or state.ranked=='1v1'and '랭크 1대1'or nil
-        local mode=state.clanwar and '클랜전 2대2'or state.queueMode=='custom'and '커스텀'or (state.ranked or state.queueMode=='ranked')and (ladder or '랭크')or state.multiplayer and '공식 전장'or '혼자 하기'
+        local ladder=state.ranked=='2v2'and '랭크 2대2'or state.ranked=='1v1'and '랭크 1대1'or state.ranked=='ffa'and '랭크 개인전'or nil
+        local cw=type(state.clanwar)=='table'and state.clanwar or {size=2,count=2}
+        local war=state.clanwar and ((cw.count or 2)>2 and string.format('클랜전 %d파전 %d인',cw.count,cw.size or 2)or string.format('클랜전 %d대%d',cw.size or 2,cw.size or 2))
+        local mode=war or state.queueMode=='custom'and '커스텀'or (state.ranked or state.queueMode=='ranked')and (ladder or '랭크')or state.multiplayer and '공식 전장'or '혼자 하기'
         local difficulty=not(state.clanwar or state.ranked or state.queueMode=='ranked')and require(script.Parent.Parent.Core.MatchOptions).difficultyLabels[(state.settings or {}).difficulty]or ''
         self.mode.Text=self.lastMinute and self.mode.Text or require(script.Parent.Localization).text(mode)..(difficulty~=''and ' '..require(script.Parent.Localization).text(difficulty)or '')
     end
@@ -114,9 +116,13 @@ function M:layout(w,h,show,compact)
     Style.round(self.frame,phone and 10 or 8);self.frame.BackgroundColor3=Style.colors.panel;self.frame.BackgroundTransparency=.08
     self.edge=self.edge or self.frame:FindFirstChildOfClass('UIStroke')
     local s0=self.state;local solo0=s0~=nil and not s0.multiplayer
-    local cw=phone and (solo0 and 118 or 76)or M.WIDTH
+    local tall=touch and not phone and w<h and w<600
+    local cw=phone and (solo0 and 118 or 76)or tall and 112 or M.WIDTH
     if phone then
         UI.box(self.frame,8,8,cw,36);UI.box(self.time,8,0,62,36);self.time.TextSize=19;self.time.TextXAlignment=Enum.TextXAlignment.Left;self.mode.Visible=false
+    elseif tall then
+        UI.box(self.frame,12,8,cw,48);UI.box(self.time,6,2,cw-12,26);self.time.TextSize=22;self.time.TextXAlignment=Enum.TextXAlignment.Center
+        self.mode.Visible=true;UI.box(self.mode,4,28,cw-8,16);self.mode.TextSize=11
     else
         UI.box(self.frame,12,8,cw,62);UI.box(self.time,6,4,cw-12,32);self.time.TextSize=26;self.time.TextXAlignment=Enum.TextXAlignment.Center
         self.mode.Visible=true;UI.box(self.mode,4,38,cw-8,18);self.mode.TextSize=13
@@ -128,7 +134,7 @@ function M:layout(w,h,show,compact)
     local ph=touch and 48 or 24;local pw=touch and 52 or 44;local py=8+62+6;local px=12
     if phone then ph,pw,py,px=48,48,2,8+118-48 end
     local portrait=touch and not phone and w<h and w<600
-    if portrait then ph,pw,py,px=62,56,8,12+cw+6 end
+    if portrait then ph,pw,py,px=48,52,8,12+cw+6 end
     local speed=s and s.speed or 1
     self.speedPill.Visible=solo==true;self.speedPill.Text=speed>=4 and '최대'or ('×'..speed)
     UI.box(self.speedPill,px,py,pw,ph);self.speedPill.TextSize=13

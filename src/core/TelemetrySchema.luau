@@ -10,13 +10,13 @@ M.enums={
  input_mode=set('mouse touch gamepad unknown'),viewport_bucket=set('small medium large portrait unknown'),
  phase=set('boot lobby queue transfer drop playing spectate result closed unknown'),
  mode=set('lobby single training practice coop pvp custom official ranked ffa teams duel unknown'),
- result=set('ok failed rejected cancelled timeout unknown duplicate accepted unavailable active inactive ready won lost forfeit expired serverStop skipped complete opened closed shown selected intercepted detonated pending granted retry joined left'),
+ result=set('ok failed rejected cancelled timeout unknown duplicate accepted unavailable active inactive ready won lost forfeit expired serverStop skipped complete opened closed shown selected intercepted detonated pending granted retry joined left loaded refused version'),
  verb=set('invite accept decline leave kick ready leader team join cancel create update play again follow attend promote war share other'),
- reason=set('none unknown invalid stale busy loading paused not_playing observer insufficient_cost territory relation cooldown capacity party teamfull private subscription_required storage_unavailable policy_restricted sales_disabled cancelled timeout disconnected completed replaced missing response_missing network failed auto manual random fallback input_limited abandoned shutdown skipped closed granted duplicate not_loaded gap host opponent rules ready automatic team full locked expired invalid_target out_of_range unreachable not_owner relation_missing'),
+ reason=set('none unknown invalid stale busy loading paused not_playing observer insufficient_cost territory relation cooldown capacity party teamfull private subscription_required storage_unavailable policy_restricted sales_disabled cancelled timeout disconnected completed replaced missing response_missing network failed auto manual random fallback input_limited abandoned shutdown skipped closed granted duplicate not_loaded gap host opponent rules ready automatic team full locked expired invalid_target out_of_range unreachable not_owner relation_missing refused version'),
  stage=set('client_ready lobby_ready map_ready profile ownership request seat reserved sending admitted combat command capture grow settled ready move land rally start stop shown selected opened closed accepted rejected locked unlocked warning clear outcome checkpoint load save mutate retry flush shutdown status prompt benefit queue arrived'),
  category=set('nil_index call_nil arithmetic compare bad_argument missing_member infinite_yield timeout http datastore memorystore teleport stack script_timeout cast asset deprecated game_warn other'),
  side=set('client server'),channel=set('lobby account'),device_class=set('phone tablet desktop console unknown'),
- area=set('shop cosmetics gacha solo custom queue drop input character map_ui settings social lobby result tutorial match other clan ranked commerce vip progression goals comms hud mobile perf spectate season journey'),
+ area=set('shop cosmetics gacha solo custom queue drop input character map_ui settings social lobby result tutorial match other clan ranked commerce vip progression goals comms hud mobile perf spectate season journey ops campaign'),
  entry=set('home list quick solo custom result party station shortcut automatic unknown'),
  format=set('ffa team coop custom unknown'),spawn_style=set('selected random shifted unknown'),
  kind=set('City DefensePost Port Factory Railroad MissileSilo SAMLauncher TransportShip Warship TradeShip Train AtomBomb HydrogenBomb MIRV MIRVWarhead other'),
@@ -29,7 +29,7 @@ M.enums={
  checkpoint=set('1m 5m 15m 30m 60m'),outcome=set('won lost forfeit expired serverStop unknown'),
  origin=set('shopBox shopMember benefits supply vipCard vipBubble clanStrip other'),
  journey=set('preLobby newLobby firstOp afterFirstOp firstPvp returning unknown'),marker=set('new return unknown'),
- where=set('loading boot intro lobby shop goals clan wardrobe settings play menu queue transfer drop match spectate result unknown'),
+ where=set('loading boot intro lobby shop goals clan wardrobe settings play menu queue transfer drop match spectate result commander campaign unknown'),
 }
 local numbers=set('journey_seconds duration_ms elapsed_seconds count accepted rejected duplicate cancelled total samples sum_ms max_ms le16 le33 le50 le100 gt100 le50ms le100ms le250ms le500ms le1000ms gt1000ms human_count ai_count neutral_count seat_cap team_size team_count party_size ready_count position revision version command_id amount balance level xp base_xp paid_xp multiplier tiles troops cap gold_ratio growth_ratio units incoming outgoing tick simulation_seconds paused_seconds memory_mb dropped retry attempts bytes sequence first matches first_capture_ms render_ms movement_count dive_count rally_count altitude window_seconds')
 local booleans=set('touch keyboard gamepad focused eligible active verified paused partial synthetic random fallback landed intercepted warning first_visit first_use duplicate_receipt available completed intro final correction away last_attack')

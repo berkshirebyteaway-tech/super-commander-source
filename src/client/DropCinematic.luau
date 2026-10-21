@@ -1,6 +1,6 @@
 local Intro=require(script.Parent.Parent.Core.DropIntro)
 local Audio=require(script.Parent.ToyAudio)
-local M={};M.__index=M
+local M={Intro=Intro};M.__index=M
 function M.new(parent)
     local self=setmetatable({lines={}},M)
     local gui=Instance.new('ScreenGui');gui.Name='DropCinematic';gui.IgnoreGuiInset=true;gui.ScreenInsets=Enum.ScreenInsets.None;gui.ClipToDeviceSafeArea=false;gui.ResetOnSpawn=false;gui.DisplayOrder=7;gui.Enabled=false;gui.Parent=parent:FindFirstAncestorOfClass('PlayerGui')
@@ -43,13 +43,14 @@ function M:skyFrame(camera,shot,obscured)
 end
 function M:frame(elapsed,reduced,obscured,paused)
     local shot=Intro.sample(elapsed,reduced)
+    local t=elapsed/Intro.seconds
     self.gui.Enabled=shot.active and not obscured
     if shot.active then
         if not self.started then
             self.started=true
-            if elapsed<.7 and not paused and not obscured then Audio.play('dropExit',.65)end
+            if t<.35 and not paused and not obscured then Audio.play('dropExit',.65)end
         end
-        if elapsed>=1.05 and not self.revealed then self.revealed=true;if not paused and not obscured then Audio.play('dropReveal',.5)end end
+        if t>=.525 and not self.revealed then self.revealed=true;if not paused and not obscured then Audio.play('dropReveal',.5)end end
         if not self.touchGui then
             local g=self.gui.Parent:FindFirstChild('TouchGui')
             if g and g:IsA('ScreenGui')then self.touchGui=g;self.touchEnabled=g.Enabled;g.Enabled=false end
@@ -57,11 +58,11 @@ function M:frame(elapsed,reduced,obscured,paused)
         if self.touchGui and self.touchGui.Enabled then self.touchEnabled=true;self.touchGui.Enabled=false end
         self.Top.Size=UDim2.fromScale(1,shot.bars)
         self.Bottom.Size=UDim2.fromScale(1,shot.bars);self.Bottom.Position=UDim2.fromScale(0,1-shot.bars)
-        local show=math.clamp((elapsed-.15)/.3,0,1)*math.clamp(1-shot.reveal*1.6,0,1)
+        local show=math.clamp((t-.075)/.15,0,1)*math.clamp(1-shot.reveal*1.6,0,1)
         self.promise.TextTransparency=1-show;self.promise.Visible=show>.01
         for i,f in ipairs(self.lines)do
             local side=i%2==0 and 1 or -1
-            local y=(i*.173+elapsed*.8)%1
+            local y=(i*.173+t*1.6)%1
             f.Position=UDim2.fromScale(.5+side*(.35+(i%3)*.045),y)
             f.Size=UDim2.new(0,1,0,32+(i%4)*13);f.BackgroundTransparency=1-shot.streaks*.32
         end

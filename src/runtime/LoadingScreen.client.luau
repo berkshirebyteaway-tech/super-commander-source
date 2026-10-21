@@ -106,17 +106,27 @@ if mono then chip.FontFace=mono end;make("UICorner",chip,{CornerRadius=UDim.new(
 local tipText=make("TextLabel",tipRow,{Name="Text",LayoutOrder=2,Text=tips[math.random(1,#tips)],TextSize=narrow and 13 or 14,TextColor3=muted,BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),Font=Enum.Font.BuilderSansMedium})
 make("TextLabel",cover,{Name="Copyright",Text="© OpenFront and Contributors",TextSize=12,TextColor3=muted,BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,1),Position=UDim2.new(.5,0,1,(narrow or short) and -12 or -18),Size=UDim2.new(1,-32,0,16),Font=Enum.Font.BuilderSansMedium,TextXAlignment=Enum.TextXAlignment.Center})
 pcall(function()RF:RemoveDefaultLoadingScreen()end)
+local hopped=false
 pcall(function()
-    local hop=gui:Clone();hop.Name="FrontierTeleport"
-    local hm=hop.Cover.Column
-    for _,t in ipairs(hm.Mark:GetChildren())do if t.Name=="Tile"then t.BackgroundColor3=accent;t.BackgroundTransparency=.4 end end
-    hm.Mark.Flag.Size=UDim2.fromOffset(pole,math.floor(cell*4))
-    hm.Meter.Status.Text=korean and "전선으로 이동하는 중" or "Moving to the front";hm.Meter.Percent.Text=""
-    hm.Meter.Track.Fill.Size=UDim2.fromScale(1,1)
-    local oath=hm:FindFirstChild("Oath");if oath then oath.Text=korean and "과금으로 이기는 게임이 아닙니다. 지금도, 앞으로도." or "No pay-to-win. Not now. Not ever.";oath.TextColor3=ink end
-    game:GetService("TeleportService"):SetTeleportGui(hop)
+    local TS=game:GetService("TeleportService")
+    if TS:GetArrivingTeleportGui()~=nil or TS:GetLocalPlayerTeleportData()~=nil then me:SetAttribute("SuperCommanderHop",true);hopped=true end
+    local was=TS:GetArrivingTeleportGui();was=was and was:FindFirstChild("Status",true)
+    if was and was:IsA("TextLabel")and was.Text~=""then status.Text=was.Text end
 end)
-local alive,target,shown=true,.2,0
+pcall(function()
+    paint(math.floor(#order*.2+.5))
+    local hop=gui:Clone();hop.Name="FrontierTeleport";hop.Enabled=false
+    paint(0)
+    local hm=hop.Cover.Column
+    hm.Mark.Flag.Size=UDim2.fromOffset(pole,math.floor(cell*4))
+    hm.Meter.Status.Text=korean and "전선으로 이동하는 중" or "Moving to the front";hm.Meter.Percent.Text="20%"
+    hm.Meter.Track.Fill.Size=UDim2.fromScale(.2,1)
+    local oath=hm:FindFirstChild("Oath");if oath then oath.Text=korean and "과금으로 이기는 게임이 아닙니다. 지금도, 앞으로도." or "No pay-to-win. Not now. Not ever.";oath.TextColor3=ink end
+    local ride=hop:Clone();ride.Enabled=true
+    hop.Parent=playerGui
+    game:GetService("TeleportService"):SetTeleportGui(ride)
+end)
+local alive,target,shown=true,.2,hopped and .2 or 0
 local function advance(to,message)target=math.max(target,to);if message then status.Text=message end end
 task.spawn(function()
     while alive do
@@ -136,9 +146,22 @@ local loadedAt=os.clock()
 advance(.75,korean and "지휘 화면을 준비하는 중" or "Preparing the war room")
 local ui=playerGui:WaitForChild("FrontierNativeUI",math.max(1,25-(os.clock()-started)))
 while ui and ui:GetAttribute("Phase")==nil and os.clock()-started<25 do task.wait(.05)end
-advance(1,korean and "출격 준비 완료" or "Ready")
 pcall(function()me:SetAttribute('LoadCoverStages',string.format('%d,%d,%d,%d',math.floor((loadedAt-started)*1000),math.floor((os.clock()-started)*1000),ui and 1 or 0,os.clock()-started>=25 and 1 or 0))end)
-while shown<1 and os.clock()-started<26 do task.wait(.03)end
+task.wait()
+if ui and ui:GetAttribute("Loading")==true then
+    local held,off=os.clock(),nil
+    while ui.Parent and os.clock()-held<90 do
+        if ui:GetAttribute("Loading")==true then off=nil elseif not off then off=os.clock()elseif os.clock()-off>=.3 then break end
+        local map=ui:GetAttribute("LoadingMap")
+        status.Text=(korean and "전장을 준비하는 중" or "Preparing the front")..(type(map)=="string"and map~=""and "  /  "..map or "")
+        target=math.max(target,.75+.2*(1-math.exp(-(os.clock()-held)/15)))
+        task.wait(.05)
+    end
+end
+advance(1,korean and "출격 준비 완료" or "Ready")
+local finishing=os.clock()
+while shown<1 and os.clock()-finishing<1 do task.wait(.03)end
+gui:SetAttribute("Lifting",true);task.wait()
 task.wait(.25)
 alive=false
 local fade=TweenInfo.new(.35,Enum.EasingStyle.Quad)

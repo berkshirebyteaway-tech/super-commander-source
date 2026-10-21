@@ -13,6 +13,7 @@ local CommanderTrail=require(script.Parent.CommanderTrail)
 local Visibility=require(script.Parent.CharacterVisibility)
 local PoseBatch=require(script.Parent.RenderPoseBatch)
 local TeamMarks=require(script.Parent.DropTeamMarks)
+local Teams=require(script.Parent.TeamStandings)
 local Squad=require(script.Parent.Parent.Core.DropSquad)
 local SquadView=require(script.Parent.DropSquadView)
 local Catalog=require(script.Parent.Parent.Core.CosmeticCatalog)
@@ -37,7 +38,8 @@ function M.new(parent,world,touch)
     self.frame=UI.panel(parent,'DropControls');self.frame.ZIndex=20;self.frame.Visible=false
     self.title=UI.label(self.frame,'Title','',17,UI.colors.ink);self.title.Font=Enum.Font.BuilderSansBold
     self.hint=UI.label(self.frame,'Hint','',14,UI.colors.muted)
-    self.land=UI.button(self.frame,'Land','빠른 하강',function()self:landNow('button')end,true)
+    self.teamTag=UI.label(self.frame,'Team','',14,UI.colors.ink);self.teamTag.Font=Enum.Font.BuilderSansBold;self.teamTag.TextWrapped=false;self.teamTag.Visible=false
+    self.land=UI.button(self.frame,'Land','지금 내리기',function()self:landNow('button')end,true)
     self.overview=UI.panel(parent,'DropOverview');self.overview.ZIndex=19;self.overview.Visible=false
     self.mapFrame=UI.make('Frame',self.overview,{Name='Map',BackgroundColor3=UI.colors.ocean,BorderSizePixel=0,ClipsDescendants=true})
     self.raster=Raster.new(self.mapFrame,180,110);self.blips={}
@@ -60,9 +62,19 @@ function M.new(parent,world,touch)
 end
 function M:landNow(source)
     if self.state and self.active and self.land.Visible and self.land:GetAttribute('Enabled')~=false then
-        local diving=not self.diving;self.diving=diving;require(script.Parent.TelemetryStep).step('drop','dive',{item=source or 'other',stage=diving and 'start'or 'stop'})
-        self.remote:FireServer({kind='land',version=self.state.version,diving=diving})
+        if self.diving then return end;self.diving=true;require(script.Parent.TelemetryStep).step('drop','dive',{item=source or 'other',stage='start'})
+        self.remote:FireServer({kind='land',version=self.state.version,diving=true})
     end
+end
+function M:dragMove()
+    local v=self.world.dragging and self.world.dropSteer;if not v then return nil end
+    local len=v.Magnitude;if len<12 then return Vector3.zero end
+    local cam=workspace.CurrentCamera.CFrame
+    local right=Vector3.new(cam.RightVector.X,0,cam.RightVector.Z);local up=Vector3.new(cam.UpVector.X,0,cam.UpVector.Z);local look=Vector3.new(cam.LookVector.X,0,cam.LookVector.Z)
+    if look.Magnitude>up.Magnitude then up=look end
+    if right.Magnitude<.01 or up.Magnitude<.01 then return nil end
+    local dir=right.Unit*v.X-up.Unit*v.Y;if dir.Magnitude<.01 then return Vector3.zero end
+    return dir.Unit*math.min(1,(len-12)/44)
 end
 function M:clear()
     self.steered=nil;self.squad:clear();self.party={};self.positions={}
@@ -80,12 +92,12 @@ function M:clear()
         if self.cameraCF then self.world.dropExitCamera={cf=self.cameraCF,at=os.clock()}end
     end
     for _,fx in pairs(self.trails or {})do fx:destroy()end;self.trails={}
-    self.folder:ClearAllChildren();self.models={};self.rigs={};self.marks={};self.poses={};self.plane=nil;self.reticle=nil;self.cameraCF=nil;self.spectacleMe=nil;self.dropFov=nil;self.camDive=nil;self.camNear=nil
+    self.folder:ClearAllChildren();self.models={};self.rigs={};self.marks={};self.poses={};self.plane=nil;self.reticle=nil;self.cameraCF=nil;self.spectacleMe=nil;self.dropFov=nil;self.camDive=nil;self.camNear=nil;self.camWide=nil
     self.visibility:clear();self.poseBatch:clear()
     self.frame.Visible=false;self.overview.Visible=false;self.world.dropActive=false;self.world.dropCamera=nil;self.active=false;self.readySent=false;self.diving=nil
     for _,b in pairs(self.blips)do b:Destroy()end;self.blips={}
     self.drop=nil
-    self.qaMove=nil
+    self.qaMove=nil;self.world.dropSteer=nil
     self.pending={};self.pendingHead=1;self.queued={}
 end
 function M:destroy()
@@ -193,6 +205,7 @@ function M:accept(d)
 end
 function M:step(dt,obscured)
     if not self.active or not self.drop or not self.world.map then return end
+    self.visibility:step(os.clock(),Me.Character)
     local d=self.drop;local age=self.state.paused and 0 or math.min(.4,os.clock()-self.receivedAt)
     local began=os.clock();local built=0
     while self.pendingHead<=#self.pending and built<2 and os.clock()-began<.003 do
@@ -210,11 +223,13 @@ function M:step(dt,obscured)
     if not self.readySent and self.world:isReady()then self.readySent=true;require(script.Parent.TelemetryClient).emit('drop_render_ready',{result='ready',version=self.version,spawn_style=d.random and 'random'or 'selected',duration_ms=(os.clock()-self.telemetryAt)*1000});self.remote:FireServer({kind='ready',version=self.version})end
     local own=d.players[1];for _,p in ipairs(d.players)do if p.id==1 then own=p;break end end
     local hum=Me.Character and Me.Character:FindFirstChildOfClass('Humanoid');local move=self.qaMove or hum and hum.MoveDirection or Vector3.zero
+    local dragged=false
+    if move.Magnitude<.01 then local steer=self:dragMove();if steer then move=steer;dragged=true end end
     if UIS:GetFocusedTextBox()or obscured then move=Vector3.zero end
-    if not d.preparing and not d.random and not own.landed and elapsed>=d.planeSeconds and os.clock()>=(self.nextInput or 0)then
+    if not d.preparing and not d.random and not own.landed and elapsed>=d.planeSeconds and elapsed<(own.plunge or d.seconds)and os.clock()>=(self.nextInput or 0)then
         self.nextInput=os.clock()+.1;self.sequence=math.max(self.sequence+1,(d.sequence or 0)+1)
         self.remote:FireServer({kind='move',version=self.version,x=move.X,y=move.Z,seq=self.sequence})
-        if not self.steered and (move.X~=0 or move.Z~=0)then self.steered=true;require(script.Parent.TelemetryStep).step('drop','firstSteer',{duration_ms=math.max(0,elapsed-d.planeSeconds)*1000,item=touch and 'touch'or 'keys'})end
+        if not self.steered and (move.X~=0 or move.Z~=0)then self.steered=true;require(script.Parent.TelemetryStep).step('drop','firstSteer',{duration_ms=math.max(0,elapsed-d.planeSeconds)*1000,item=dragged and 'drag'or touch and 'touch'or 'keys'})end
     end
     local meta=self.world.map.meta;local height=math.clamp(math.max(meta.width,meta.height)*G.scale*.65,110,620)
     if not d.preparing and elapsed<d.planeSeconds+.8 then
@@ -224,11 +239,10 @@ function M:step(dt,obscured)
     elseif self.plane then self.plane:Destroy();self.plane=nil end
     for id,pose in pairs(self.poses)do
         local p=pose.target;local tx,ty=p.x,p.y
-        if id==1 and not own.landed and not d.random and elapsed>=d.planeSeconds then tx=math.clamp(tx+move.X*d.speed*age,0,meta.width-1);ty=math.clamp(ty+move.Z*d.speed*age,0,meta.height-1)end
+        if id==1 and not own.landed and not d.random and elapsed>=d.planeSeconds and elapsed<(own.plunge or d.seconds)then tx=math.clamp(tx+move.X*d.speed*age,0,meta.width-1);ty=math.clamp(ty+move.Z*d.speed*age,0,meta.height-1)end
         local px,py=pose.x,pose.y
         local alpha=1-math.exp(-dt*18);pose.x+=(tx-pose.x)*alpha;pose.y+=(ty-pose.y)*alpha
-        local fallAge=math.max(0,math.min(math.clamp(elapsed-d.elapsed,0,.4),elapsed-d.planeSeconds))
-        local falling=math.max(0,(p.altitude or 1)-fallAge*(p.diving and d.diveMultiplier or 1)/(d.seconds-d.planeSeconds))
+        local falling=p.plunge and elapsed>=p.plunge and math.max(0,1-(elapsed-p.plunge)/(d.plungeSeconds or 2))or (p.altitude or 1)
         pose.altitude+=(falling-pose.altitude)*(1-math.exp(-dt*24));if p.landed then pose.altitude=0 end
         pose.shown=math.max(0,(pose.altitude-.05)/.95)
         local touched=p.landed or not d.preparing and pose.seenAirborne and pose.shown<=0
@@ -238,7 +252,7 @@ function M:step(dt,obscured)
         local frameDt=math.max(dt,.001)
         local motion=pose.motion:step(dt,{altitude=pose.altitude,airborne=airborne,landed=touched,diving=p.diving,paused=self.state.paused,reduced=self.world.reducedEffects,
             vx=math.clamp((pose.x-px)/frameDt/d.speed,-1,1),vz=math.clamp((pose.y-py)/frameDt/d.speed,-1,1)})
-        motion.introT=shot.active and math.clamp(elapsed/2,0,1)or nil;motion.reducedEffects=self.world.reducedEffects==true
+        motion.introT=shot.active and math.clamp(elapsed/Cinematic.Intro.seconds,0,1)or nil;motion.reducedEffects=self.world.reducedEffects==true
         motion.near=airborne and math.clamp(1-Motion.height(pose.shown)/.06,0,1)or 0
         local b=self.blips[id];if b then b.Position=UDim2.fromScale((pose.x+.5)/meta.width,(pose.y+.5)/meta.height);b.BackgroundTransparency=p.landed and .35 or 0 end
         local model=self.models[id]
@@ -289,11 +303,21 @@ function M:step(dt,obscured)
             local fall=airborne and 1-math.clamp(motion.inflation or 0,0,1)or 0
             self.camNear=(self.camNear or 0)+(((shot.active or reduced)and 0 or fall)-(self.camNear or 0))*(1-math.exp(-dt*2.2))
             self.camDive=(self.camDive or 0)+((p.diving and 1 or 0)-(self.camDive or 0))*(1-math.exp(-dt*4))
-            local distance=(58+pose.altitude*18)*(self.world.dropZoom or 1)*(1-(reduced and 0 or .16*(motion.cameraKick or 0)/1.8))*(1-.4*self.camNear)
+            local distance=(58+pose.altitude*18)*math.max(.55,self.world.dropZoom or 1)*(1-(reduced and 0 or .16*(motion.cameraKick or 0)/1.8))*(1-.4*self.camNear)
             local viewport=workspace.CurrentCamera.ViewportSize
             local matchDistance=math.max(24,180*G.scale/(2*math.tan(math.rad(25))*viewport.X/math.max(1,viewport.Y)))
             local settle=math.clamp(1-Motion.height(pose.shown)/.07,0,1);settle=settle*settle*(3-2*settle)
             distance+=(matchDistance-distance)*settle;focus=focus:Lerp(Vector3.new(x,G.surfaceY,z),settle)
+            local wide=airborne and not touched and Layout.wideWeight(Motion.height(pose.shown))or 0
+            self.camWide=wide
+            if wide>0 then
+                local aspect=viewport.X/math.max(1,viewport.Y);local spanX,spanZ=meta.width*G.scale,meta.height*G.scale
+                local above=focus.Y-G.surfaceY
+                local top=math.min(Layout.wideMaxHeight,math.max(Layout.fitHeight(spanX,spanZ,aspect)*math.clamp(self.world.dropZoom or 1,.25,1.5),above+distance))
+                local fx,fz=Layout.wideFocus(x,z,spanX,spanZ,top,aspect)
+                local h=math.exp(math.log(math.max(1,above+distance))*(1-wide)+math.log(math.max(1,top))*wide)
+                focus=focus:Lerp(Vector3.new(fx,G.surfaceY,fz),wide);distance=math.max(8,h-(focus.Y-G.surfaceY))
+            end
             local horizontal=math.cos(self.world.tilt)*distance
             local offset=Vector3.new(math.sin(self.world.yaw)*horizontal,math.sin(self.world.tilt)*distance,math.cos(self.world.yaw)*horizontal)
             local cf=CFrame.lookAt(focus+offset,focus)
@@ -324,19 +348,26 @@ function M:step(dt,obscured)
     end
     self.poseBatch:flush()
     self.spectacle:step(dt,{elapsed=elapsed,planeSeconds=d.planeSeconds,shot=shot,me=self.spectacleMe,camera=self.cameraCF,top=height,surfaceY=G.surfaceY,
-        heading=self.spectacleMe and self.spectacleMe.heading or 0,obscured=obscured,paused=self.state.paused,flashes=self.world.mapFlashes~=false})
-    local title=d.preparing and '전장 준비 중' or own.landed and string.format('착륙 완료, %d초 후 시작',left)or string.format('낙하 %d초',left)
-    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '모두 같은 시각에 전투를 시작해요.')or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or touch and ''or 'WASD 착륙지 조절  Space 하강 속도'
-    local land=self.diving and '천천히 하강'or '빠른 하강'
+        heading=self.spectacleMe and self.spectacleMe.heading or 0,wide=self.camWide or 0,obscured=obscured,paused=self.state.paused,flashes=self.world.mapFlashes~=false})
+    local pickLeft=math.max(0,math.ceil((own.plunge or d.seconds)-elapsed));local plunging=own.plunge and elapsed>=own.plunge
+    local title=d.preparing and '전장 준비 중' or own.landed and string.format('착륙 완료, %d초 후 시작',left)or plunging and '하강!'or elapsed<d.planeSeconds and '출격 준비'or string.format('착륙 위치 고르기 %d초',pickLeft)
+    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '모두 같은 시각에 전투를 시작해요.')or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or plunging and '착륙 위치가 정해졌어요.'or touch and '끌어서 착륙지 조절'or 'WASD 착륙지 조절  Space 지금 내리기'
+    local land='지금 내리기'
     if self.lastTitle~=title then self.lastTitle=title;self.title.Text=title end
     if self.lastHint~=hint then self.lastHint=hint;self.hint.Text=hint end
     self.hint.Visible=hint~=''
     if self.lastLand~=land then self.lastLand=land;self.land.Text=land end
-    self.land.Visible=not d.random and not own.landed and not d.preparing;UI.enabled(self.land,elapsed>=3 and not self.state.paused)
+    self.land.Visible=not d.random and not own.landed and not d.preparing and not plunging;UI.enabled(self.land,elapsed>=d.planeSeconds and not self.diving and not self.state.paused)
     local size=self.frame.Parent.AbsoluteSize/UI.scale;local r=Layout.of(size.X,size.Y,touch,meta.width,meta.height)
     local panel=r.panel;UI.box(self.frame,panel.x,panel.y,panel.w,panel.h)
     UI.box(self.title,r.title.x,r.title.y,touch and r.title.w or panel.w-(self.land.Visible and 120 or 24),r.title.h);self.title.TextSize=touch and 15 or 17
     UI.box(self.hint,r.hint.x,r.hint.y,self.land.Visible and r.hint.w or panel.w-24,r.hint.h);self.hint.TextWrapped=true;self.hint.TextSize=14
+    local team=self.ownTeam~=nil and Teams.label(self.ownTeam,self.state)or nil
+    local tagText=team and string.format('%s 소속',team)or ''
+    if self.teamTag.Text~=tagText then self.teamTag.Text=tagText end
+    local tagX=r.title.x+self.title.TextBounds.X+12;local room=(touch and r.title.x+r.title.w or panel.w-(self.land.Visible and 108 or 12))-tagX
+    self.teamTag.Visible=team~=nil and room>=60
+    if self.teamTag.Visible then self.teamTag.TextColor3=Colors.team(self.ownTeam,self.ownTeam);self.teamTag.TextSize=touch and 13 or 14;UI.box(self.teamTag,tagX,r.title.y,room,r.title.h)end
     UI.box(self.land,r.land.x,r.land.y,r.land.w,r.land.h)
     self.land.TextSize=14
     local mw,mh=r.mini.w-8,r.mini.h-8

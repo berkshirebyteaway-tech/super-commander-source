@@ -177,10 +177,11 @@ local function walker(m,st,dark,trim,accent)
 end
 local builders={scout=scout,armored=armored,hover=hover,gunship=skiff,skiff=skiff,walker=walker}
 for k,f in pairs(require(script.Parent.VehicleVolume)({glow=glow,wedge=wedge,bone=bone,track=track,console=console,prism=prism}))do builders[k]=f end
+for k,f in pairs(require(script.Parent.VehicleVolume2)({glow=glow,wedge=wedge,bone=bone,track=track,console=console,prism=prism}))do builders[k]=f end
 local byTier={scout,armored,hover,skiff,walker}
 local Meshes=require(script.Parent.CosmeticMeshes)
 local function meshFill(m,style)
-    local list=Meshes.build(m,style.id,{colors={primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)}})
+    local list=Meshes.build(m,style.id,{groundCap=5,colors={primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)}})
     if not list then return nil end
     local tier=style.tier or 1;local st={anim={},legs={},tracked={},tier=tier,mesh=true};local rate=tier>=5 and 1.4 or tier>=4 and 1.15 or 1
     local crest=Meshes.crestKind(style.id,tier,'vehicle')
@@ -277,7 +278,7 @@ function M.step(model,time,speed,reduced,phase)
         if leg.knee and not reduced then leg.knee.Color=prism(time*.06+leg.side*.1+leg.fore*.2)end
     end
 end
-local prefetchSlots={'vehicle','parachute','city','defensePost','projectile'}
+local prefetchSlots={'vehicle','parachute','city','defensePost','projectile','commanderOrder'}
 function M.watch(context)
     if M.started then return end;M.started=true
     local Players=game:GetService('Players');local states={};local scan=0;local budget=0
@@ -304,7 +305,9 @@ function M.watch(context)
                 local visible=shown and root.LocalTransparencyModifier<.95 and far<180 and point.Z>0 and point.X>=-60 and point.X<=camera.ViewportSize.X+60 and point.Y>=-60 and point.Y<=camera.ViewportSize.Y+60
                 if v.visible~=visible then v.visible=visible;v.lastAt=nil;v.artAt=nil;v.model.Parent=visible and folder or nil;M.riders[c]=visible or nil end
                 if visible then
-                    local scale=math.clamp(root.Size.Y/2,.65,1.45);if v.scale~=scale then v.scale=scale;v.model:ScaleTo(scale)end
+                    local floor=.1*2*far*math.tan(math.rad(camera.FieldOfView)/2)/2.6
+                    local scale=math.clamp(math.max(root.Size.Y/2,floor),.65,1.6);scale=math.floor(scale*20+.5)/20
+                    if v.scale~=scale then v.scale=scale;v.model:ScaleTo(scale)end
                     local leg=c:FindFirstChild('Left Leg');local feet=(hum and hum.HipHeight or 0)+root.Size.Y/2+(leg and leg.Size.Y or 0)
                     v.model:PivotTo(root.CFrame*CFrame.new(0,-feet+.08,0))
                     if art or p==me or far<70 then

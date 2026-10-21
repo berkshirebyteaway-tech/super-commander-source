@@ -1,35 +1,50 @@
 local G=require(script.Parent.Parent.Core.WorldGeometry)
+local Pattern=require(script.Parent.TerritoryCollection)
 local M={}
-M.rate={[4]=3.2,[5]=7}
-M.life={[4]=1.4,[5]=1.15}
+M.rate={[3]=2.2,[4]=3.2,[5]=7}
+M.life={[3]=1.2,[4]=1.4,[5]=1.15}
+M.sources={pulse_territory={4},venom_territory={1},tidal_territory={1},ember_territory={6},storm_territory={1},scale_territory={5},
+    solaris_territory={2},crown_territory={3},phoenix_territory={7,8},filigree_territory={2,5},dragon_territory={5},diamond_territory={6},
+    parallax_territory={1,8},eclipse_territory={5,6,7},galaxy_territory={1,2,3,4,6,7},seraph_territory={2,4},glitch_territory={2,3},leviathan_territory={2,8}}
 M.maxPerFrame=2
 M.totalRate=16
 M.texture='rbxasset://textures/particles/sparkles_main.dds'
+M.looks={
+    dragonscale={size=1.15,life=1.25,rate=1.15,border=true,drift=.5,colors=function(s)return s.secondary,s.accent end},
+    facets={size=1.3,life=1.1,rate=1,sweep=true,colors=function()return Color3.fromRGB(236,246,255),Color3.fromRGB(170,215,255)end},
+    plumes={size=1.25,life=1.5,rate=1,drift=.25,colors=function(s)return Color3.fromRGB(255,250,240),s.accent end},
+    pixels={size=.9,life=.8,rate=.8,blocks=true,colors=function(s)return s.secondary,s.accent end},
+    abyss={size=1.7,life=2,rate=.9,colors=function(s)return s.secondary,s.accent end},
+}
+M.sweep={period=5.5,duration=1.2,rate=34}
+M.blocks={max=16,rate={5,9,14},life={.09,.22}}
 local WHITE=Color3.new(1,1,1)
 local function rgb(a,f)return a and Color3.fromRGB(a[1],a[2],a[3])or f end
 function M.new(folder)
     local anchor=Instance.new('Part');anchor.Name='TerritoryGlints';anchor.Anchored=true;anchor.CanCollide=false;anchor.CanQuery=false
     anchor.CanTouch=false;anchor.CastShadow=false;anchor.Transparency=1;anchor.Size=Vector3.one*.1;anchor.Parent=folder
-    return {anchor=anchor,emitters={},owners={},debt={},box=nil,boxAge=1,scale=1,rng=Random.new(1018)}
+    return {anchor=anchor,emitters={},owners={},debt={},box=nil,boxAge=1,scale=1,rng=Random.new(1018),clock=0,sweepDebt=0,blockDebt={},blocks={},nextBlock=1}
 end
 local function emitter(g,id,s)
     local e=g.emitters[id]
     if e and e.key==s.key then return e end
     if e then e.att:Destroy()end
     local att=Instance.new('Attachment');att.Name='Glint'..tostring(id);att.Parent=g.anchor
-    local p=Instance.new('ParticleEmitter');p.Texture=M.texture;p.Rate=0;p.LightEmission=1;p.LightInfluence=0;p.Brightness=s.tier>=5 and 3 or 2.2
-    p.Lifetime=NumberRange.new(M.life[s.tier]*.85,M.life[s.tier]*1.15);p.Speed=NumberRange.new(0);p.LockedToPart=false
+    local p=Instance.new('ParticleEmitter');p.Texture=M.texture;p.Rate=0;p.LightEmission=1;p.LightInfluence=0;p.Brightness=s.tier>=5 and 3 or s.tier>=4 and 2.2 or 1.8
+    local look=s.look;local life=M.life[s.tier]*(look and look.life or 1)
+    p.Lifetime=NumberRange.new(life*.85,life*1.15);p.Speed=NumberRange.new(0,look and look.drift or 0);p.SpreadAngle=Vector2.new(180,0);p.LockedToPart=false
     p.Orientation=Enum.ParticleOrientation.FacingCamera;p.Rotation=NumberRange.new(0,360);p.RotSpeed=NumberRange.new(-40,40)
     p.ZOffset=.5;p.Shape=Enum.ParticleEmitterShape.Box;p.EmissionDirection=Enum.NormalId.Top
     p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.3,.05),NumberSequenceKeypoint.new(.7,.25),NumberSequenceKeypoint.new(1,1)})
-    if s.tier>=5 then
+    if look then local a,b=look.colors(s);p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,a),ColorSequenceKeypoint.new(.5,a:Lerp(b,.5):Lerp(WHITE,.3)),ColorSequenceKeypoint.new(1,b)})
+    elseif s.tier>=5 then
         p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,s.secondary),ColorSequenceKeypoint.new(.45,s.accent:Lerp(WHITE,.4)),ColorSequenceKeypoint.new(1,s.accent)})
     else p.Color=ColorSequence.new(s.accent:Lerp(WHITE,.3),s.accent)end
     p.Parent=att
     e={att=att,p=p,key=s.key,size=0};g.emitters[id]=e;return e
 end
 local function size(e,s,scale)
-    local peak=(s.tier>=5 and 1.9 or 1.35)*scale
+    local peak=(s.tier>=5 and 1.9 or s.tier>=4 and 1.35 or 1.1)*scale*(s.look and s.look.size or 1)
     if math.abs(peak-e.size)<.08*peak then return end
     e.size=peak
     e.p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,peak*.25),NumberSequenceKeypoint.new(.35,peak),NumberSequenceKeypoint.new(1,peak*.3)})
@@ -60,39 +75,105 @@ local function viewBox(camera,width,height)
     if minX>=maxX or minZ>=maxZ then return nil end
     return {x=minX,z=minZ,w=maxX-minX,h=maxZ-minZ}
 end
+local function pick(g,box,width,height,owners,id,border,src)
+    local fallback
+    for _=1,5 do
+        local x=box.x+g.rng:NextNumber()*box.w;local z=box.z+g.rng:NextNumber()*box.h
+        local tile=G.toTile(x,z,width,height)
+        if tile and src and not border then
+            local o=src[g.rng:NextInteger(1,#src)];local tx,ty=tile%width,tile//width
+            tx=tx-tx%src.w+o%src.w;ty=ty-ty%src.h+o//src.w
+            tile=tx<width and ty<height and ty*width+tx or nil
+        end
+        if tile and owners[tile]==id then
+            if not border then return tile end
+            fallback=fallback or tile
+            if owners[tile+1]~=id or owners[tile-1]~=id or owners[tile+width]~=id or owners[tile-width]~=id then return tile end
+        end
+    end
+    return fallback
+end
+local function emitAt(g,id,s,tile,width,height)
+    local e=emitter(g,id,s);size(e,s,g.scale)
+    local wx,wy,wz=G.toWorld(tile,width,height)
+    e.att.WorldPosition=Vector3.new(wx,wy+.12,wz);e.p:Emit(1)
+end
+local function block(g)
+    local b=g.blocks[g.nextBlock]
+    if not b then
+        local p=Instance.new('Part');p.Name='GlitchBlock';p.Anchored=true;p.CanCollide=false;p.CanQuery=false;p.CanTouch=false;p.CastShadow=false
+        p.Material=Enum.Material.Neon;p.Transparency=1;p.Size=Vector3.new(1,.02,1);p.Parent=g.anchor
+        b={p=p,left=0};g.blocks[g.nextBlock]=b
+    end
+    g.nextBlock=g.nextBlock%M.blocks.max+1;return b
+end
+local function flicker(g,s,tile,width,height)
+    local tx,ty=tile%width,tile//width;local n=4*math.clamp(s.phase or 1,1,3)
+    local w,h=n*(g.rng:NextNumber()<.5 and 1 or 2),n
+    local x0,y0=tx-tx%4,ty-ty%4
+    local wx,wy,wz=G.toWorld(y0*width+x0,width,height);local t=G.scale
+    for k,c in ipairs({s.secondary,s.accent})do
+        local b=block(g);b.left=M.blocks.life[1]+g.rng:NextNumber()*(M.blocks.life[2]-M.blocks.life[1])
+        b.p.Color=c;b.p.Size=Vector3.new(w*t,.02,h*t);b.p.Transparency=k==1 and .15 or .35
+        b.p.CFrame=CFrame.new(wx+(w/2-.5+(k-1))*t,wy+.1+k*.01,wz+(h/2-.5)*t)
+    end
+end
 function M.step(g,dt,camera,width,height,owners,reduced)
+    if reduced then for _,b in ipairs(g.blocks)do if b.left>0 then b.left=0;b.p.Transparency=1 end end end
+    for _,b in ipairs(g.blocks)do if b.left>0 then b.left-=dt;if b.left<=0 then b.p.Transparency=1 end end end
     if reduced or not next(g.owners)or not camera then return end
-    g.boxAge+=dt
+    g.boxAge+=dt;g.clock+=dt
     if g.boxAge>=.25 then
         g.boxAge=0;g.box=viewBox(camera,width,height)
         local focus=camera.Focus.Position;g.scale=math.clamp((camera.CFrame.Position-focus).Magnitude/34,.7,3)
     end
     local box=g.box;if not box then return end
     local emitted=0
-    local sum=0;for _,s in pairs(g.owners)do sum+=(M.rate[s.tier]or 0)+(s.tier>=5 and 3*((s.phase or 1)-1)or 0)end
-    local share=math.min(1,M.totalRate/math.max(sum,1))*math.clamp(2.2/g.scale,.35,1)
+    local function base(s)return ((M.rate[s.tier]or 0)+(s.tier>=5 and 3*((s.phase or 1)-1)or 0))*(s.look and s.look.rate or 1)end
+    local sums={0,0,0,0,0};for _,s in pairs(g.owners)do sums[s.tier]=(sums[s.tier]or 0)+base(s)end
+    local left,shares=M.totalRate,{};local far=math.clamp(2.2/g.scale,.35,1)
+    for tier=5,3,-1 do local want=sums[tier]or 0;shares[tier]=want>0 and math.min(1,left/want)*far or 0;left=math.max(0,left-want)end
+    local u=(g.clock%M.sweep.period)/M.sweep.duration
+    local sweeping=u<1;if sweeping then g.sweepDebt=math.min(g.sweepDebt+M.sweep.rate*dt,2)end
     for id,s in pairs(g.owners)do
-        local rate=((M.rate[s.tier]or 0)+(s.tier>=5 and 3*((s.phase or 1)-1)or 0))*share
-        local debt=math.min((g.debt[id]or 0)+rate*dt,2);g.debt[id]=debt
+        local look=s.look
+        local debt=math.min((g.debt[id]or 0)+base(s)*(shares[s.tier]or 0)*dt,2);g.debt[id]=debt
         while debt>=1 and emitted<M.maxPerFrame do
             debt-=1;emitted+=1
-            for _=1,5 do
-                local x=box.x+g.rng:NextNumber()*box.w;local z=box.z+g.rng:NextNumber()*box.h
-                local tile=G.toTile(x,z,width,height)
-                if tile and owners[tile]==id then
-                    local e=emitter(g,id,s);size(e,s,g.scale)
-                    local wx,wy,wz=G.toWorld(tile,width,height)
-                    e.att.WorldPosition=Vector3.new(wx,wy+.12,wz);e.p:Emit(1)
-                    break
-                end
-            end
+            local tile=pick(g,box,width,height,owners,id,look and look.border,s.sources)
+            if tile then emitAt(g,id,s,tile,width,height)end
         end
         g.debt[id]=debt
+        if look and look.sweep and sweeping then
+            while g.sweepDebt>=1 do
+                g.sweepDebt-=1
+                local a=g.rng:NextNumber();local k=math.clamp(2*u-a,0,1)
+                local tile=G.toTile(box.x+a*box.w,box.z+k*box.h,width,height)
+                if tile and owners[tile]==id then emitAt(g,id,s,tile,width,height)end
+            end
+        elseif look and look.blocks then
+            local rate=M.blocks.rate[math.clamp(s.phase or 1,1,3)]*math.clamp(2.2/g.scale,.5,1)
+            local bd=math.min((g.blockDebt[id]or 0)+rate*dt,2)
+            while bd>=1 do bd-=1;local tile=pick(g,box,width,height,owners,id);if tile then flicker(g,s,tile,width,height)end end
+            g.blockDebt[id]=bd
+        end
     end
 end
+local sourceCache={}
+local function sources(style)
+    local id=style.id;local cached=sourceCache[id];if cached~=nil then return cached or nil end
+    local want=M.sources[id];local spec=want and Pattern.spec(style,1);local list=false
+    if spec then
+        local set={};for _,c in ipairs(want)do set[c]=true end
+        list={w=spec.w,h=spec.h}
+        for i=0,spec.w*spec.h-1 do if set[buffer.readu8(spec.buf,i)]then table.insert(list,i)end end
+        if #list==0 then list=false end
+    end
+    sourceCache[id]=list;return list or nil
+end
 function M.styleFor(style,phase,share)
-    local s={tier=style.tier or 0,accent=rgb(style.accent,Color3.fromRGB(255,207,91)),secondary=rgb(style.secondary,WHITE),phase=phase,share=share}
+    local s={tier=style.tier or 0,accent=rgb(style.accent,Color3.fromRGB(255,207,91)),secondary=rgb(style.secondary,WHITE),phase=phase,share=share,look=M.looks[style.motif],sources=sources(style)}
     s.key=tostring(style.id)..':'..s.tier;return s
 end
-function M.destroy(g)if g.anchor then g.anchor:Destroy()end;g.emitters={};g.owners={}end
+function M.destroy(g)if g.anchor then g.anchor:Destroy()end;g.emitters={};g.owners={};g.blocks={}end
 return M

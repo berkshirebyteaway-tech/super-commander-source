@@ -6,7 +6,7 @@ local Launch=require(script.Parent.Parent.Core.LaunchCommerce)
 local Tween=game:GetService('TweenService')
 local Me=game.Players.LocalPlayer
 local M={}
-local GOLD=Color3.fromRGB(255,207,91)
+local GOLD=UI.colors.vip
 M.features={emoji='VIP 클럽 전용 이모지예요. 앞의 외교 이모지 7개는 무료예요.',quickChat='빠른 채팅 문구는 VIP 클럽 전용이에요.',text='채팅 입력은 VIP 클럽 전용이에요.',
     voice='음성 채팅은 VIP 클럽 전용이에요.',motion='모션은 VIP 클럽 전용이에요.',spectate='다른 경기 관전은 VIP 클럽 혜택이에요.'}
 M.perks={'글 채팅','음성 채팅, 팀 전용 가능','이모지, 빠른 채팅','지휘 모션','다른 경기 관전','매일 뽑기권, XP 2배'}

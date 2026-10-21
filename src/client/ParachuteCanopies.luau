@@ -134,6 +134,8 @@ function builders.holo(add,anim,dark,trim,accent)
 end
 local Volume=require(script.Parent.ParachuteVolume)
 for key,build in pairs(Volume.builders)do builders[key]=build end
+local Volume2=require(script.Parent.ParachuteVolume2)
+for key,build in pairs(Volume2.builders)do builders[key]=build end;for k,f in pairs(Volume2.kinds)do assert(not Volume.kinds[k]);Volume.kinds[k]=f end
 local Meshes=require(script.Parent.CosmeticMeshes)
 local CANOPY=CFrame.new(0,-7.7,.25)
 function M.meshBuild(rig,canopy,style)

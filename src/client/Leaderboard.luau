@@ -2,6 +2,8 @@ local UI=require(script.Parent.Theme)
 local FactionColors=require(script.Parent.FactionColors)
 local Honor=require(script.Parent.CommanderHonor)
 local Glyphs=require(script.Parent.ActionGlyphs)
+local Teams=require(script.Parent.TeamStandings)
+local Step=require(script.Parent.TelemetryStep)
 local C=UI.colors
 local M={};M.__index=M
 M.WIDTH=264
@@ -15,7 +17,7 @@ local function text(parent,name,size,color,align,font)
         TextXAlignment=align or Left,TextYAlignment=Enum.TextYAlignment.Center,TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=12})
 end
 function M.new(parent,callbacks)
-    local self=setmetatable({callbacks=callbacks or {},collapsed=false,rows={}},M)
+    local self=setmetatable({callbacks=callbacks or {},collapsed=false,rows={},mode="players"},M)
     local W=M.WIDTH
     local f=UI.make("Frame",parent,{Name="Leaderboard",BackgroundColor3=C.panel,BackgroundTransparency=.08,BorderSizePixel=0,Visible=false,Active=true,ZIndex=11,Size=UDim2.fromOffset(W,HEADER)})
     UI.corner(f,3);UI.stroke(f,C.line,1);self.frame=f
@@ -25,12 +27,19 @@ function M.new(parent,callbacks)
     for i,hgt in ipairs({7,11,9})do self.marks[i]=UI.make("Frame",title,{Name="Mark"..i,BackgroundColor3=i==2 and C.accent or C.ice,BorderSizePixel=0,ZIndex=12,Position=UDim2.fromOffset(10+(i-1)*4,22-hgt),Size=UDim2.fromOffset(3,hgt)})end
     local name=text(title,"Label",14,C.ink,Left,Enum.Font.BuilderSansBold);UI.box(name,30,0,60,HEADER);name.Text="순위";self.label=name
     self.count=text(title,"Survivors",12,C.muted,Right);UI.box(self.count,90,0,W-44-90-4,HEADER)
+    self.tabs={}
+    for i,k in ipairs({{"players","개인",40},{"teams","팀",34}})do
+        local b=UI.make("TextButton",f,{Name="Tab_"..k[1],Text=k[2],TextSize=12,Font=Enum.Font.BuilderSansBold,TextColor3=C.muted,BackgroundColor3=C.ink,BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,Visible=false,ZIndex=13,Size=UDim2.fromOffset(k[3],22)})
+        UI.corner(b,3);UI.stroke(b,C.line,1)
+        b.Activated:Connect(function()if self.mode~=k[1]then self.mode=k[1];Step.step("hud","rankMode",{item=k[1]});self:draw();if self.callbacks.changed then self.callbacks.changed()end end end)
+        self.tabs[i]={button=b,mode=k[1],width=k[3]}
+    end
     self.toggle=UI.button(f,"Toggle","–",function()self.collapsed=not self.collapsed;self:draw();if self.callbacks.changed then self.callbacks.changed()end end)
     self.toggle.TextSize=16;self.toggle.ZIndex=12;UI.box(self.toggle,W-38,4,30,26)
     local cols=UI.make("Frame",f,{Name="Columns",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=12,Position=UDim2.fromOffset(0,HEADER),Size=UDim2.fromOffset(W,COLUMNS)})
     self.columns=cols
     local function caption(n,t,x,w,align)local c=text(cols,n,13,C.muted,align,Enum.Font.BuilderSansBold);UI.box(c,x,0,w,COLUMNS);c.Text=t;return c end
-    caption("Rank","#",8,22,Center);caption("Name","지휘관",34,120);caption("Land","영토",W-114,54,Right);local troopCap=caption("Troops","병력",W-56,46,Right)
+    caption("Rank","#",8,22,Center);self.nameCaption=caption("Name","지휘관",34,120);caption("Land","영토",W-114,54,Right);local troopCap=caption("Troops","병력",W-56,46,Right)
     local mark=Glyphs.create(cols,"troops",13,C.muted);if mark then troopCap.Visible=false;mark.Position=UDim2.fromOffset(W-8-13-6,math.floor((COLUMNS-13)/2))end
     local function row(n)
         local r=UI.make("TextButton",f,{Name=n,Text="",BackgroundColor3=C.raised,BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,ZIndex=12,Size=UDim2.fromOffset(W-8,ROW)})
@@ -62,8 +71,21 @@ local function fill(o,f,rank,ownColor)
     o.land.Text=share(f.share);o.troops.Text=UI.troops(f.troops)
     o.root.BackgroundTransparency=mine and .2 or 1
 end
+local function fillTeam(o,t,rank,factions)
+    o.faction=nil;o.root.Visible=t~=nil;if not t then return end
+    local mine=t.mine;o.me=mine
+    for _,f in ipairs(factions)do if f.team==t.team and f.kind~="BOT"and not f.eliminated and (f.tiles or 0)>0 then o.faction=f;break end end
+    o.rank.Text=tostring(rank);o.rank.TextColor3=mine and C.accent or rank==1 and C.gold or C.muted
+    o.face.Visible=false;o.dot.Visible=true;o.dot.BackgroundColor3=t.color
+    o.name.Text=string.format("%s  %d명",t.name,t.alive);o.name.TextColor3=mine and C.accent or C.ink
+    Honor.pill(o.name,nil)
+    o.land.Text=share(t.share);o.troops.Text=UI.troops(t.troops)
+    o.root.BackgroundTransparency=mine and .2 or 1
+end
 function M:update(state,sorted,ownColor)
     self.state=state;self.ownColor=ownColor
+    self.teamGame=Teams.active(state);self.teams=self.teamGame and Teams.build(state,sorted)or nil;self.sorted=sorted or {}
+    if not self.teamGame then self.mode="players"end
     local alive,mineAt={},nil
     for _,f in ipairs(sorted or {})do if (f.tiles or 0)>0 and not f.eliminated then table.insert(alive,f);if f.id==1 then mineAt=#alive end end end
     self.alive=alive;self.mineAt=mineAt
@@ -73,7 +95,7 @@ end
 function M:draw()
     local alive=self.alive or {};local mineAt=self.mineAt
     if self.compact then
-        self.toggle.Visible=false;self.columns.Visible=false;self.more.Visible=false;self.mine.root.Visible=false;self.label.Visible=false
+        self.toggle.Visible=false;self.columns.Visible=false;for _,t in ipairs(self.tabs)do t.button.Visible=false end;self.more.Visible=false;self.mine.root.Visible=false;self.label.Visible=false
         for _,o in ipairs(self.rows)do o.root.Visible=false end
         local ch=self.chipH or 44
         UI.box(self.title,0,(ch-48)/2,M.CHIP,48)
@@ -84,12 +106,33 @@ function M:draw()
         self.height=ch;self.frame.Size=UDim2.fromOffset(M.CHIP,ch);return
     end
     self.toggle.Visible=true;self.label.Visible=true;UI.box(self.title,0,0,M.WIDTH-44,HEADER)
+    local tabs=self.teamGame==true and not self.collapsed;local tx=66
+    for _,t in ipairs(self.tabs)do
+        local b=t.button;b.Visible=tabs
+        if tabs then local on=self.mode==t.mode;UI.box(b,tx,6,t.width,22);tx+=t.width+4
+            b.BackgroundTransparency=on and 0 or 1;b.TextColor3=on and C.bg or C.muted end
+    end
     for i,m in ipairs(self.marks)do local hgt=({7,11,9})[i];m.Position=UDim2.fromOffset(10+(i-1)*4,22-hgt)end
     self.count.TextXAlignment=Right;self.count.TextSize=12;self.count.Font=Enum.Font.BuilderSansMedium;self.count.TextColor3=C.muted;UI.box(self.count,90,0,M.WIDTH-44-90-4,HEADER)
     self.toggle.Text=self.collapsed and "+" or "–"
     self.count.Text=self.collapsed and mineAt and string.format("#%d / %d",mineAt,#alive) or string.format("생존 %d",#alive)
+    if tabs then UI.box(self.count,tx,0,M.WIDTH-44-tx-4,HEADER)end
     self.columns.Visible=not self.collapsed;self.more.Visible=false;self.mine.root.Visible=false
     local y=HEADER+COLUMNS
+    if tabs and self.mode=="teams"then
+        self.nameCaption.Text="팀";local list=self.teams or {};local mine
+        for i,t in ipairs(list)do if t.mine then mine=i end end
+        self.count.Text=string.format("%d개 팀",#list)
+        for i,o in ipairs(self.rows)do
+            local t=list[i];fillTeam(o,t,i,self.sorted);o.stroke.Enabled=false
+            if t then UI.box(o.root,4,y,M.WIDTH-8,ROW);y+=ROW end
+        end
+        if mine and mine>M.ROWS then
+            fillTeam(self.mine,list[mine],mine,self.sorted);self.mine.stroke.Enabled=true;UI.box(self.mine.root,4,y+2,M.WIDTH-8,ROW);y+=ROW+2
+        end
+        self.height=y+6;self.frame.Size=UDim2.fromOffset(M.WIDTH,self.height);return
+    end
+    self.nameCaption.Text="지휘관"
     for i,o in ipairs(self.rows)do
         local f=not self.collapsed and alive[i] or nil;fill(o,f,i,self.ownColor);o.stroke.Enabled=false
         if f then UI.box(o.root,4,y,M.WIDTH-8,ROW);y+=ROW end

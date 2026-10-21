@@ -17,18 +17,19 @@ local modes={ffa='개인전',teams='팀전',coop='협동'}
 local difficulties=Options.difficultyLabels
 local function label(p,name,text,x,y,w,h,size,color)local l=UI.label(p,name,text,size or 14,color);UI.box(l,x,y,w,h);return l end
 local function mapCard(lobby,p,w,map,y,editable)
-    local short=lobby.root.AbsoluteSize.Y/Theme.scale<500;local compact=short and lobby.page=='room';local h=compact and 44 or short and 88 or 112
+    local short=lobby.root.AbsoluteSize.Y/Theme.scale<500;local compact=lobby.page=='room'and (short or lobby.pageBody.Size.Y.Offset<360);local h=compact and 44 or short and 88 or 112
+    local slim=short or w<380
     local f=UI.panel(p,'MapSummary');UI.box(f,2,y,w-4,h)
-    local picture=UI.make('Frame',f,{Name='Map',BackgroundColor3=UI.colors.ocean,BorderSizePixel=0,ClipsDescendants=true});UI.box(picture,8,8,compact and 60 or short and 110 or 152,h-16)
+    local picture=UI.make('Frame',f,{Name='Map',BackgroundColor3=UI.colors.ocean,BorderSizePixel=0,ClipsDescendants=true});UI.box(picture,8,8,compact and 60 or slim and 110 or 152,h-16)
     local raster=Raster.new(picture,128,80);raster:setPreview(Maps.preview(map));task.defer(function()if picture.Parent then raster:fit();raster:draw()end end);picture.Destroying:Once(function()raster:destroy()end)
-    local tx=compact and 82 or short and 128 or 172;local title=label(f,'Title',(Maps.meta(map)or Maps.catalog[1]).label,tx,compact and 2 or 8,w-tx-24,32,compact and 20 or 24);Theme.display(title)
+    local tx=compact and 82 or slim and 128 or 172;local title=label(f,'Title',(Maps.meta(map)or Maps.catalog[1]).label,tx,compact and 2 or 8,w-tx-24,32,compact and 20 or 24);Theme.display(title)
     if editable then local b=UI.button(f,'ChangeMap','지도 바꾸기',function()lobby.returnPage='custom';lobby:openPage('maps')end);UI.box(b,tx,40,w-tx-24,44)end
     return y+h+(compact and 8 or 12)
 end
 local function row(p,name,text,y,w,fn,primary)local b=UI.button(p,name,text,fn,primary);UI.box(b,2,y,w-4,48);return y+56,b end
 local function choices(p,name,values,current,y,w,fn)
     for i,v in ipairs(values)do local b=UI.button(p,name..v[1],v[2],function()fn(v[1])end,v[1]==current);UI.box(b,2+(i-1)*(w+6)/#values,y,(w-8-6*(#values-1))/#values,48);b.TextSize=14
-        if v[1]=='public'then UI.box(require(script.Parent.OutgameIcons).create(b,'vip',20,UI.colors.ice),10,14,20,20);UI.make('UIPadding',b,{PaddingLeft=UDim.new(0,24)})end
+        if v[1]=='public'then UI.box(require(script.Parent.OutgameIcons).create(b,'vip',20,UI.colors.vip),10,14,20,20);UI.make('UIPadding',b,{PaddingLeft=UDim.new(0,24)})end
     end;return y+56
 end
 local Rows=require(script.Parent.SettingsRows)
@@ -118,7 +119,7 @@ function M.draw(lobby,p,w)
         lobby.pageTitle.Text='커스텀 대기'
         local q=lobby.data and lobby.data.queue
         if not q or q.mode~='custom'then label(p,'Ended','방 모집이 끝났어요.',8,0,w-16,52,18);M.footer(lobby);return end
-        local short=lobby.root.AbsoluteSize.Y/Theme.scale<500
+        local short=lobby.root.AbsoluteSize.Y/Theme.scale<500 or p.Size.Y.Offset<360
         local r=q.rules;y=mapCard(lobby,p,w,r.map,y,false)
         local description=L.text(modes[r.mode])..' / '..L.text(r.spawn=='random'and '랜덤 스폰'or '스폰 선택')..' / '..string.format(L.text('최대 %d명'),r.maximum)..(r.settings and r.settings.mapSize=='normal'and ' / '..L.text('큰 지도')or '')
         label(p,'Rules',description,8,y,w-16,short and 24 or 32,14,UI.colors.muted);y+=short and 28 or 36

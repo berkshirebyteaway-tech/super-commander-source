@@ -34,9 +34,10 @@ function M:draw()
     local columns=math.min(6,math.floor((width-20)/48));local rows=choose and math.ceil((plan.count+1)/columns)or 0
     local footerH=choose and rows*48+20 or 24;UI.box(self.body,10,78,width-20,height-86-footerH);UI.box(self.footer,10,height-footerH-8,width-20,footerH)
     local ownTeam=plan.teams[tostring(Me.UserId)];local y=0
+    local hvn=f.rules and f.rules.teamFormat=='HumansVsNations'
     for team=1,plan.count do
         local color=Colors.team(team,ownTeam);local count=plan.counts[team]or plan.counts[tostring(team)]or 0
-        local title=UI.label(self.body,'Team'..team,string.format('%d팀',team),15,color);title.ZIndex=33;title.Font=Enum.Font.BuilderSansBold;UI.box(title,4,y,width-40,28);y+=30
+        local title=UI.label(self.body,'Team'..team,hvn and (team==1 and '사람 팀'or '국가 팀')or string.format('%d팀',team),15,color);title.ZIndex=33;title.Font=Enum.Font.BuilderSansBold;UI.box(title,4,y,width-40,28);y+=30
         local shown=0
         for _,m in ipairs(f.members or {})do if plan.teams[tostring(m.userId)]==team then
             shown+=1;local row=UI.panel(self.body,'Member'..m.userId);row.ZIndex=33;UI.box(row,2,y,width-28,44)
@@ -46,7 +47,7 @@ function M:draw()
             local ready=UI.label(row,'Ready',m.ready and '준비 완료'or '',12,UI.colors.accent);ready.ZIndex=34;UI.box(ready,width-104,0,68,44);y+=48
         end end
         local ai=plan.aiCounts and (plan.aiCounts[team]or plan.aiCounts[tostring(team)])or 0
-        if ai>0 or f.rules.teamFormat=='HumansVsNations'and team==2 then local text=UI.label(self.body,'AI'..team,ai>0 and string.format('AI 지휘관 %d명',ai)or 'AI 국가',13,UI.colors.muted);text.ZIndex=33;UI.box(text,8,y,width-44,28);y+=30
+        if ai>0 or f.rules.teamFormat=='HumansVsNations'and team==2 then local text=UI.label(self.body,'AI'..team,hvn and (ai>0 and string.format('어려운 국가 %d명',ai)or '사람 수만큼 어려운 국가')or ai>0 and string.format('AI 지휘관 %d명',ai)or 'AI 국가',13,UI.colors.muted);text.ZIndex=33;UI.box(text,8,y,width-44,28);y+=30
         elseif shown==0 then local empty=UI.label(self.body,'Empty'..team,'모집 중',12,UI.colors.muted);empty.ZIndex=33;UI.box(empty,8,y,width-44,26);y+=28 end
         y+=8
     end

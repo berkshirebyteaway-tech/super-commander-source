@@ -191,7 +191,7 @@ function M:tickFlight(u)
     if d.index>=#d.path-1 then
         u.tile=u.kind=="MIRV" and d.separate or u.targetTile
         if u.kind=="MIRV" then u.active=false;return end
-        for _,v in ipairs(self.w.units) do if v.active and v.kind=="SAMMissile" and v.targetUnit==u.id and v.owner~=u.owner and self.w:distance2(v.tile,u.tile)<=144 then return end end
+        for _,v in ipairs(self.s:ofKind("SAMMissile")) do if v.active and v.targetUnit==u.id and v.owner~=u.owner and self.w:distance2(v.tile,u.tile)<=144 then return end end
         self:detonate(u);return
     end
     d.index+=1;u.tile=d.path[d.index]

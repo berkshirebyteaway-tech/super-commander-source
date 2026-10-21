@@ -9,6 +9,7 @@ local V=require(pack.Client.ViewMath)
 local PlazaLayout=require(pack.Core.PlazaLayout)
 local LobbyIntro=require(pack.Client.LobbyIntro)
 local WorldView=require(pack.Client.WorldView)
+require(pack.Client.MapPreload)
 local VisualEffects=require(pack.Client.VisualEffects)
 local CosmeticCatalog=require(pack.Core.CosmeticCatalog)
 local Icons=require(pack.Client.UIIcons)
@@ -44,6 +45,7 @@ me.PlayerGui.ScreenOrientation=Enum.ScreenOrientation.LandscapeSensor
 local gui=make("ScreenGui",me.PlayerGui,{Name="FrontierNativeUI",DisplayOrder=5,IgnoreGuiInset=false,ResetOnSpawn=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
 L.bind(gui)
 require(pack.Client.FullBleed).watch(gui)
+task.spawn(function()require(pack.Client.OpsOverlay).start()end)
 task.spawn(function()local world=workspace:WaitForChild('FrontierWorld',30);local plaza=world and world:WaitForChild('DeskPlaza',30);if plaza then L.bind(plaza)end end)
 armsUI.veil=require(pack.Client.TransitionVeil).bind(gui)
 local root=make("Frame",gui,{Name="Main",Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=C.bg})
@@ -78,6 +80,7 @@ do
         "멀리 보면 모든 건물이 세력색 아이콘으로 보여요",
     }}
 end
+require(pack.Client.LoadHandoff).start(gui,loadingUI.frame,require(pack.Client.WaitingRoster).attach(loadingUI.frame))
 local shop=nil
 local state=nil
 local multiplayerLobby
@@ -120,17 +123,19 @@ end
 local function affordable(cost) return state and state.player and cost and B.compare(B.fromString(state.player.gold),B.fromString(cost))>=0 end
 local toast=UI.panel(root,"Toast");toast.ZIndex=17;toast.Visible=false
 local toastText=label(toast,"Message","",14);toastText.Size=UDim2.new(1,-28,1,-12);toastText.Position=UDim2.fromOffset(14,6)
-do local hit=make("TextButton",toast,{Name="Focus",Text="",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=29,AutoButtonColor=false})
+toastText.TextScaled=true;make("UITextSizeConstraint",toastText,{MaxTextSize=14,MinTextSize=10})
+do local hit=make("TextButton",toast,{Name="Focus",Text="",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=29,AutoButtonColor=false,Visible=false,Active=false})
     hit.Activated:Connect(function()local tile=toast:GetAttribute("FocusTile");if tile and armsUI.focusTile then armsUI.focusTile(tile)end end)end
 local notices=require(pack.Core.NoticeFlow).new()
 local showNotice
 local noticeMotion=require(pack.Client.NoticeGesture).attach(toast,toastText,function()if notices:dismiss(os.clock())then showNotice()end end);toast.Active=true
 showNotice=function()
     local n=notices.current;toast.Visible=n~=nil;if not n then return end;noticeMotion.appear()
-    local m=root:FindFirstChild('Modal');toast.ZIndex=m and m.Visible and 31 or 17
+    local m=root:FindFirstChild('Modal');toast.ZIndex=m and m.Visible and 31 or toast.Parent==root and 29 or 17
     toastText.Text=n.tile and L.text(n.message).."  ›" or n.message;toastText.TextColor3=n.warning and C.danger or C.accent
     toastText.TextSize=14;toast:SetAttribute("FocusTile",n.tile)
-    toast.Focus.Visible=n.tile~=nil
+    local hit,touch=toast.Focus,armsUI.input.touch();hit.Visible=n.tile~=nil;hit.Active=hit.Visible
+    hit.Position=touch and UDim2.new(0,0,.5,-40)or UDim2.new();hit.Size=touch and UDim2.new(1,0,0,80)or UDim2.fromScale(1,1)
 end
 local function notify(message,error,tile,queued)
     if notices:push(message,error,os.clock(),tile,queued)then showNotice()end
@@ -196,7 +201,7 @@ require(pack.Client.CommanderStandard).watch(function(player)
     if state.phase=='menu'then return true,Colors.self end
     for _,f in ipairs(state and state.factions or {})do if f.userId==player.UserId or f.id==1 and player==me and not state.observer then
         local own=Color3.fromRGB(table.unpack(require(pack.Core.CosmeticCatalog).get(state.cosmetics and state.cosmetics.territory or state.style).territory))
-        return true,f.team~=nil and Colors.team(f.team,state.player and state.player.team)or Colors.get(f.id,f.kind,own)
+        return true,f.team~=nil and Colors.team(f.team,state.player and state.player.team)or Colors.get(f.id,f.kind,own),f.share
     end end
     return state and state.phase=='menu',Colors.self
 end)
@@ -210,6 +215,7 @@ local inbox=DiplomacyInbox.new(gamePanel,send,function(id)armsUI.tactical:open(i
 armsUI.eventLog=require(pack.Client.EventLog).new(gamePanel,{focus=function(tile)armsUI.focusTile(tile)end})
 armsUI.eventLog.onToggle=function()if layout then layout()end end
 armsUI.chat=require(pack.Client.MatchComms).new(gamePanel,notify,function(tile)renderer:focusAt(tile,true)end,function(tile)return renderer:signalPoint(tile)end)
+armsUI.chat.onEmoji=function(id,tile,text)if tile then armsUI.bubbles=armsUI.bubbles or require(pack.Client.EmojiBubbles).new(renderer,effects.folder);armsUI.bubbles:show(id,tile,text,effects.reduced==true)end end
 armsUI.drop=require(pack.Client.SpawnDropView).new(gamePanel,renderer,armsUI.input.touch)
 armsUI.quick=require(pack.Client.QuickComms).new(gamePanel,{send=send,model=armsUI.chat,account=function()return shop and shop.account end,save=function(list,done)
     if not shop or shop.busy or not shop.account.ready then notify('설정을 저장할 수 없어요.',true);done(false);return end
@@ -337,6 +343,7 @@ local troopFill=make("Frame",troopBar,{Name="Fill",Size=UDim2.fromScale(0,1),Bac
 armsUI.filledTroops=label(troopFill,'TroopsFilled','',18,C.bg);armsUI.filledTroops.ZIndex=5
 armsUI.troopWatermark=Icons.create(troopBar,'troops',30);armsUI.troopWatermark.ZIndex=2;armsUI.troopWatermark.ImageTransparency=.84
 armsUI.filledWatermark=Icons.create(troopFill,'troops',30);armsUI.filledWatermark.ZIndex=4;armsUI.filledWatermark.ImageColor3=C.bg;armsUI.filledWatermark.ImageTransparency=.8
+armsUI.troopFront=require(pack.Client.TroopFront).new(troopBar)
 local statsGold=label(hud,"Gold","",19,C.gold)
 local statsGoldSub=label(hud,"Income","",11,C.muted)
 local troopIcon=Icons.create(hud,"troops",30)
@@ -643,9 +650,11 @@ end
 local hoverCard=require(pack.Client.HoverCard).new(gamePanel);local hover=hoverCard.frame
 armsUI.ranks=require(pack.Client.Leaderboard).new(gamePanel,{focus=function(f)if f.labelTile then renderer:focusAt(f.labelTile,true);dirty=true end end,more=function()armsUI.sheets:open("ranks")end,changed=function()task.defer(layout)end})
 armsUI.spawnCountdown=require(pack.Client.SpawnCountdown).new(gamePanel)
+require(pack.Client.NetLink).new(gamePanel,pack:WaitForChild("State"))
 armsUI.matchStatus=require(pack.Client.MatchStatus).new(gamePanel,{speed=function(v)send("speed",v)end,notify=function(m,warning)notify(m,warning);armsUI.eventLog:add(m,warning,nil,state and state.tick)end})
 local modal=make("Frame",root,{Name="Modal",Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.34,Visible=false,Active=true,ZIndex=30})
 local modalCard=UI.panel(modal,"Card");UI.stroke(modalCard)
+modalCard.BackgroundTransparency=.04
 local modalTitle=label(modalCard,"Title","",23)
 local modalClose=button(modalCard,"Close","×",function() closeModal() end)
 armsUI.modalBack=button(modalCard,"Back","←",function()openModal("pause")end)
@@ -789,7 +798,7 @@ openModal=function(mode)
     elseif mode=="feedback" then
         modalTitle.Text="설정";local a=shop and shop.account or {}
         Menu.settings({body=modalBody,width=W,shop=shop,prefs=a.preferences,ready=a.ready==true,lobby=state.phase=='menu',language=me:GetAttribute('ToyfrontLocale'),play=armsUI.audio.play,
-            setLanguage=function(v)me:SetAttribute('ToyfrontLocale',v~='auto'and v or nil);openModal('feedback')end,credits=function()openModal('credits')end,redraw=function()openModal('feedback')end})
+            setLanguage=function(v)me:SetAttribute('ToyfrontLocale',v~='auto'and v or nil);if shop and a.ready==true then shop:run(function()shop:request('preference','language',v)end)end;openModal('feedback')end,credits=function()openModal('credits')end,redraw=function()openModal('feedback')end})
     elseif mode=="pause" then
         modalTitle.Text="경기 메뉴"
         Menu.draw({body=modalBody,state=state,width=W,compact=screenSize().Y<500,rulesOpen=armsUI.rulesOpen,inboxCount=inbox.count,altView=renderer.altView,act={
@@ -970,7 +979,8 @@ armsUI.drawMarkers=function()
     P.stop('M.structures')
     local p=state.player;nameTag.Visible=p.labelTile~=nil;armsUI.identityLeader.Visible=false
     if p.labelTile then
-        local pos=renderer:project(p.labelTile);local anchor=pos;local size=map.AbsoluteSize/UI.scale
+        local NL=armsUI.nameLayer;local lx,ly,ls=NL.follow(NL.motion,'own',p.labelTile,p.labelSize,renderer.map.meta.width,os.clock(),effects.reduced)
+        local pos=renderer:projectXY(lx,ly);local anchor=pos;local size=map.AbsoluteSize/UI.scale
         local bounds=armsUI.worldOverlay.bounds or {left=0,top=0,right=size.X,bottom=size.Y}
         nameTag.Visible=pos.X>=bounds.left and pos.Y>=bounds.top and pos.X<=bounds.right and pos.Y<=bounds.bottom
         if armsUI.identitySource~=p then
@@ -980,7 +990,7 @@ armsUI.drawMarkers=function()
             else armsUI.ownIdentity.userId=me.UserId;armsUI.ownIdentity.name=me.DisplayName end
         end
         local identity=armsUI.ownIdentity
-        local NL=armsUI.nameLayer;local font=math.clamp(NL.font(p.labelSize,size.X/(renderer.liveW or renderer.view.w)),armsUI.input.touch()and 16 or 18,NL.MAX_FONT)
+        local font=math.clamp(NL.font(ls,size.X/(renderer.liveW or renderer.view.w)),armsUI.input.touch()and 16 or 18,NL.MAX_FONT)
         local plateKey=armsUI.ownPlate or {};armsUI.ownPlate=plateKey;font=math.floor(font+.5)
         if plateKey.identity~=identity or plateKey.font~=font or plateKey.width~=size.X or plateKey.style~=state.style then
             plateKey.identity=identity;plateKey.font=font;plateKey.width=size.X;plateKey.style=state.style
@@ -1011,19 +1021,9 @@ armsUI.drawMarkers=function()
     local viewport=map.AbsoluteSize/UI.scale;local mouse=nil
     if not armsUI.input.touch() then mouse=(UIS:GetMouseLocation()-game:GetService('GuiService'):GetGuiInset()-map.AbsolutePosition)/UI.scale end
     battle.frontBlocks={}
-    local function blockFront(object)
-        if object.Visible then
-            local pos=(object.AbsolutePosition-gamePanel.AbsolutePosition)/UI.scale;local size=object.AbsoluteSize/UI.scale
-            table.insert(battle.frontBlocks,{x=pos.X+size.X/2,y=pos.Y+size.Y/2,w=size.X,h=size.Y})
-        end
-    end
-    for _,object in ipairs({controls,guide,operations,inbox.panel,armsUI.renewal.panel,armsUI.commandFeedback.frame,armsUI.ranks.frame,armsUI.modeBar,armsUI.orders.peek,nameTag,battle.banner,hoverCard.docked~=false and hover or controls,armsUI.matchStatus.frame,armsUI.matchStatus.speedPill,armsUI.nuclear.bar,armsUI.chat.button,armsUI.chat.quickButton,armsUI.chat.emojiButton,armsUI.chat.frame,armsUI.eventLog.button,armsUI.eventLog.panel,armsUI.motionShortcut,armsUI.cameraShortcut,armsUI.tactical.frame,armsUI.quick.frame})do blockFront(object)end
-    if sheet.Visible then
-        if sheetMode=='tile'or sheetMode=='unit'or sheetMode=='placement'then
-            for _,object in ipairs(sheet:GetChildren())do if object:IsA('GuiButton')then blockFront(object)end end
-        else blockFront(sheet)end
-    end
-    P.start('M.names');armsUI.nameLayer:update({factions=armsUI.orderedLabels,viewport=viewport,bounds=armsUI.worldOverlay.bounds,pixelsPerTile=viewport.X/(renderer.liveW or renderer.view.w),project=function(t)return renderer:project(t)end,selected=selectedOwner,occupied=occupied,mouse=mouse,blocks=battle.frontBlocks});P.stop('M.names')
+    if nameTag.Visible then local pos=(nameTag.AbsolutePosition-gamePanel.AbsolutePosition)/UI.scale;local size=nameTag.AbsoluteSize/UI.scale
+        table.insert(battle.frontBlocks,{x=pos.X+size.X/2,y=pos.Y+size.Y/2,w=size.X,h=size.Y})end
+    P.start('M.names');armsUI.nameLayer:update({factions=armsUI.orderedLabels,viewport=viewport,bounds=armsUI.worldOverlay.bounds,pixelsPerTile=viewport.X/(renderer.liveW or renderer.view.w),projectXY=function(x,y)return renderer:projectXY(x,y)end,mapWidth=renderer.map.meta.width,reduced=effects.reduced,selected=selectedOwner,occupied=occupied,mouse=mouse,blocks=battle.frontBlocks});P.stop('M.names')
     selection.Visible=selectedTile~=nil
     if selectedTile then local p2=renderer:project(selectedTile);selection.Position=UDim2.fromOffset(p2.X,p2.Y) end
     placement.Visible=preview~=nil and preview.tile~=nil and (armsUI.rules.structures[action]==true)
@@ -1301,7 +1301,9 @@ layout=function()
     local touch=armsUI.input.touch()
     local small=l.compact or touch
     local dock=V.dockLayout(w,h,touch)
-    armsUI.dock.bar=armsUI.commandBar:fits(w,touch)
+    armsUI.dock.bar=armsUI.commandBar:fits(w,touch,h)
+    local fullX,fullW=dock.x,dock.width
+    if touch and not armsUI.dock.bar and not armsUI.commandBar:phoneFits(w,h,touch)then local P=require(pack.Core.InterfacePlacement);dock=table.clone(dock);dock.width=math.floor(dock.width*P.TOUCH_WIDE/P.TOUCH_SCALE)end
     local mainX=dock.mainX or 0
     local narrowPhone=mainX>0 and dock.width-mainX<212
     local resourceLayout=require(pack.Core.RecruitmentPresentation).layout(dock.width-mainX+(narrowPhone and 44 or 0),touch)
@@ -1389,17 +1391,18 @@ layout=function()
         armsUI.dock:layout(r.palette.x,r.palette.y,r.palette.w,true)
         dockDivider.Visible=false
     end
-    do local d=dispatchSlider;local r=armsUI.commandBar:presetsIn(d.Position.X.Offset,d.Position.Y.Offset,d.Size.X.Offset,d.Size.Y.Offset,touch);box(d,r.x,r.y,r.w,r.h)end
+    do local d=dispatchSlider;local r=armsUI.commandBar:presetsIn(d.Position.X.Offset,d.Position.Y.Offset,d.Size.X.Offset,d.Size.Y.Offset,touch,nil,portrait);box(d,r.x,r.y,r.w,r.h)end
     box(dispatchTrack,8,dispatchH/2-2,dispatchSlider.Size.X.Offset-16,4)
     dockDivider.Visible=not armsUI.dock.compact and not portrait;box(dockDivider,8,dockY-3,cw-16,1)
     updateDispatch()
     hud:SetAttribute('ResourcesStacked',resources.stacked);controls:SetAttribute('MobileHeight',touch and bottomHeight or 0)
-    do local bar=armsUI.commandBar:place(w,h,touch);if bar then cw,controlsX,bottomHeight=bar.width,bar.x,bar.height;updateDispatch()end end
+    do local bar=armsUI.commandBar:place(w,h,touch);if bar then cw,controlsX,bottomHeight=bar.width,bar.x,bar.height;updateDispatch()
+        elseif touch then controlsX,cw,bottomHeight=armsUI.commandBar:shrink(fullX,fullW,cw,bottomHeight,h);controls:SetAttribute('MobileHeight',bottomHeight)end end
     controls:SetAttribute('CommandBar',armsUI.commandBar.wide)
     local hasFractions=false
     local catalog=cityButton.Visible and postButton.Visible
     local sw=math.min(catalog and 320 or 264,w-24);local sh=(catalog or hasFractions) and 208 or 182
-    local ow=math.min(248,cw);local oh=l.short and 44 or 96
+    local ow=math.min(touch and 232 or 248,cw);local oh=touch and (l.short and 40 or 80) or (l.short and 44 or 96)
     operations.Visible=(operations:GetAttribute('OrderCount')or 0)>0;armsUI.orders.peek.Visible=false
     box(operations,controlsX,math.max(64,controls.Position.Y.Offset-oh-6),ow,oh)
     local guidance=V.actionGuide(controlsX,controls.Position.Y.Offset,cw,ow,oh)
@@ -1527,7 +1530,7 @@ layout=function()
     local mw=armsUI.modalSize(modalMode);local mh=math.min(660,h-24-inset)
     if modalMode=='result'and armsUI.resultView and h>=500 and not armsUI.resultView.detailsExpanded then
         armsUI.resultView:update(state,mw-32)
-        mh=math.min(mh,math.max(360,modalBody.CanvasSize.Y.Offset+212))
+        mh=math.min(mh,math.max(360,modalBody.CanvasSize.Y.Offset+(touch and 220 or 212)))
     end
     local short=h<500;local top=short and 52 or 68;local fit=table.find({'pause','feedback','help','leave','demolish'},modalMode)~=nil
     if fit then mh=math.min(h-16-inset,modalBody.CanvasSize.Y.Offset+top+16)end
@@ -1536,24 +1539,24 @@ layout=function()
     box(modalCard,(w-mw)/2,inset+(h-inset-mh)/2,mw,mh);box(armsUI.modalBack,16,short and 2 or 12,cs,cs);box(modalTitle,back and 74 or 20,short and 2 or 12,mw-136,cs);box(modalClose,mw-cs-14,short and 2 or 12,cs,cs);box(modalBody,16,top,mw-32,mh-top-8)
     modalTitle.Font=Enum.Font.BuilderSansBold;modalTitle.TextSize=short and 20 or 22
     if armsUI.resultActions.Visible and (modalMode=='recap'or modalMode=='comrades')then
-        box(modalBody,16,68,mw-32,mh-144);box(armsUI.resultActions,16,mh-60,mw-32,44);box(armsUI.resultActions.Back,0,0,mw-32,44)
+        box(modalBody,16,68,mw-32,mh-100-cs);box(armsUI.resultActions,16,mh-16-cs,mw-32,cs);box(armsUI.resultActions.Back,0,0,mw-32,cs)
     elseif armsUI.resultActions.Visible and modalMode=='result'then
         local spectate=armsUI.resultActions:FindFirstChild('Spectate')
         if h<500 then
-            box(modalBody,16,top,mw-32,mh-top-60);box(armsUI.resultActions,16,mh-52,mw-32,44)
+            box(modalBody,16,top,mw-32,mh-top-16-cs);box(armsUI.resultActions,16,mh-8-cs,mw-32,cs)
             local share=armsUI.resultActions:FindFirstChild('Share')
             local row={armsUI.resultActions.Again,armsUI.resultActions.ChooseMode,spectate,armsUI.resultActions:FindFirstChild('Comrades')}
             local list={};for i=1,4 do if row[i]then table.insert(list,row[i])end end
             if share then share.Visible=#list<4;if #list<4 then table.insert(list,share)end end
             local width=(mw-32-(#list-1)*8)/#list
-            for i,b in ipairs(list)do box(b,(width+8)*(i-1),0,width,44);b.TextWrapped=true;b.TextSize=width<100 and 12 or width<130 and 13 or 15 end
+            for i,b in ipairs(list)do box(b,(width+8)*(i-1),0,width,cs);b.TextWrapped=true;b.TextSize=width<100 and 12 or width<130 and 13 or 15 end
         else
-            box(modalBody,16,68,mw-32,mh-196);box(armsUI.resultActions,16,mh-112,mw-32,96)
-            box(armsUI.resultActions.Again,0,0,mw-32,44)
+            box(modalBody,16,68,mw-32,mh-108-2*cs);box(armsUI.resultActions,16,mh-24-2*cs,mw-32,8+2*cs)
+            box(armsUI.resultActions.Again,0,0,mw-32,cs)
             local row={armsUI.resultActions.ChooseMode,spectate,armsUI.resultActions:FindFirstChild('Comrades'),armsUI.resultActions:FindFirstChild('Share')}
             local list={};for i=1,4 do if row[i]then row[i].Visible=true;table.insert(list,row[i])end end
             local width=(mw-32-(#list-1)*8)/#list
-            for i,b in ipairs(list)do box(b,(width+8)*(i-1),52,width,44);b.TextWrapped=true;b.TextSize=width<100 and 12 or width<130 and 13 or 15 end
+            for i,b in ipairs(list)do box(b,(width+8)*(i-1),cs+8,width,cs);b.TextWrapped=true;b.TextSize=width<100 and 12 or width<130 and 13 or 15 end
         end
         if armsUI.resultCompact~=(h<500)and not armsUI.resultRelayout then
             armsUI.resultRelayout=true
@@ -1617,6 +1620,7 @@ layout=function()
     if armsUI.tray then local g=portrait and armsUI.portraitGrid;local t=armsUI.trayGrid or {};armsUI.trayGrid=t
         if g then t.x,t.y,t.w,t.h,t.open=controls.Position.X.Offset+g.x,controls.Position.Y.Offset+g.y,g.w,g.h,armsUI.paletteExpanded end
         armsUI.tray:layout(w,h,touch,state~=nil and not modal.Visible,sheet.Visible,portrait and controls.Position.Y.Offset or nil,g and t or nil)end
+    if armsUI.hudScale then armsUI.hudScale:apply(w,h,touch)end
     if armsUI.resolveOverlays then armsUI.resolveOverlays()end
     if currentMap then renderer:clamp();dirty=true;refreshMarkers() end
 end
@@ -1681,7 +1685,7 @@ render=function(s)
     end
     if previous and previous.multiplayer and s.phase=="menu" and multiplayerLobby then multiplayerLobby.single=false;modal.Visible=false;modalMode=nil end
     gamePanel.Visible=s.phase~="menu"
-    toast.Parent=gamePanel.Visible and gamePanel or root
+    toast.Parent=gamePanel.Visible and gamePanel or root;toast.ZIndex=modal.Visible and 31 or toast.Parent==root and 29 or 17
     if multiplayerLobby then multiplayerLobby:setGameState(s);multiplayerLobby:setScreen(s.phase=="menu" and not LobbyIntro.active) end
     if movementControls and (not previous or previous.phase=="menu"or s.phase=="menu") then
         if s.phase=="menu" and multiplayerLobby and multiplayerLobby.single then movementControls:Disable()else movementControls:Enable()end
@@ -1730,7 +1734,8 @@ render=function(s)
     end
     if currentVersion~=s.version then
         root.LoadingCover.Visible=true
-        currentVersion=s.version;require(pack.Client.ContextGuess).reset();currentMap=table.clone(mapData(s.map,s.mapTerrain,s.mapPacked));currentMap.terrain=buffer.fromstring(buffer.tostring(currentMap.terrain));renderer:setMap(currentMap)
+        local packed=require(pack.Client.MapPreload).resolve(s);if packed==false then return end
+        currentVersion=s.version;require(pack.Client.ContextGuess).reset();currentMap=table.clone(mapData(s.map,s.mapTerrain,packed));currentMap.terrain=buffer.fromstring(buffer.tostring(currentMap.terrain));renderer:setMap(currentMap)
         table.clear(owners);ownershipRevision=0;selectedTile=nil;selectedUnit=nil;preview=nil;previewSerial+=1;sheetMode=nil;action="inspect";eventsSeen=0;armsUI.eventLog:reset()
         for _,v in pairs(unitMarkers) do v.root:Destroy() end;unitMarkers={};renderer:fit();dirty=true
         if modal.Visible and (modalMode=="result" or modalMode=="recap" or modalMode=="comrades") then pauseOwned=false;modal.Visible=false;modalMode=nil end
@@ -1785,7 +1790,7 @@ render=function(s)
     statsTroopsSub.TextColor3=recruitmentColor;armsUI.growthArrow.TextColor3=recruitmentColor;armsUI.growthStroke.Color=recruitmentColor;armsUI.growthFace.BackgroundColor3=require(pack.Client.HudStyle).colors.chip
     armsUI.growthIcon.ImageColor3=recruitmentColor
     armsUI.growthBadge:SetAttribute('Trend',recruitment.tone);armsUI.growthBadge:SetAttribute('Rate',recruitment.rate);armsUI.growthBadge:SetAttribute('RawRate',recruitment.rawRate)
-    troopFill.Size=UDim2.fromScale(math.clamp(p.troops/math.max(1,p.cap),0,1),1)
+    troopFill.Size=UDim2.fromScale(math.clamp(p.troops/math.max(1,p.cap),0,1),1);armsUI.troopFront:update(s,p)
     statsGold.Text=UI.number(p.gold);statsGoldSub.Text="+"..UI.number(p.income).."/초"
     armsUI.dock:update(s,action)
     quickCityText.Text="도시"..(armsUI.input.touch() and "" or " [C]").."\n"..UI.number(s.costs.City)
@@ -1811,8 +1816,7 @@ render=function(s)
     end end
     for _,e in ipairs(s.comms and s.comms.events or {})do if e.id>(armsUI.commsSeen or 0)then armsUI.commsSeen=e.id;if e.from~=1 then local sender=factions[e.from];local target=e.target and factions[e.target]
                 if e.kind=="emoji"and sender and sender.labelTile then
-                    armsUI.bubbles=armsUI.bubbles or require(pack.Client.EmojiBubbles).new(renderer,effects.folder)
-                    armsUI.bubbles:show(e.from,sender.labelTile,e.text,effects.reduced==true)
+                    armsUI.chat.onEmoji(e.from,sender.labelTile,e.text)
                     if e.to~=1 then continue end
                 end
                 local line=(sender and sender.name or "지휘관").."  "..e.text..(target and " : "..target.name or "");notify(line,false,(target or sender or {}).labelTile);armsUI.eventLog:add(line,false,(target or sender or {}).labelTile,s.tick);if previous then armsUI.audio.play("request")end end end end
@@ -1838,17 +1842,19 @@ shop=require(pack.Client.Storefront).new(function(account)
         effects.particles.flashes=effects.flashes
         renderer.reducedEffects=effects.reduced;armsUI.matchStatus.reduced=effects.reduced==true
         renderer.cameraShake=account.preferences.cameraShake~=false;renderer.mapFlashes=effects.flashes
+        require(pack.Client.HudOpacity).apply(gamePanel,account.preferences.hudOpacity)
         game:GetService("SoundService"):SetAttribute("ToySoundsMuted",account.preferences.soundsMuted);game:GetService("SoundService"):SetAttribute("ToySoundsVolume",account.preferences.sfxVolume or 1)
     end
     if state and account.cosmetics and (state.controller==0 or state.controller==me.UserId) then
         state.cosmetics=account.cosmetics;state.style=account.cosmetics.territory
-        renderer:setStyle(state.style);if state.phase~="menu" then renderer:setState(state) end
+        renderer:setStyle(state.style);if state.phase~="menu" and state.version==currentVersion then renderer:setState(state) end
     end
 end,notify,function() if modal.Visible and (modalMode=="cosmetics" or modalMode=="feedback") then openModal(modalMode) end;if multiplayerLobby and multiplayerLobby.page then multiplayerLobby:drawPage()end end)
 multiplayerLobby=require(pack.Client.MultiplayerLobby).new(root,notify,{
     single=function(key)selectedMap=key;send('start',key)end,
     goal=function(key)selectedMap=key;send('start',key,'goal')end,
     daily=function()closeModal();send('daily')end,
+    campaign=function(id)closeModal();send('campaign',id)end,
     map=function(key)selectedMap=key;multiplayerLobby:request('map',key)end,
     mode=function()end,
     learn=function()closeModal();send('learn')end,
@@ -1869,6 +1875,7 @@ armsUI.motionShortcut=require(pack.Client.CornerShortcut).new(gamePanel,'MotionS
 armsUI.resetCamera=function()renderer.yaw=0;renderer.tilt=math.rad(89.9);renderer.dropZoom=1;renderer.smoothDistance=nil end
 armsUI.cameraShortcut=require(pack.Client.CornerShortcut).new(gamePanel,'CameraShortcut','Home','camera',armsUI.resetCamera,'시점 정렬 (Home)')
 armsUI.tray=require(pack.Client.ShortcutTray).new(gamePanel,pauseButton,armsUI)
+armsUI.hudScale=require(pack.Client.HudScale).new(gamePanel)
 armsUI.refreshGuide=function()
     if not state then return end
     local info=selectedTile and terrainInfo(selectedTile)
@@ -1885,7 +1892,7 @@ task.spawn(function()
     while gui.Parent do
         local seen=armsUI.avatarSeen or setmetatable({},{__mode='k'});armsUI.avatarSeen=seen
         for _,player in ipairs(Players:GetPlayers()) do if player~=me and player.Character then
-            local visible=roomVisible(player);local key=tostring(visible)..':'..tostring(state and state.phase)
+            local visible=roomVisible(player)and not renderer.dropActive;local key=tostring(visible)..':'..tostring(state and state.phase)
             local last=seen[player.Character]
             if last and last.key==key and os.clock()-last.at<5 then continue end
             seen[player.Character]={key=key,at=os.clock()}
@@ -2026,7 +2033,7 @@ RunService:BindToRenderStep('HUD',202,function(dt)
         if LU.tip==0 or LU.clock-LU.tip>3 then LU.tip=LU.clock;LU.hint.Text=LU.tips[math.floor(LU.clock/3)%#LU.tips+1] end
         local key=state and (state.loadingMap or state.phase~='menu'and state.map)
         local meta=key and Maps.meta(key)
-        LU.title.Text=meta and meta.label or "작전 지도를 펼치는 중…"
+        LU.title.Text=meta and meta.label or "작전 지도를 펼치는 중…";gui:SetAttribute('LoadingMap',meta and L.text(meta.label)or nil)
     end
     if not armsUI.lobbyReadyReported and state and state.phase=='menu'and not state.loading and not LobbyIntro.active and multiplayerLobby and multiplayerLobby.frame.Visible and os.clock()-(armsUI.lobbyReadySent or -1e9)>2 then
         armsUI.lobbyReadySent=os.clock();armsUI.experienceReady:FireServer(state.version)
@@ -2057,7 +2064,7 @@ RunService:BindToRenderStep('HUD',202,function(dt)
     if gamePanel.Visible then
         armsUI.commandFeedback:step(modal.Visible or armsUI.sheets:any())
         armsUI.resolveOverlays()
-        root.LoadingCover.Visible=not renderer:isReady()
+        root.LoadingCover.Visible=not renderer:isReady()or(state~=nil and state.phase~="menu"and state.version~=currentVersion)
         if dirty and os.clock()-lastDraw>.12 then dirty=false;lastDraw=os.clock();renderer:draw() end
         P.start('HUD.markers');armsUI.drawMarkers();P.stop('HUD.markers')
         if armsUI.cameraGuard:step(sheet.Visible and (sheetMode=="tile" or sheetMode=="unit"),selectedTile,selectionRevision)then armsUI.closeSheet()end

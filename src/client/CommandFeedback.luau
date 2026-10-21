@@ -5,7 +5,7 @@ local M={};M.__index=M
 function M.new(parent,flow)
     local self=setmetatable({flow=flow},M)
     self.frame=UI.panel(parent,'CommandFeedback');self.frame.ZIndex=23;self.frame.Visible=false
-    self.bar=UI.make('Frame',self.frame,{Name='State',Size=UDim2.new(0,3,1,0),BackgroundColor3=UI.colors.accent,BorderSizePixel=0})
+    self.bar=require(script.Parent.EdgeMask).fit(UI.make('Frame',self.frame,{Name='State',Size=UDim2.new(0,3,1,0),BackgroundColor3=UI.colors.accent,BorderSizePixel=0}))
     self.title=UI.label(self.frame,'Action','',14);self.title.Font=Enum.Font.BuilderSansBold;self.title.TextWrapped=false;self.title.TextTruncate=Enum.TextTruncate.AtEnd
     self.text=UI.label(self.frame,'Message','',14);self.text.TextWrapped=false;self.text.TextTruncate=Enum.TextTruncate.AtEnd
     self.phase=UI.label(self.frame,'Phase','',18);self.phase.TextXAlignment=Enum.TextXAlignment.Center

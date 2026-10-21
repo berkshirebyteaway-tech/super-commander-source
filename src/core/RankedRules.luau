@@ -1,21 +1,28 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
--- © OpenFront and Contributors. Ranked 1v1 / 2v2.
+-- © OpenFront and Contributors. Ranked 1v1 / 2v2 and FFA.
 local Season=if script then require(script.Parent.MonthlySeason)else require('./MonthlySeason')
 local M={schema=1}
-M.ladders={'1v1','2v2'}
-M.size={['1v1']=2,['2v2']=4}
+M.ladders={'1v1','2v2','ffa'}
+M.size={['1v1']=2,['2v2']=4,ffa=10}
+M.minimum={['1v1']=2,['2v2']=4,ffa=4}
 M.maps={'australia','australia','iceland','asia','europeclassic'}
 M.compact={minutes=10,bots=100}
-M.spawnImmunity={['1v1']=30*10,['2v2']=60*10}
+M.spawnImmunity={['1v1']=30*10,['2v2']=60*10,ffa=30*10}
+M.ffaMaps={'europe','asia','africa','northamerica','southamerica','australia'}
+M.ffa={minutes=20,bots=M.compact.bots}
 local BattlefieldVersion=1
-function M.rules(ladder,roll)
+function M.rules(ladder,roll,players)
     assert(M.size[ladder],'Unknown ladder')
-    local map=M.maps[(roll or 0)%#M.maps+1]
+    local ffa=ladder=='ffa'
+    local pool=ffa and M.ffaMaps or M.maps
+    local map=pool[(roll or 0)%#pool+1]
     local duo=ladder=='2v2'
-    local settings={difficulty='Medium',nations='disabled',bots=M.compact.bots,startingGold=0,goldMultiplier=1,
-        customAllianceDuration=5,maxTimerValue=M.compact.minutes,donateGold=duo,donateTroops=duo,
+    local settings={difficulty='Medium',nations='disabled',bots=ffa and M.ffa.bots or M.compact.bots,startingGold=0,goldMultiplier=1,
+        customAllianceDuration=5,maxTimerValue=ffa and M.ffa.minutes or M.compact.minutes,donateGold=duo,donateTroops=duo,
         spawnImmunityDuration=M.spawnImmunity[ladder],disabledUnits={},rankedType=ladder,noFill=true}
-    local r={version=BattlefieldVersion,map=map,mode=duo and 'teams'or 'ffa',minimum=2,maximum=M.size[ladder],spawn='select',settings=settings,ranked=ladder}
+    local maximum=M.size[ladder]
+    if ffa and players then maximum=math.clamp(players,M.minimum.ffa,M.size.ffa)end
+    local r={version=BattlefieldVersion,map=map,mode=duo and 'teams'or 'ffa',minimum=2,maximum=maximum,spawn='select',settings=settings,ranked=ladder}
     if duo then r.teamFormat=2;r.teamCount=2;settings.teamFormat=2;settings.teamCount=2 end
     return r
 end
@@ -33,6 +40,8 @@ M.tiers={
 M.legend={id='legend',name='레전드',top=100,minRP=2100,color={255,214,120}}
 function M.isLegend(rp,rank)return rank~=nil and rank<=M.legend.top and (rp or 0)>=(M.legend.minRP or 0)end
 M.placements=5;M.replacements=3
+M.minLevel=5
+function M.levelOk(level)return type(level)=='number'and level>=M.minLevel end
 local divisions={'III','II','I'}
 function M.tierOf(rp)
     local t=M.tiers[1];for _,x in ipairs(M.tiers)do if rp>=x.min then t=x end end
@@ -47,6 +56,13 @@ function M.k(games)return games<M.placements and 48 or games<30 and 32 or 24 end
 function M.expected(rp,opponent)return 1/(1+10^((opponent-rp)/400))end
 function M.delta(rp,opponent,won,games)
     local d=math.floor(M.k(games)*((won and 1 or 0)-M.expected(rp,opponent))+.5)
+    if won then return math.max(8,d)end
+    return math.min(-5,d)
+end
+function M.ffaDelta(rp,opponents,won,games,players)
+    local k=M.k(games)/math.sqrt(math.max(1,(players or 2)-1));local sum=0
+    for _,o in ipairs(opponents)do sum+=k*((won and 1 or 0)-M.expected(rp,o))end
+    local d=math.floor(sum+.5)
     if won then return math.max(8,d)end
     return math.min(-5,d)
 end
@@ -87,7 +103,8 @@ local function applyCurrent(raw,result)
     local r=M.roll(raw,result.time);local l=ensure(r,result.ladder);l=table.clone(l);l.recent=table.clone(l.recent);r.ladders[result.ladder]=l
     local mine=result.ladder=='2v2'and result.team or l.rp
     local factor,key=M.repeatFactor(l,result.opponents or {},result.time)
-    local d=M.delta(mine,result.opponent,result.won,l.games)
+    local d=result.ladder=='ffa'and type(result.pairs)=='table'and #result.pairs>0
+        and M.ffaDelta(mine,result.pairs,result.won,l.games,result.players)or M.delta(mine,result.opponent,result.won,l.games)
     if factor<1 then d=result.won and math.floor(d*factor)or math.ceil(d*factor)end
     l.rp=math.clamp(l.rp+d,0,5000);l.games+=1;l.wins+=result.won and 1 or 0
     l.streak=result.won and math.max(1,(l.streak or 0)+1)or math.min(-1,(l.streak or 0)-1)

@@ -19,13 +19,19 @@ function M.show(lobby,r)
     local bar
     if match then
         local face=Theme.make('ImageLabel',card,{Name='Avatar',BackgroundColor3=Theme.colors.raised,BorderSizePixel=0,ZIndex=19,Image=r.from and ('rbxthumb://type=AvatarHeadShot&id='..r.from..'&w=150&h=150')or ''})
-        local edge=Theme.make('Frame',card,{Name='Edge',BorderSizePixel=0,ZIndex=19});bar=Theme.make('Frame',card,{Name='TimeLeft',BorderSizePixel=0,ZIndex=19})
+        local edge=require(script.Parent.EdgeMask).fit(Theme.make('Frame',card,{Name='Edge',BorderSizePixel=0,ZIndex=19}));bar=Theme.make('Frame',card,{Name='TimeLeft',BorderSizePixel=0,ZIndex=19})
         title.Text=string.format('%s님의 파티 초대',r.name or '친구');title.TextXAlignment=Enum.TextXAlignment.Left;title:SetAttribute('LocalizationSkip',false)
         left.TextXAlignment=Enum.TextXAlignment.Left
         for _,o in ipairs({title,left,accept,decline})do o.ZIndex=19 end
         card:SetAttribute('Edge',true);M.paint=function(sw)require(script.Parent.DiplomacyInbox).card(card,{edge=edge,avatar=face,name=title,line=left,bar=bar,fraction=bar:GetAttribute('Fraction')or 1,buttons={accept,decline},color=Theme.colors.accent},sw)end
         M.paint(rw)
     else
+        card.AnchorPoint=Vector2.new(.5,0)
+        card.Position=UDim2.new(.5,0,0,64);card.Size=UDim2.new(1,-24,0,112)
+        UI.make('UISizeConstraint',card,{MaxSize=Vector2.new(340,112)})
+        title.Size=UDim2.new(1,-28,0,30);left.Size=UDim2.new(1,-28,0,18)
+        accept.Size=UDim2.new(.5,-18,0,36)
+        decline.Position=UDim2.new(.5,4,0,64);decline.Size=UDim2.new(.5,-18,0,36)
         local scale=UI.make('UIScale',card,{Scale=.7});Tween:Create(scale,TweenInfo.new(.3,Enum.EasingStyle.Quint),{Scale=1}):Play()
     end
     pcall(function()require(script.Parent.ToyAudio).play('milestone')end)

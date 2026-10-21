@@ -102,7 +102,10 @@ function M.rig(key)
             elseif n:match('^Wheel')then e.kind='wheel';e.axis=thinAxis(d,cf);e.radius=math.max(d.size[1],d.size[2],d.size[3])/2
             elseif n:match('^Hatch')then e.kind='hatch'
             elseif n:match('^Head')then e.kind='head'
-            elseif n:match('^Tassel')or n:match('^Pennant')then e.kind='sway'end
+            elseif n:match('^Tassel')or n:match('^Pennant')or n:match('^Tentacle')or n:match('^Ribbon')or n:match('^Tail')and not n:match('^TailSeg')or n=='LightWall'then e.kind='sway'
+            elseif n:match('^Seg%d')or n:match('^TailSeg')then e.kind='wave';e.seg=tonumber(n:match('%d+'))or 1
+            elseif n:match('^HoverRing')or n:match('^Halo')or n:match('^Orbit')then e.kind='ring';e.axis=thinAxis(d,cf)
+            elseif n:match('^PixelShift')or n:match('^Shard')then e.kind='glitch'end
         end
         table.insert(r.parts,e)
     end
@@ -129,6 +132,10 @@ function M.motion(e,t,speed,rate,clock)
         return about(e.hinge,Vector3.zAxis,-e.side*o*1.15)
     elseif k=='head'then return about(e.hinge,Vector3.xAxis,math.sin(t*1.3)*.09)
     elseif k=='sway'then return about(e.hinge,Vector3.xAxis,math.sin(t*2.1)*.12)
+    elseif k=='wave'then return CF(0,math.sin(t*2.4-(e.seg or 1)*.35)*.07,0)
+    elseif k=='glitch'then
+        local n=math.floor(t*10)+e.index*7;if n%9~=0 then return CFrame.identity end
+        return CF(((n//9)%2==0 and .08 or -.08),0,((n//18)%2==0 and .05 or -.05))
     elseif k=='leg'then
         local stride=math.clamp(speed/10,0,1)
         return about(e.hip,Vector3.xAxis,math.sin((clock and clock.leg or t*(5+stride*3))+e.offset)*(.04+.36*stride))
@@ -144,15 +151,25 @@ function M.build(parent,key,opts)
         if opts.keep and not opts.keep(e)then continue end
         local t=templates[d.meshId];local p=t:Clone()
         local k=1;local cf=e.home;local hb=opts.heroBase
+        local wide=opts.groundCap and d.name:sub(-3)=='Top'and d.size[2]<=.1 and d.pos[2]<.2 and math.max(d.size[1],d.size[3])
+        local gk=wide and wide>opts.groundCap and opts.groundCap/wide or 1
+        if gk<1 then cf=CF(cf.Position*V3(gk,1,gk))*cf.Rotation end
         if hb and opts.heroScale and d.pos[2]-d.size[2]/2>hb.Y-.05 and d.name~='Plinth'and d.name~='OwnerBand'then
             k=opts.heroScale;cf=CF(hb+(cf.Position-hb)*k)*cf.Rotation
         end
-        p.Name=d.name;p.Size=V3(d.size[1],d.size[2],d.size[3])*s*k
+        p.Name=d.name;p.Size=V3(d.size[1]*gk,d.size[2],d.size[3]*gk)*s*k
         local at=origin*CF(cf.Position*s)*cf.Rotation
         p.CFrame=at;p.Material=MAT[d.material]or MAT.SmoothPlastic
         p.Color=d.tint and colors[d.tint]or rgb(d.color)
         if d.material=='Neon'then p.CastShadow=false end
-        p:SetAttribute('BaseTransparency',0);p:SetAttribute('MeshItem',key)
+        local base=0
+        if d.name:sub(-3)=='Top'then
+            p.CastShadow=false
+            if d.size[2]<=.1 and d.pos[2]<.2 then base=d.material=='Neon'and .2 or .3 end
+        end
+        if d.name:match('^WingTip')or d.name=='Tentacles'then base=.35 end
+        p.Transparency=base
+        p:SetAttribute('BaseTransparency',base);p:SetAttribute('MeshItem',key)
         p.Parent=parent
         local r={part=p,home=at,def=d,kind=e.kind,phase=d.phase,tint=d.tint,side=e.side,index=e.index,offset=e.offset,radius=e.radius and e.radius*s*k}
         if e.kind then
@@ -163,11 +180,11 @@ function M.build(parent,key,opts)
     end
     return out
 end
-function M.prismatic(r,tier)return tier==5 and r.def.material=='Neon'and r.tint~='team'end
+function M.prismatic(r,tier)return tier==5 and r.def.material=='Neon'and r.tint~='team'and r.def.name:sub(-3)~='Top'end
 
 function M.crestKind(key,tier,slot)
     if not Manifest[key]then return nil end
-    if tier==5 and(slot=='parachute'or slot=='buildings')then return 'prism'end
+    if tier==5 and(slot=='parachute'or slot=='buildings')then return M.stats(key).phases<2 and 'prism'or nil end
     if tier==4 then local s=M.stats(key);if s.neon<2 or s.movers==0 then return 'halo'end end
     return nil
 end

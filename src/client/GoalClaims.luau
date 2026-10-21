@@ -25,7 +25,6 @@ function M.claim(hub,key)
             if shop.notify then shop.notify(string.format('%s 받았어요',table.concat(parts,', ')),false)end
             require(script.Parent.TelemetryStep).step('lobby','goalClaim',{count=r.claimed.count,value=r.claimed.medals})
         end
-        if hub.page=='missions'then hub:drawPage()end
     end)
 end
 function M.button(parent,name,label,fn)

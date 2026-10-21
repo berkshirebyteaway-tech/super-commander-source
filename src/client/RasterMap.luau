@@ -49,7 +49,14 @@ local function territory(self,c,id,edge,tile)
     local fill=id==1 and .56 or kind=='BOT' and .6 or .5
     local k=onBoard(tint);if k>0 then fill+=.22*k;tint=tint:Lerp(pale,.14*k)end
     if defended then local d=Defense.fillDarken;tint=Color3.new(tint.R*d,tint.G*d,tint.B*d)end
-    return Collection.pattern(c:Lerp(tint,fill),tile,self.map.meta.width,self.collectionTiers and self.collectionTiers[id])
+    local spec=self.collectionTiers and self.collectionTiers[id];local row
+    if tile and type(spec)=='table'and spec.band then
+        local owners,m=self.owners,self.map.meta;local w=m.width;local x=tile%w;local y=(tile-x)//w;local h=m.height
+        for k=2,spec.band.h+1 do
+            if x<k or x+k>=w or y<k or y+k>=h or owners[tile-k]~=id or owners[tile+k]~=id or owners[tile-k*w]~=id or owners[tile+k*w]~=id then row=k-2;break end
+        end
+    end
+    return Collection.pattern(c:Lerp(tint,fill),tile,self.map.meta.width,spec,row)
 end
 function M.new(parent,width,height)
     local self=setmetatable({parent=parent,width=width or 448,height=height or 280,pool={},owners={},view={x=0,y=0,w=100,h=100}},M)
@@ -123,16 +130,25 @@ function M:draw()
             outline[t]=edge and true or nil
             buffer.writeu8(self.buffer,at,math.floor(c.R*255+.5));buffer.writeu8(self.buffer,at+1,math.floor(c.G*255+.5));buffer.writeu8(self.buffer,at+2,math.floor(c.B*255+.5));buffer.writeu8(self.buffer,at+3,255)
         end
-        if self.force or not self.initialized and self.paintRow==nil then self.paintRow=0;self.force=false end
+        if self.force or not self.initialized and self.paintRow==nil then
+            if self.paintRow then self.paintStop=self.paintRow;self.paintWrapped=false else self.paintRow=0;self.paintStop=nil;self.paintWrapped=false end
+            self.force=false
+        end
         if self.paintRow then
             local y=self.paintRow;local rows=0;local deadline=self.initialized and self.deadline or math.huge
-            repeat for xx=0,W-1 do pixel((y+rows+v.y)*m.width+xx+v.x) end;rows+=1 until rows>=16 or y+rows>=H or rows>=4 and os.clock()>deadline
+            local stop=self.paintWrapped and self.paintStop or H
+            repeat for xx=0,W-1 do pixel((y+rows+v.y)*m.width+xx+v.x) end;rows+=1 until rows>=16 or y+rows>=stop or rows>=4 and os.clock()>deadline
             local strip=self:scratch(W*rows*4);buffer.copy(strip,0,self.buffer,y*W*4,W*rows*4)
             self.image:WritePixelsBuffer(Vector2.new(0,y),Vector2.new(W,rows),strip)
             self.paintRow=y+rows
-            if self.paintRow>=H then self.paintRow=nil;self.initialized=true end
-        else
-            local blocks={};local columns=math.ceil(W/32);local dirty=self.dirtyTiles or {};local left=M.tilesPerDraw
+            if self.paintRow>=stop then
+                if self.paintRow>=H then self.initialized=true end
+                if not self.paintWrapped and (self.paintStop or 0)>0 then self.paintRow=0;self.paintWrapped=true
+                else self.paintRow=nil;self.paintStop=nil;self.paintWrapped=false end
+            end
+        end
+        if self.initialized and next(self.dirtyTiles or {}) then
+            local blocks={};local columns=math.ceil(W/32);local dirty=self.dirtyTiles;local left=M.tilesPerDraw
             local deadline=self.deadline or math.huge
             for t in pairs(dirty) do
                 if left<=0 or left%64==0 and os.clock()>deadline then break end;left-=1;dirty[t]=nil

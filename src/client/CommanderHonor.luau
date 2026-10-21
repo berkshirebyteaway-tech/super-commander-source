@@ -125,10 +125,11 @@ function M.start()
     table.insert(M.connections,game:GetService('RunService').Heartbeat:Connect(function(dt)
         elapsed+=dt;if elapsed<.1 then return end;elapsed=0
         local camera=workspace.CurrentCamera;if not camera then return end
+        local touch=require(script.Parent.InputMode).touch()
         for p in pairs(M.watchers)do
             local c=p.Character;local b=c and c:FindFirstChild('CommanderName');local root=c and c:FindFirstChild('HumanoidRootPart')
             local tag=b and b:FindFirstChild('Honor');local scale=tag and tag:FindFirstChild('DistanceScale')
-            if b and b.Enabled and root and scale then scale.Scale=Presentation.nameScale((camera.CFrame.Position-root.Position).Magnitude)end
+            if b and b.Enabled and root and scale then scale.Scale=Presentation.nameScale((camera.CFrame.Position-root.Position).Magnitude)*(touch and .82 or 1)end
         end
     end))
     task.spawn(function()while M.generation==generation do task.wait(3);if M.generation~=generation then break end;for _,p in ipairs(Players:GetPlayers())do local c=p.Character;local b=c and c:FindFirstChild('CommanderName');if b and not b:FindFirstChild('Honor')then refresh(p)end end end end)

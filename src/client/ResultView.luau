@@ -13,7 +13,7 @@ local actionIcons={Again='deploy',ChooseMode='fields',Spectate='watch',Comrades=
 function M.ladderLine(pr)
     local r=pr and pr.ranked
     if type(r)=='table'then
-        local head=L.text(r.ladder=='2v2'and '랭크 2대2'or '랭크 1대1')
+        local head=L.text(r.ladder=='2v2'and '랭크 2대2'or r.ladder=='ffa'and '랭크 개인전'or '랭크 1대1')
         if r.pending then return head..', '..L.text('랭크 점수 계산 중…'),C.muted end
         local d=tonumber(r.delta)or 0;local parts={head,string.format('%s%d RP',d>=0 and '+'or '',d)}
         if r.placing then table.insert(parts,string.format(L.text('배치 경기 %d판 남음'),r.placementLeft or 0))
@@ -36,7 +36,7 @@ function M.new(body,compact,recap,relayout)
     for i,name in ipairs({'TileRank','TileShare','TileTime'})do
         local t=UI.make('Frame',body,{Name=name,BackgroundColor3=C.raised,BackgroundTransparency=.08,BorderSizePixel=0});UI.corner(t,3)
         self.tiles[i]=t
-        UI.make('Frame',t,{Name='Accent',BackgroundColor3=C.accent,BorderSizePixel=0,Size=UDim2.new(1,0,0,3)})
+        require(script.Parent.EdgeMask).fit(UI.make('Frame',t,{Name='Accent',BackgroundColor3=C.accent,BorderSizePixel=0,Size=UDim2.new(1,0,0,3)}))
         table.insert(self.pops,t)
     end
     text('Peak',compact and 28 or 34,C.accent);UI.display(self.Peak);self.Peak.TextWrapped=false;self.Peak.TextXAlignment=Enum.TextXAlignment.Center
@@ -52,6 +52,7 @@ function M.new(body,compact,recap,relayout)
         local t=UI.make('Frame',body,{Name='Record_'..k[1],BackgroundColor3=C.raised,BackgroundTransparency=.08,BorderSizePixel=0,Visible=false});UI.corner(t,3)
         local icon=Hot.create(t,k[3],18,k[1]=='nukes'and C.gold or C.ink)
         local value=UI.label(t,'Value','',18,C.ink);value.Font=Enum.Font.BuilderSansBold;value.TextWrapped=false;value:SetAttribute('LocalizationSkip',true)
+        value.TextScaled=true;UI.make('UITextSizeConstraint',value,{MaxTextSize=18,MinTextSize=11})
         local cap=UI.label(t,'Caption',k[2],13,C.muted);cap.TextWrapped=false;cap.TextTruncate=Enum.TextTruncate.AtEnd
         self.records[i]={root=t,key=k[1],icon=icon,value=value,cap=cap};table.insert(self.pops,t)
     end
@@ -77,6 +78,7 @@ function M.new(body,compact,recap,relayout)
     UI.make('UIGradient',self.LevelFill,{Color=ColorSequence.new(C.accent,C.ice)})
     text('Goal',14,C.muted);text('Bonus',14,C.gold);text('MapRecord',14,C.muted)
     text('Daily',14,C.ink);text('DailyDetail',14,C.muted);text('NewUnlock',14,C.gold)
+    text('Campaign',16,C.gold);text('CampaignTask',14,C.muted)
     self.lines={}
     for i=1,4 do self.lines['Unlock'..i]=text('Unlock'..i,14,C.gold)end
     for i=1,4 do self.lines['Bonus'..i]=text('Bonus'..i,14,C.gold)end
@@ -123,10 +125,11 @@ function M:paintCard(v)
     self.seal.Visible=w>=400;self.seal.Position=UDim2.new(1,-86,0,32);set(self.seal,'TextColor3',C.accent)
     for _,t in ipairs(self.tiles)do set(t.Accent,'BackgroundColor3',tint)end
 end
-function M:dressActions()
+function M:dressActions(view)
     local card=self.card;local actions=card and card:FindFirstChild('ResultActions');if not actions then return end
     for _,b in ipairs(actions:GetChildren())do if b:IsA('TextButton')then
         local primary=b.Name=='Again'
+        if primary and view and view.campaign then set(b,'Text',L.text(view.again))end
         if not b:GetAttribute('GameDressed')then
             b:SetAttribute('GameDressed',true)
             UI.make('Frame',b,{Name='Lip',AnchorPoint=Vector2.new(0,1),Position=UDim2.fromScale(0,1),Size=UDim2.new(1,0,0,4),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=primary and .55 or .45,BorderSizePixel=0,Active=false})
@@ -268,13 +271,21 @@ function M:update(state,width)
     self.NewUnlock.Visible=details and #unlocked>0
     if #unlocked>0 then require(script.Parent.TelemetryStep).once('unlocks:'..tostring(self.resultId),'result','unlocks',{value=#unlocked})end
     if self.NewUnlock.Visible then self.NewUnlock.Text=string.format('새 보상 %d개',#unlocked);UI.box(self.NewUnlock,4,y,w,20);y+=24 end
+    local cp=v.campaign;self.Campaign.Visible=cp~=nil;self.CampaignTask.Visible=cp~=nil
+    if cp then local Campaign=require(script.Parent.Parent.Core.CampaignRules)
+        self.Campaign.Text=string.format('캠페인 %s %s  %s',cp.id,cp.name,Campaign.starText(cp.stars))..(cp.best~=cp.stars and string.format('  최고 %s',Campaign.starText(cp.best))or '')
+        UI.box(self.Campaign,4,y,w,24);y+=26
+        local st=Campaign.stage(cp.id);local t=st and st.task
+        self.CampaignTask.Text=cp.taskDone and string.format('✓ %s',cp.task)or t and t.kind~='zero'and t.kind~='share'and string.format('%s  %d/%d',cp.task,cp.taskValue or 0,t.n)or cp.task
+        UI.box(self.CampaignTask,4,y,w,22);y+=26
+    end
     self.Daily.Visible=details and v.daily~=nil and v.status~='practice'
     if self.Daily.Visible then self.Daily.Text=string.format('오늘의 작전 %s',v.daily.score);UI.box(self.Daily,4,y,w,24);y+=28 end
     self.MatchStatus.Visible=v.continuing
     if v.continuing then self.MatchStatus.Text='경기 진행 중, 관전 가능';UI.box(self.MatchStatus,4,y,w,24);y+=28 end
     self.Details.Text=details and '상세 접기'or '상세 기록'
     self.Recap.Visible=true
-    UI.box(self.Details,4,y,(w-8)/2,44);UI.box(self.Recap,4+(w+8)/2,y,(w-8)/2,44);y+=52
+    UI.box(self.Details,4,y,(w-8)/2,48);UI.box(self.Recap,4+(w+8)/2,y,(w-8)/2,48);y+=56
     local function line(name,value)
         local l=self[name]or self.lines[name];l.Visible=value~=nil
         if value then
@@ -299,7 +310,7 @@ function M:update(state,width)
     local value=g and (g.seconds and string.format('%d/%d분',math.floor(g.value/60),g.target/60)or string.format('%d/%d',g.value,g.target))
     line('Goal',details and g and string.format(g.weekly and '이번 주 %s  %s'or '오늘의 목표 %s  %s',g.name,value)or nil)
     self.body.CanvasSize=UDim2.fromOffset(0,y+4)
-    self:dressActions();self:enter()
+    self:dressActions(v);self:enter()
     if not self.counting and ready then self:count(v,self.Growth.Visible and p or nil)end
     return v
 end

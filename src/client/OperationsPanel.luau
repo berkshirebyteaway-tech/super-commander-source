@@ -5,6 +5,7 @@ local M={};M.__index=M
 function M.new(parent,renderer,send,expand)
     local self=setmetatable({rows={},renderer=renderer,send=send},M)
     self.frame=UI.make('ScrollingFrame',parent,{Name='Operations',BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=UI.colors.line,CanvasSize=UDim2.fromOffset(0,0),ScrollingDirection=Enum.ScrollingDirection.Y,ZIndex=12,Visible=false})
+    self.frame:SetAttribute('HudLeft',true)
     self.peek=UI.button(parent,'OperationsPeek','',function()expand();self.frame.CanvasPosition=Vector2.zero end)
     self.peek.ZIndex=16;self.peek.TextSize=14;self.peek.Visible=false
     return self
@@ -32,21 +33,14 @@ function M:update(state,factions)
         end
         row.item=item;if item.incoming then incoming+=1 end
         local color=item.incoming and UI.colors.danger or UI.colors.accent
-        local compact=not require(script.Parent.InputMode).touch();local rh=compact and 28 or 44;local step=compact and 32 or 48
-        if row.compact~=compact then row.compact=compact
-            if compact then
-                row.frame.Size=UDim2.new(1,-5,0,rh);UI.box(row.arrow,2,0,18,rh);row.arrow.TextSize=16
-                UI.box(row.icon,22,7,14,14);row.amount.TextSize=14;row.amount.Font=Enum.Font.BuilderSansBold;UI.box(row.amount,38,0,52,rh)
-                row.target.TextSize=13;row.target.TextColor3=UI.colors.ink;row.target.Position=UDim2.fromOffset(92,0);row.target.Size=UDim2.new(1,-92-58,0,rh)
-                row.status.TextSize=12;row.status.Position=UDim2.new(1,-56,0,0);row.status.Size=UDim2.fromOffset(52,rh)
-                row.cancel.TextSize=18;row.cancel.Position=UDim2.new(1,-rh,0,0);row.cancel.Size=UDim2.fromOffset(rh,rh)
-            else
-                row.frame.Size=UDim2.new(1,-5,0,44);UI.box(row.arrow,0,0,28,44);row.arrow.TextSize=22
-                UI.box(row.icon,32,22,18,18);row.amount.TextSize=16;row.amount.Font=Enum.Font.BuilderSansMedium;row.amount.Position=UDim2.fromOffset(54,20);row.amount.Size=UDim2.new(1,-120,0,22)
-                row.target.TextSize=14;row.target.Position=UDim2.fromOffset(32,2);row.target.Size=UDim2.new(1,-36,0,18)
-                row.status.TextSize=14;row.status.Position=UDim2.new(1,-60,0,21);row.status.Size=UDim2.fromOffset(56,20)
-                row.cancel.TextSize=23;row.cancel.Position=UDim2.new(1,-44,0,0);row.cancel.Size=UDim2.fromOffset(44,44)
-            end
+        local touch=require(script.Parent.InputMode).touch();local rh=touch and 36 or 28;local step=touch and 40 or 32
+        if row.rh~=rh then row.rh=rh
+            local amountW=touch and 42 or 52;local statusW=touch and 36 or 56
+            row.frame.Size=UDim2.new(1,-5,0,rh);UI.box(row.arrow,2,0,18,rh);row.arrow.TextSize=16
+            UI.box(row.icon,22,(rh-14)/2,14,14);row.amount.TextSize=14;row.amount.Font=Enum.Font.BuilderSansBold;UI.box(row.amount,38,0,amountW,rh)
+            local tx=40+amountW;row.target.TextSize=13;row.target.TextColor3=UI.colors.ink;row.target.Position=UDim2.fromOffset(tx,0);row.target.Size=UDim2.new(1,-tx-statusW-2,0,rh)
+            row.status.TextSize=12;row.status.Position=UDim2.new(1,-statusW,0,0);row.status.Size=UDim2.fromOffset(statusW-4,rh)
+            row.cancel.TextSize=touch and 20 or 18;row.cancel.Position=UDim2.new(1,-rh,0,0);row.cancel.Size=UDim2.fromOffset(rh,rh)
         end
         local base=math.max(0,self.frame.Size.Y.Offset-#list*step+(step-rh))
         row.frame.Position=UDim2.fromOffset(0,base+(i-1)*step);self.step=step

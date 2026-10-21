@@ -236,6 +236,10 @@ function M:match(p,map,mode,room)
  local humans=0;if room then for _ in pairs(room.members or {})do humans+=1 end end
  self:context(p,{map_key=map,mode=Schema.enum('mode',mode),match_id=room and (room.globalMatch or room.id)or guid(),ruleset_id='OpenFront-e02eeba',human_count=room and room.analyticsHumans or (humans>0 and humans or 1)})
  self:emit(p,'match_admission_result',{result='accepted',human_count=s.context.human_count,intro=room and room.intro==true})
+ pcall(function()local meta=room and room.session and room.session.map and room.session.map.meta
+  self:flow(p,'match','start',{item=meta and meta.mapSize=='normal'and 'normal'or 'compact',map_key=map,mode=s.context.mode,human_count=s.context.human_count})
+  local w=room and room.clanwar;if w then local n,size=w.count or 2,w.size or 2;self:flow(p,'clan','warStart',{item=Schema.code('c'..n..'_p'..size),total=n,party_size=size,value=size})end
+ end)
  self:funnel(p,'PlayJoin','seat',s.context.join_attempt_id)
  self:funnel(p,'Entry','admitted',s.id);self:funnel(p,'PlayJoin','admitted',s.context.join_attempt_id)
  if s.replay then self:funnel(p,'Replay','admitted',s.replay)end;self:phase(p,'drop')
@@ -259,7 +263,7 @@ function M:command(p,action,ok,message,id,version,started,kind,duplicateHint)
  end
  if ok then
   if action=='attack'or action=='build'or action=='transport'then self:funnel(p,'Entry','command',s.id);if s.lesson then self:funnel(p,'Learning','command',s.lesson)end end
-  local f=feature(action,kind);if f and not s.features[f]then s.features[f]=true;self:emit(p,'feature_use',{feature=f,mode=s.context.mode,first_use=true,eligible=s.available[f]==true})end
+  local f=feature(action,kind);s.features=s.features or {};s.available=s.available or {};if f and not s.features[f]then s.features[f]=true;self:emit(p,'feature_use',{feature=f,mode=s.context.mode,first_use=true,eligible=s.available[f]==true})end
   if action=='nuclear'then self:emit(p,'nuclear_launched',{kind=kind,result='accepted',command_id=id,version=version})end
   if action=='alliance'or action=='support'or action=='embargoAll'then self:flow(p,'match','diplomacy',{item=Schema.code(action..'_'..tostring(kind or 'other'))or action,result='accepted'})end
  end
@@ -422,6 +426,7 @@ function M:room(room,now)
  local counts={};for _,u in ipairs(session.units)do if u.active~=false and not u.building then counts[u.owner]=counts[u.owner]or {};counts[u.owner][u.kind]=(counts[u.owner][u.kind]or 0)+1 end end
  for uid,faction in pairs(room.members)do local p=Players:GetPlayerByUserId(uid);local s=p and self.sessions[p]
   if s then
+   s.features=s.features or {};s.available=s.available or {}
    local party=self.resolveParty and self.resolveParty(p)
    if party and #party.users>1 then
     party.analyticsId=party.analyticsId or s.context.party_id or guid();self:context(p,{party_id=party.analyticsId,party_size=#party.users})
@@ -490,7 +495,7 @@ function M:custom(p,name,map,mode,value)
  elseif name=='ClanLeft'or name=='ClanKicked'or name=='ClanPromoted'or name=='ClanEmblem'then local verb=name=='ClanLeft'and 'leave'or name=='ClanKicked'and 'kick'or name=='ClanEmblem'and 'update'or 'promote'
   self:emit(p,'clan_action',{verb=verb,result='accepted'});self:flow(p,'clan',name=='ClanEmblem'and 'emblem'or verb,{result='accepted'})
  elseif name=='ClanRejected'then self:emit(p,'clan_action',{verb=Schema.enum('verb',mode,'other'),result='rejected',reason=Schema.reason(map)});self:flow(p,'clan','rejected',{item=Schema.code(type(map)=='string'and map:gsub('%-','_')or nil),verb=Schema.enum('verb',mode=='joinId'and 'join'or mode=='buyExtra'and 'attend'or mode,'other'),result='rejected'})
- elseif name=='ClanWar'then self:emit(p,'clan_action',{verb='war',result=mode=='won'and 'won'or 'lost'});self:flow(p,'clan','warResult',{result=mode=='won'and 'won'or 'lost',value=value})
+ elseif name=='ClanWar'then local r=(map=='won'or mode=='won')and 'won'or 'lost';self:emit(p,'clan_action',{verb='war',result=r});self:flow(p,'clan','warResult',{result=r,value=value})
  elseif name=='FirstCombatOrder'then self:emit(p,'flow_step',{area='match',step='firstOrder',result='accepted',map_key=map,mode=Schema.enum('mode',mode),value=type(value)=='number'and value>=0 and value or nil})end
 end
 function M:request(p,channel,action,result,value)
@@ -513,6 +518,10 @@ function M:benefit(p,sku,item)
 end
 function M:flowUser(userId,area,step,data)
  local p=type(userId)=='number'and Players:GetPlayerByUserId(userId);if p then self:flow(p,area,step,data)end
+end
+function M:flowOnce(p,key,area,step,data)
+ local s=p and self.sessions[p];if not s then return end;s.flowOnce=s.flowOnce or {}
+ if s.flowOnce[key]then return end;s.flowOnce[key]=true;self:flow(p,area,step,data)
 end
 function M:rejected()end
 function M:watchInbox(name,worker)

@@ -22,16 +22,20 @@ function M.shores(w,id)
     if e and e.size==p.tiles.size and (p.border.revision~=nil and e.revision==p.border.revision or p.border.revision==nil and e.tick==w.sim.ticks) then return e end
     local water,nav=c.water,w.unitSystem.nav;local width,height=w.map.meta.width,w.map.meta.height;local last=(height-1)*width
     local tiles,comps,reachable={},{},{}
-    p.border:forEach(function(t)
-        if buffer.readu8(water,t)~=2 then return end
+    local dense=p.border.dense;local i=1
+    while i<=#dense do
+        local t=dense[i];i+=1
+        if t==false or buffer.readu8(water,t)~=2 then continue end
         local x=t%width;local list=nil
-        local function check(nb) if buffer.readu8(water,nb)==1 then list=list or {};table.insert(list,nb) end end
-        if t>=width then check(t-width) end;if t<last then check(t+width) end;if x~=0 then check(t-1) end;if x~=width-1 then check(t+1) end
+        if t>=width and buffer.readu8(water,t-width)==1 then list={t-width} end
+        if t<last and buffer.readu8(water,t+width)==1 then if list then table.insert(list,t+width) else list={t+width} end end
+        if x~=0 and buffer.readu8(water,t-1)==1 then if list then table.insert(list,t-1) else list={t-1} end end
+        if x~=width-1 and buffer.readu8(water,t+1)==1 then if list then table.insert(list,t+1) else list={t+1} end end
         if list then
-            for i,nb in ipairs(list) do list[i]=nav:component(nb) end
+            for j,nb in ipairs(list) do list[j]=nav:component(nb) end
             table.insert(tiles,t);table.insert(comps,list);reachable[list[1]]=true
         end
-    end)
+    end
     e={tick=w.sim.ticks,size=p.tiles.size,revision=p.border.revision,tiles=tiles,comps=comps,reachable=reachable};c.shores[id]=e
     return e
 end

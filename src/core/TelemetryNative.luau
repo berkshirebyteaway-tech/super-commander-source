@@ -31,7 +31,7 @@ M.views={
  idle_window={{'SC_IdleSeconds','phase','screen','idle_seconds'}},
  client_error={{'SC_ClientError','module','category','count'}},
  client_warning_window={{'SC_ClientWarning','category','phase','count'}},
- device_profile={{'SC_Device','device_class','viewport_bucket'}},
+ device_profile={{'SC_Device','device_class','viewport_bucket'},{'SC_Locale','locale','device_class'}},
  client_health_window={{'SC_ClientFps','phase',fps},{'SC_FpsDevice','device_class',fps},{'SC_PingBucket','input_mode',ping},{'SC_ClientMemory','phase',memory}},
  request_result={{'SC_Request',request,outcome}},
  visit_closed={{'SC_ExitPhase','phase',matches},{'SC_SessionSeconds','phase',matches,'elapsed_seconds'},{'SC_ExitStage','journey','where'},{'SC_ExitMinutes','journey',minutes}},
@@ -64,7 +64,8 @@ M.views={
 }
 local places={queue=true,transfer=true,drop=true,spectate=true,result=true}
 local screens={shop='shop',supply='shop',benefits='shop',gacha='shop',goals='goals',season='goals',clan='clan',wardrobe='wardrobe',motion='wardrobe',cosmetics='wardrobe',
- collection='wardrobe',settings='settings',single='play',custom='play',deployment='play',play='play',ranked='play',spectate='play',lobby='lobby',intro='intro'}
+ collection='wardrobe',settings='settings',single='play',custom='play',deployment='play',play='play',ranked='play',spectate='play',lobby='lobby',intro='intro',
+ commander='commander',campaign='campaign'}
 function M.realMatch(mode)return mode~=nil and mode~='training'and mode~='practice'and mode~='single'and mode~='lobby'and mode~='unknown'end
 function M.exitStage(s,now)
  local inMatch=s.matchAt and (s.phase=='drop'or s.phase=='playing'or s.phase=='spectate'or s.phase=='result')

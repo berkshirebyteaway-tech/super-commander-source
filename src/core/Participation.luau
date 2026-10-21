@@ -9,7 +9,7 @@ function M:command(action,value,now)
     self.recap:command(action,value)
     if table.find({'spawn','attack','build','nuclear','upgrade','delete','transport','moveWarship','moveWarships','retaliate','cancelTransport','alliance','support','cancelAttack','embargoAll'},action)then self.lastAction=now;self.lastKind=action end
     if action=='spawn'then self.spawnedAt=now end
-    if action=='nuclear'then self.tactics.nukes+=1;self.dirty=true
+    if action=='nuclear'then self.tactics.nukes+=1;if value=='MIRV'then self.tactics.mirv=(self.tactics.mirv or 0)+1 end;self.dirty=true
     elseif action=='transport'then self.tactics.transports+=1;self.dirty=true
     elseif action=='upgrade'then self.tactics.upgrades+=1;self.dirty=true end
     if action=='attack'then self.triedExpansion=true end
@@ -100,7 +100,7 @@ function M:finish(outcome,now,final)
 end
 function M:event(now)
     self.revision+=1;self.dirty=false
-    return {id=self.id,revision=self.revision,mode=self.mode,map=self.map,humans=self.humans,seconds=math.floor(self.seconds),peak=self.peak,cities=self.cities,supports=self.supports,party=self.party==true,tactics=Rules.copy(self.tactics),days=Rules.copy(self.days),weeks=Rules.copy(self.weeks),weeklyActions=Rules.copy(self.weeklyActions),milestones=Rules.copy(self.milestones),outcome=self.outcome,final=self.final,basicsComplete=self.basicsComplete==true,daily=self.daily,gameSeconds=self.gameSeconds,time=self.time or now,
+    return {id=self.id,revision=self.revision,mode=self.mode,map=self.map,humans=self.humans,seconds=math.floor(self.seconds),peak=self.peak,cities=self.cities,supports=self.supports,party=self.party==true,tactics=Rules.copy(self.tactics),days=Rules.copy(self.days),weeks=Rules.copy(self.weeks),weeklyActions=Rules.copy(self.weeklyActions),milestones=Rules.copy(self.milestones),outcome=self.outcome,final=self.final,basicsComplete=self.basicsComplete==true,daily=self.daily,campaign=self.campaign,gameSeconds=self.gameSeconds,time=self.time or now,
         place=self.place,field=self.total,ranked=self.ranked==true or nil}
 end
 return M

@@ -41,7 +41,7 @@ function M:layout(w,h,obscured,battle)
     self.panel.Visible=self.current~=nil and not obscured
     if not self.avatar then
         self.avatar=UI.make('ImageLabel',self.panel,{Name='Avatar',BackgroundColor3=UI.colors.raised,BorderSizePixel=0,ZIndex=self.panel.ZIndex+1})
-        self.edge=UI.make('Frame',self.panel,{Name='Edge',BackgroundColor3=UI.colors.gold,BorderSizePixel=0,ZIndex=self.panel.ZIndex+1})
+        self.edge=require(script.Parent.EdgeMask).fit(UI.make('Frame',self.panel,{Name='Edge',BackgroundColor3=UI.colors.gold,BorderSizePixel=0,ZIndex=self.panel.ZIndex+1}))
         self.bar=UI.make('Frame',self.panel,{Name='TimeLeft',BackgroundColor3=UI.colors.gold,BorderSizePixel=0,ZIndex=self.panel.ZIndex+1})
     end
     local c=self.current;local f=c and c.f

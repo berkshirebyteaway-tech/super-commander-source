@@ -944,6 +944,7 @@ T.orbital=function(k,kind)
 end
 local motion={field=0,polar=0,neon=1,imperial=3,orbital=4}
 require(script.Parent.BuildingVolume).register(T,motion,kit)
+require(script.Parent.BuildingVolume2).register(T,motion,kit)
 function M.has(style)return style and style.tier~=nil and T[style.theme]~=nil end
 local Meshes=require(script.Parent.CosmeticMeshes)
 local levelScale={.84,.92,1}
@@ -953,7 +954,11 @@ local function meshFill(model,kind,style,level,detailed,owner)
     local top,half=.3,2.25
     for _,e in ipairs(Meshes.rig(key).parts)do if e.def.name=='Plinth'then top=e.def.pos[2]+e.def.size[2]/2;half=e.def.size[3]/2 end end
     local list=Meshes.build(model,key,{colors={team=owner,primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)},
-        heroScale=levelScale[level],heroBase=V3(0,top,0),keep=function(e)local z=e.def.size;return detailed or e.kind~=nil or V3(z[1],z[2],z[3]).Magnitude>=.45 end})
+        heroScale=levelScale[level],heroBase=V3(0,top,0),groundCap=5,keep=function(e)
+            local d=e.def;local z=d.size
+            if not detailed and d.name:sub(-3)=='Top'then return d.name=='RoofRimTop'or d.name=='RoofHaloTop'or d.name=='RoofCrownTop'end
+            return detailed or e.kind~=nil or V3(z[1],z[2],z[3]).Magnitude>=.45
+        end})
     if not list then return nil end
     local crest=Meshes.crestKind(key,tier,'buildings')
     if crest then

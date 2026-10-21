@@ -217,6 +217,7 @@ function M:apply(u,ctx)
     if not v.trail and not v.missile and not v.homing then local reduced=self.world.reducedEffects==true;if v.wakeReduced~=reduced then local t=v.model:FindFirstChild("Wake",true)or v.model:FindFirstChild("RailDust",true);v.wakeTries=(v.wakeTries or 0)+1;if t or v.wakeTries>4 then v.wakeReduced=reduced;if t then t.Enabled=not reduced end end end end
 end
 function M:update(state)
+    if not self.world.map then return end
     Probe.start('Units.rail');local loadouts=require(script.Parent.CosmeticLoadouts).all(state)
     self.railView:update(state);Probe.stop('Units.rail')
     local alive={};local now=os.clock()

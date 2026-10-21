@@ -168,15 +168,9 @@ function M:emit(e)
         if e.owner==1 then Audio.play("complete");self:moment(kind,e.returning and "부대가 복귀했어요" or "새 작전이 시작돼요") end
         if visible then self.effects:ring(pos,mint,2.4);self.effects:bricks(pos,self:colors(e.owner),6,1.6) end
     elseif kind=="milestone" then
-        local percent=math.floor(e.share*100+.5)
-        if not self.obscured then Audio.play("milestone",.6)end;self:moment(kind,string.format("영토 %d%% 확보",percent))
-        if visible then self.effects:ring(pos,cream,4);self.effects:bricks(pos,self:colors(1),10,2.2);self.effects:stamp(pos,string.format("★ %d%%!",percent),cream) end
-        if self:allow("milestoneCamera",4) then self.world:impulse(.08) end
     elseif kind=="sortie" then
         if visible and (e.troops or 0)>0 then self:float(pos,'↑ '..UI.troops(e.troops),cream,'troops')end
     elseif kind=="tiles" then
-        if not self.obscured then Audio.play("milestone",.5)end;self:moment(kind,string.format("%s칸 확보",UI.number(e.tiles)))
-        if visible then self.effects:ring(pos,UI.colors.gold,3);self.effects:stamp(pos,string.format("★ %s칸",UI.number(e.tiles)),UI.colors.gold) end
     elseif kind=="betrayal" then
         cue("betrayal","allianceEnded",1,.8);self:moment(kind,(e.name or "").." 동맹을 깼어요");self:connection(1,e.owner,"allianceEnded",coral);self:buzz("collision")
         local f=self.factions and self.factions[e.owner];local at=f and f.labelTile and self:position(f.labelTile)
@@ -336,12 +330,7 @@ function M:buzz(kind)
     end)
 end
 function M:ranked(rank,total)
-    if not self.active or self.paused or not rank then self.rank=rank;return end
-    local before=self.rank;self.rank=rank
-    if before and rank<before and (rank==1 or rank<=3 and before>3) and self:allow(rank==1 and "rankFirst" or "rankTop3",20) then
-        if not self.obscured then cue("rankUp","milestone",1,rank==1 and 1.2 or 1.08)end;self:moment("rankUp",rank==1 and "1위로 올라섰어요" or string.format("%d위, 상위 3",rank))
-        self:buzz("explosion")
-    end
+    self.rank=rank
 end
 function M:result(parent,won)
     local header=UI.panel(parent,"ToyResultSeal");UI.box(header,0,0,parent.AbsoluteSize.X/UI.scale-12,72);header.Size=UDim2.new(1,-12,0,72)

@@ -1,6 +1,7 @@
 local Rules=require(script.Parent.Parent.Core.CommanderStandardRules)
 local G=require(script.Parent.ToyGeometry)
 local Meshes=require(script.Parent.CosmeticMeshes)
+local Series=require(script.Parent.StandardSeries)
 local M={};M.__index=M
 local steel=Color3.fromRGB(91,110,128);local white=Color3.fromRGB(224,239,249)
 local function part(parent,name,size,color)
@@ -39,17 +40,24 @@ function M.new(parent,id,color)
         end
     end
     self.model:SetAttribute('PartBudget',template and 24 or 80);self.model:SetAttribute('LogoMesh',template~=nil);self.model:SetAttribute('LogoStrokes',#Rules.emblem(self.definition.id));self.model:SetAttribute('CrestLevel',self.definition.crest);self.model:SetAttribute('EffectLevel',self.definition.effect)
-    self.model:SetAttribute('UnlockLevel',self.definition.level);self.model.Parent=parent
-    local id=self.definition.id
-    if Meshes.standardReady(id)then self:meshFit()
-    else for _,key in ipairs(Meshes.standardKeys(id))do Meshes.watchModel(key,self.model,function()if not self.mesh and Meshes.standardReady(id)then self:meshFit();self.scale=nil;local f=self.fade;self.fade=nil;self:step(self.lastGrip or CFrame.new(),0,0,self.lastScale or 1,f or 0)end end)end end
+    self.model:SetAttribute('UnlockLevel',self.definition.level)
+    self.clothLocal={};for i=1,5 do self.clothLocal[i]={cf=CFrame.identity,h=i==5 and(self.definition.cut=='forked'and .80 or self.definition.cut=='crown'and 1.0 or 1.12)or 1.24}end
+    if self.definition.supply then self.series=Series.new(self);self.model:SetAttribute('PartBudget',self.model:GetAttribute('PartBudget')+self.series:count())end
+    self.model.Parent=parent
+    local function ready()local ok=true;for _,k in ipairs(self:hardwareKeys())do if not Meshes.ready(k)then ok=false end end;return ok end
+    if ready()then self:meshFit()
+    else for _,key in ipairs(self:hardwareKeys())do Meshes.watchModel(key,self.model,function()if not self.mesh and ready()then self:meshFit();self.scale=nil;local f=self.fade;self.fade=nil;self:step(self.lastGrip or CFrame.new(),0,0,self.lastScale or 1,f or 0,nil,nil,self.lastPhase,self.lastGround)end end)end end
     self:recolor(color);self:step(CFrame.new(),0,0,1,0);return self
+end
+function M:hardwareKeys()
+    local d=self.definition;if not d.supply then return Meshes.standardKeys(d.id)end
+    local out={};for _,k in ipairs(Meshes.standardKeys('sovereign'))do if not k:find('finial')then table.insert(out,k)end end;return out
 end
 function M:meshFit()
     for _,p in ipairs({self.pole,self.grip,self.tip})do p:Destroy()end
     for _,list in ipairs({self.wings,self.trims})do for _,p in ipairs(list)do p:Destroy()end;table.clear(list)end
     self.mesh={};self.team={}
-    for _,key in ipairs(Meshes.standardKeys(self.definition.id))do
+    for _,key in ipairs(self:hardwareKeys())do
         for _,r in ipairs(Meshes.build(self.model,key)or {})do
             r.part.CastShadow=false;r.size=r.part.Size;table.insert(self.mesh,r)
             if r.tint=='team'then table.insert(self.team,r.part)end
@@ -64,16 +72,16 @@ function M:recolor(color)
     for _,p in ipairs(self.cloth)do p.Color=color end;self.seal.Color=color
     for _,p in ipairs(self.team or {})do p.Color=color end
 end
-function M:step(grip,time,speed,scale,fade,batch,reduced)
+function M:step(grip,time,speed,scale,fade,batch,reduced,phase,ground)
     local s=math.clamp(scale or 1,.65,2);local d=self.definition
     local base=grip*CFrame.Angles(-.3,0,-.055-math.min(speed or 0,20)*.002)
     local nextFade=fade or 0;local fadeChanged=self.fade~=nextFade;self.fade=nextFade
-    local function place(p,localCF)
-        local cf=base*CFrame.new(localCF.Position*s)*localCF.Rotation
+    local function place(p,localCF,frame)
+        local cf=(frame or base)*CFrame.new(localCF.Position*s)*localCF.Rotation
         if batch then batch:put(p,cf)else p.CFrame=cf end
         if fadeChanged then p.LocalTransparencyModifier=nextFade end
     end
-    self.lastGrip,self.lastScale=grip,scale
+    self.lastGrip,self.lastScale,self.lastPhase,self.lastGround=grip,scale,phase,ground
     if self.scale~=s then
         self.scale=s;self.seal.Size=Vector3.new(1.22,1.18,.052)*s
         if self.mesh then for _,r in ipairs(self.mesh)do r.part.Size=r.size*s end
@@ -91,7 +99,7 @@ function M:step(grip,time,speed,scale,fade,batch,reduced)
     for i,p in ipairs(self.cloth)do
         local x=(i-.5)*.43+.05
         local y=2.44+(i<=2 and .07 or 0);if i==5 then y+=.12 end
-        place(p,CFrame.new(x,y,math.sin(t*3.8-i*.55)*wind*i/5)*CFrame.Angles(math.sin(t*3.8-i*.55)*wind,0,0))
+        local cf=CFrame.new(x,y,math.sin(t*3.8-i*.55)*wind*i/5)*CFrame.Angles(math.sin(t*3.8-i*.55)*wind,0,0);self.clothLocal[i].cf=cf;place(p,cf)
     end
     for i,p in ipairs(self.trims)do place(p,CFrame.new(.13+(i-1)*.11,2.48,-.008))end
     local sealWave=math.sin(t*3.8-3*.55)*wind
@@ -103,6 +111,9 @@ function M:step(grip,time,speed,scale,fade,batch,reduced)
         place(p,sealCF*CFrame.new(math.cos(a)*.65,math.sin(a)*.62,-.065))
         p.Transparency=reduced and 1 or .42+.25*(.5+.5*math.sin(t*2+i))
     end
+    if self.series then
+        self.series:step(place,s,t,reduced,phase or 1+math.floor(t/2)%3,sealCF,self.clothLocal,ground or CFrame.new((base*CFrame.new(0,-1.05*s,0)).Position))
+    end
 end
-function M:destroy()if self.model then self.model:Destroy();self.model=nil end end
+function M:destroy()self.series=nil;if self.model then self.model:Destroy();self.model=nil end end
 return M

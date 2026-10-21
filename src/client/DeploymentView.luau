@@ -21,6 +21,7 @@ local function category(f)return f.kind=='custom'and (f.rules.mode=='coop'and '�
 local function format(f)
     local r=f.rules
     if f.kind=='custom'and r.mode=='teams'then if r.teamFormat then return TeamFormat.label(r.teamFormat,nil,r.maximum)end;return string.format('최대 %d팀 %d명',r.teamCount,r.maximum)end
+    if r.mode=='teams'and r.teamFormat=='HumansVsNations'then return string.format('사람 대 국가, 최대 %d대%d',r.maximum,r.maximum)end
     if r.mode=='teams'and r.teamFormat then return TeamFormat.label(r.teamFormat,r.teamCount,r.maximum)end
     if r.mode=='coop'then local ai=Flow.coopAI(r,f.count);return string.format('협동 %s AI %d명',L.text(({Easy='쉬움',Medium='보통',Hard='어려움',Impossible='불가능'})[r.settings.difficulty]),ai.ai)end
     return r.mode=='teams'and string.format('2진영 최대 %d대%d',r.maximum//2,r.maximum//2)or r.mode=='coop'and string.format('협동 최대 %d명',r.maximum)or string.format('개인전 최대 %d명',r.maximum)
@@ -32,14 +33,14 @@ local function ruleText(f)
         local list={};for _,k in ipairs(f.rules.modifiers or {})do if k~='isRandomSpawn'then table.insert(list,Official.modifierLabels[k]or k)end end
         return spawn..(#list>0 and ', '..table.concat(list,', ')or '')
     end
-    return spawn..', '..(f.kind=='custom'and (CustomRules.rewardMode(f.rules)=='custom'and '자유 규칙'or '일반 규칙')or '클래식')
+    return spawn..', '..(f.kind=='custom'and (CustomRules.rewardMode(f.rules)=='custom'and '자유 규칙'or '일반 규칙')or '클래식')..(f.rules.settings and f.rules.settings.mapSize=='normal'and ', '..'큰 지도'or '')
 end
 local function status(f,elapsed)
     if f.phase=='transferring'then return '전장으로 이동 중…'end
     if f.remaining then return '출발 '..clock(f.remaining-elapsed)..(f.kind~='custom'and (f.ai or 0)>0 and ' / AI +'..f.ai or '')end
     if f.kind=='custom'then return string.format('준비 %d/%d',f.readyCount or 0,f.count)end
     if f.needsOpponent then return '상대 진영 모집 중'end
-    if f.count==0 then return '참가하면 45초 뒤 출발'end
+    if f.count==0 then return '참가하면 20초 뒤 출발'end
     return '곧 출발'
 end
 local function label(parent,name,text,size,c)local l=UI.label(parent,name,text,math.max(14,size or 14),c);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd;return l end
@@ -163,7 +164,7 @@ function M:quickJoin()
 end
 function M:card(f)
     local c=self.cards[f.id];if c then c.field=f;return c end
-    c={field=f};c.frame=UI.panel(self.list,'Field_'..f.id);c.strip=UI.make('Frame',c.frame,{Name='TypeStrip',BorderSizePixel=0,BackgroundColor3=color(f)})
+    c={field=f};c.frame=UI.panel(self.list,'Field_'..f.id);c.strip=require(script.Parent.EdgeMask).fit(UI.make('Frame',c.frame,{Name='TypeStrip',BorderSizePixel=0,BackgroundColor3=color(f)}))
     c.type=label(c.frame,'Type',category(f),12,color(f));c.state=label(c.frame,'State','',12,UI.colors.muted)
     c.type.Visible=false;c.chips=UI.make('Frame',c.frame,{Name='Tags',BackgroundTransparency=1})
     c.inspect=UI.button(c.frame,'Inspect','',function()self.selected=c.field.id;self:render()end);c.inspect.BackgroundTransparency=1;c.inspect:FindFirstChildOfClass('UIStroke').Enabled=false
@@ -223,7 +224,7 @@ function M:render()
         local tx=12+mark+12;local right=listW-pw-24
         UI.box(self.quick,0,offset,listW,qh);UI.box(self.quickMark,12,(qh-mark)/2,mark,mark);self.quickMark.TextSize=narrow and 26 or 30
         UI.box(self.quickPicture,listW-pw-12,(qh-ph)/2,pw,ph)
-        local mode=pick.rules.mode=='teams'and '팀전'or '개인전'
+        local mode=(pick.rules.special and '특수 'or '')..(pick.rules.mode=='teams'and '팀전'or '개인전')
         if narrow then
             UI.box(self.quickTitle,tx,qh/2-26,right-tx,28);self.quickTitle.TextSize=20
             UI.box(self.quickHint,tx,qh/2+2,right-tx,20);self.quickHint.TextSize=14;self.quickHint.TextXAlignment=Enum.TextXAlignment.Left
@@ -251,7 +252,7 @@ function M:render()
     self.partyBar.Parent=compactParty and self.frame or self.list
     self.kicker.Visible=w>580 and not compactParty
     self.hint.Visible=w>820 and not compactParty
-    self.code.Visible=w>520 and not compactParty
+    self.code.Visible=w>520 and not compactParty and not(self.short and w-456<math.max(16,(self.topbarLeft or 12)-12))
     if grouped then
         local count=Party.readyCount(party)
         local partyX=compactParty and math.max(16,(self.topbarLeft or 12)-12)or 0
@@ -322,11 +323,11 @@ UI.box(self.empty,12,offset+16,listW-24,54);self.empty.Text=self.directoryError 
         UI.box(self.detailHint,16,by+52,detailW-32,38);self.detailHint.Visible=not compact
         if self.detailMap~=selected.rules.map or self.detailDimensions~=detailW..':'..picH then local changed=self.detailMap~=selected.rules.map;self.detailMap=selected.rules.map;self.detailDimensions=detailW..':'..picH;if changed then self.detailRaster:setPreview(Maps.preview(self.detailMap))end;task.defer(function()self.detailRaster:fit();self.detailRaster:draw()end)end
     end
-    self.bar.Visible=self.queue~=nil
+    self.bar.Visible=self.queue~=nil and not self.barDocked
     self.suggested=QueueUI.suggestion(self.queue,{fields=self.fields,unavailable=self.directoryError},self.directoryNow and self.directoryNow+elapsed,grouped and #party.users or 1)
     if self.queue then local q=self.queue
         self.barText.Text=title({rules=q.rules or {map='world'}})..' '..q.count..'/'..q.max..'\n'..(q.phase=='transferring'and '이동 중…'or q.phase=='recovering'and '연결 확인 중…'or q.remaining and '출발 '..clock(q.remaining-elapsed)..(q.mode~='custom'and (q.ai or 0)>0 and (q.ai>(q.max or 0)-(q.count or 0)and ', 함께하는 AI 지휘관 'or ', 빈자리는 AI 지휘관 ')..q.ai..'명'or '')or q.mode=='custom'and '준비 대기'or q.needsOpponent and '상대 진영 모집 중'or '곧 출발')
-        if q.mode=='ranked'then self.barText.Text=string.format('랭크 %s  %s',q.ladder=='clanwar'and '클랜전'or q.ladder=='2v2'and '2대2'or '1대1',q.phase=='transferring'and '상대 찾음, 이동 중…'or '상대 찾는 중')end
+        if q.mode=='ranked'then self.barText.Text=string.format('랭크 %s  %s',q.ladder=='clanwar'and '클랜전'or q.ladder=='2v2'and '2대2'or q.ladder=='ffa'and '개인전'or '1대1',q.phase=='transferring'and '상대 찾음, 이동 중…'or '상대 찾는 중')end
         if q.mode~='custom'and q.mode~='ranked'and q.rules and q.rules.mode=='teams'and q.phase~='transferring'then self.barText.Text..=((q.partyCount or 1)>1 and ', 파티 전원 같은 팀'or ', 팀은 출발 때 자동 배정')end
         self.cancel.Text=q.partyCount and '파티 대기 취소'or '대기 취소';UI.enabled(self.cancel,not self.busy and not q.locked)
     end

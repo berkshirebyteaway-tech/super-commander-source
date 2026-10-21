@@ -33,6 +33,7 @@ function M.new(parent,notify,focus,project)
         c.MessageReceived:Connect(function(message)self:received(c,message)end)
     end
     for _,c in ipairs(self.channels:GetChildren())do bind(c)end;self.channels.ChildAdded:Connect(bind)
+    task.spawn(function()local ev=Pack:WaitForChild('CommsDelivery',30);if ev then ev.OnClientEvent:Connect(function(p)self:delivered(p)end)end end)
     return self
 end
 function M:messages(id)
@@ -77,25 +78,13 @@ function M:send(kind,payload)
         self.preparing=false
         if ok and type(r)=='table'and r.vip then VipLock.open(kind=='emoji'and 'emoji'or 'quickChat');return end
         if not ok or type(r)~='table'or not r.ok then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,result=ok and 'rejected'or 'failed',reason=ok and 'none'or 'network'});self.notify(ok and type(r)=='table'and r.message or '소통 연결을 확인해 주세요.',true);return end
-        if r.npc then
-            if type(r.ping)=='table'then
-                local target;for _,f in pairs(self.factions or {})do if f.matchId==r.ping.subject then target=f;break end end
-                self.pings:add(Me.UserId,r.ping,r.ping.tile or target and target.labelTile)
-            end
-            self.notify(r.message);return
+        if type(r.ping)=='table'then
+            local target;for _,f in pairs(self.factions or {})do if f.matchId==r.ping.subject then target=f;break end end
+            self.pings:add(Me.UserId,r.ping,r.ping.tile or target and target.labelTile)
         end
-        local c=self.channels:FindFirstChild(r.channel)or self.channels:WaitForChild(r.channel,5)
-        if not current()then return end
-        if not c then self.notify('채팅 채널을 준비 중이에요.',true);return end
-        local sent,message=pcall(function()return c:SendAsync(r.text,r.metadata)end)
-        if not sent or message.Status~=Enum.TextChatMessageStatus.Success then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,result='failed',reason='failed'});self.notify('Roblox에서 메시지를 전송하지 못했어요.',true)
-        else
-            local decoded,meta=pcall(Http.JSONDecode,Http,r.metadata)
-            if current()and decoded and type(meta)=='table'and meta.kind=='signal'then
-                local target;for _,f in pairs(self.factions or {})do if f.matchId==meta.subject then target=f;break end end
-                self.pings:add(Me.UserId,meta,meta.tile or target and target.labelTile)
-            end
-        end
+        local echo=type(r.echo)=='table'and r.echo or kind=='emoji'and {from=Me.UserId,kind='emoji',text=payload.value,scope=payload.target==0 and 'all'or 'player'}or nil
+        if echo then self:show(echo)end
+        if kind~='emoji'and r.message then self.notify(r.message)end
     end)
 end
 function M:freeSend()
@@ -114,28 +103,41 @@ function M:freeSend()
         local ok,message=pcall(function()return c:SendAsync(value)end)
         if not current()then return end
         self.sending=false;self:draw()
-        if ok and message and message.Status==Enum.TextChatMessageStatus.Success then if self.input.Text==value then self.input.Text=''end
+        local status=ok and message and message.Status
+        if status==Enum.TextChatMessageStatus.Success or status==Enum.TextChatMessageStatus.Sending then if self.input.Text==value then self.input.Text=''end
         else require(script.Parent.TelemetryStep).step('comms','sendFail',{item='text',result='failed',reason='failed'});self.notify('Roblox에서 메시지를 전송하지 못했어요.',true)end
     end)
 end
 function M:received(channel,message)
     if not message.TextSource or not self.state or self.state.phase=='menu'or channel:GetAttribute('CommanderRoom')~=self.state.roomId then return end
     if message.Status~=Enum.TextChatMessageStatus.Success then return end
-    local sender;for _,f in pairs(self.factions or {})do if f.userId==message.TextSource.UserId then sender=f;break end end
-    local scope=channel:GetAttribute('CommanderScope');local name=sender and sender.name or tostring(message.TextSource.UserId)
-    local content=message.Translation~=''and message.Translation or message.Text
-    local entry={scope=scope,name=name,userId=message.TextSource.UserId,me=message.TextSource.UserId==Me.UserId,text=content}
-    table.insert(self.history,entry);if #self.history>40 then table.remove(self.history,1)end
+    local p={from=message.TextSource.UserId,scope=channel:GetAttribute('CommanderScope'),text=message.Translation~=''and message.Translation or message.Text}
     local ok,meta=pcall(Http.JSONDecode,Http,message.Metadata)
-    if ok and type(meta)=='table'and meta.v==1 and meta.commander then
-        entry.tag=meta.kind=='emoji'and '이모지'or meta.kind~='signal'and meta.key and '빠른 대화'or nil
-        if type(meta.key)=='string'and phrase[meta.key]then content=L.text(phrase[meta.key]);entry.text=content end
-        local target;for _,f in pairs(self.factions or {})do if f.matchId==meta.subject then target=f;break end end
-        if sender and sender.id~=1 then
-            self.pings:add(sender.userId,meta,meta.tile or target and target.labelTile)
-            table.insert(self.receipts,1,{text=name..': '..content..(target and ': '..L.nation(target) or ''),tile=meta.tile or target and target.labelTile,sender=sender.id,expires=os.clock()+10,key=meta.key})
+    if ok and type(meta)=='table'and meta.v==1 and meta.commander then p.kind=meta.kind;p.key=meta.key;p.subject=meta.subject;p.tile=meta.tile end
+    self:show(p)
+end
+function M:delivered(p)
+    if type(p)~='table'or p.v~=1 or type(p.text)~='string'or not self.state or self.state.phase=='menu'or p.room~=self.state.roomId or p.from==Me.UserId then return end
+    self:show(p)
+end
+function M:show(p)
+    local sender;for _,f in pairs(self.factions or {})do if f.userId==p.from then sender=f;break end end
+    local scope=p.scope;local name=sender and sender.name or tostring(p.from);local content=p.text
+    if p.kind=='signal'or p.kind=='target'then content=L.text(content)end
+    local entry={scope=scope,name=name,userId=p.from,me=p.from==Me.UserId,text=content}
+    table.insert(self.history,entry);if #self.history>40 then table.remove(self.history,1)end
+    if p.kind then
+        entry.tag=p.kind=='emoji'and '이모지'or p.kind~='signal'and p.key and '빠른 대화'or nil
+        if type(p.key)=='string'and phrase[p.key]then content=L.text(phrase[p.key]);entry.text=content end
+        local target;for _,f in pairs(self.factions or {})do if f.matchId==p.subject then target=f;break end end
+        if p.kind=='emoji'or p.key=='coordinate.ack'or p.key=='coordinate.decline'then
+            if p.kind=='emoji'and sender and self.onEmoji then self.onEmoji(sender.id,sender.labelTile,p.text)end
+            if sender and sender.id~=1 and (p.kind~='emoji'or scope=='player')then self.notify(name..'  '..content,false,sender.labelTile)end
+        elseif sender and sender.id~=1 then
+            self.pings:add(sender.userId,p,p.tile or target and target.labelTile)
+            table.insert(self.receipts,1,{text=name..': '..content..(target and ': '..L.nation(target) or ''),tile=p.tile or target and target.labelTile,sender=sender.id,expires=os.clock()+10,key=p.key})
             while #self.receipts>3 do table.remove(self.receipts)end;self:drawFeed()
-            require(script.Parent.TelemetryStep).step('comms','coordShown',{item=require(script.Parent.TelemetryStep).code(meta.key)})
+            require(script.Parent.TelemetryStep).step('comms','coordShown',{item=require(script.Parent.TelemetryStep).code(p.key)})
         end
     end
     if self.onHistory then self.onHistory()end
@@ -148,7 +150,7 @@ function M:draw()
     local typing=VipLock.allows('text');self.input.TextEditable=typing;self.input.PlaceholderText=typing and '메시지'or 'VIP 클럽 전용 채팅 입력'
 end
 function M:drawFeed()
-    for _,o in ipairs(self.feed:GetChildren())do o:Destroy()end
+    for _,o in ipairs(self.feed:GetChildren())do if o.Name~='HudScale'then o:Destroy()end end
     for i,r in ipairs(self.receipts)do
         if i>(self.feedLimit or 3)then break end
         local card=UI.panel(self.feed,'Signal'..i);UI.box(card,0,(i-1)*98,self.width or 300,92)

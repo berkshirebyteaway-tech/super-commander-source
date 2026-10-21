@@ -6,9 +6,20 @@ local function valid(e)
     if type(e.season)~='string'or not e.season:match('^S%d+$')or #e.season>12 then return false end
     if type(e.winnerClan)~='string'or type(e.loserClan)~='string'or #e.winnerClan>32 or #e.loserClan>32 or e.winnerClan==e.loserClan then return false end
     local seen={}
-    for _,side in ipairs({'winners','losers'})do
-        local list=e[side];if type(list)~='table'or #list<1 or #list>2 then return false end
+    for side,cap in pairs({winners=5,losers=15})do
+        local list=e[side];if type(list)~='table'or #list<1 or #list>cap then return false end
         for _,id in ipairs(list)do if type(id)~='number'or id%1~=0 or id==math.huge or seen[id]then return false end;seen[id]=true end
+    end
+    if e.size~=nil and (type(e.size)~='number'or e.size%1~=0 or e.size<2 or e.size>5)then return false end
+    if e.sides~=nil then
+        if type(e.sides)~='table'or #e.sides<2 or #e.sides>4 then return false end
+        local clans,wins,inSides={},0,{}
+        for _,side in ipairs(e.sides)do
+            if type(side)~='table'or type(side.clan)~='string'or #side.clan>32 or clans[side.clan]or type(side.players)~='table'or #side.players>5 then return false end
+            clans[side.clan]=true;if side.won==true then wins+=1;if side.clan~=e.winnerClan then return false end end
+            for _,id in ipairs(side.players)do if not seen[id]or inSides[id]then return false end;inSides[id]=true end
+        end
+        if wins~=1 or not clans[e.loserClan]then return false end
     end
     return true
 end
@@ -33,6 +44,7 @@ function M:record(r)
     local e=table.clone(r);e.id=e.matchId;e.revision=1
     if not valid(e)then return false end
     e.winners=table.clone(e.winners);e.losers=table.clone(e.losers)
+    if e.sides then local sides={};for i,side in ipairs(e.sides)do sides[i]={clan=side.clan,players=table.clone(side.players),won=side.won==true}end;e.sides=sides end
     for _,list in ipairs({e.winners,e.losers})do for _,uid in ipairs(list)do self.worker:record(uid,e)end end
     self:flush();return true
 end

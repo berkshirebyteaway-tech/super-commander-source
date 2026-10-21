@@ -127,6 +127,9 @@ function M.preview(key)
     error("Unknown map preview")
 end
 function M.hasNormal(key) local m=M.meta(key);return m~=nil and m.normal~=nil end
+M.storeSource=nil
+function M.stored(key) local m=M.meta(key);return m~=nil and m.normal~=nil and m.normal.store~=nil end
+local function partCount(meta) return if meta.store then meta.store.parts else #meta.modules end
 local sized={}
 function M.sized(key,size)
     local m=M.meta(key)
@@ -134,7 +137,7 @@ function M.sized(key,size)
     local c=sized[key];if c and c.base==m then return c.meta end
     local n=m.normal;local meta=table.clone(m)
     local function double(list) local out={};for i,v in ipairs(list or {}) do local x=table.clone(v);if x.x then x.x*=2;x.y*=2 end;out[i]=x end;return out end
-    meta.width=n.width;meta.height=n.height;meta.landTiles=n.landTiles;meta.modules=n.modules;meta.bytes=n.bytes;meta.fnv32=n.fnv32;meta.sha256=nil
+    meta.width=n.width;meta.height=n.height;meta.landTiles=n.landTiles;meta.modules=n.modules;meta.store=n.store;meta.bytes=n.bytes;meta.fnv32=n.fnv32;meta.sha256=nil
     meta.spawnAreas=n.spawnAreas;meta.nations=double(m.nations);meta.additionalNations=double(m.additionalNations);meta.customTribes=double(m.customTribes)
     meta.mini={width=m.width,height=m.height,modules=m.modules,fnv32=m.fnv32}
     meta.mapSize="normal";meta.normal=nil
@@ -148,7 +151,7 @@ function M.fromTerrain(key,terrain)
 end
 function M.fromPacked(key,parts)
     local meta=M.sized(key,"normal");assert(meta and meta.mapSize=="normal",'Unknown map')
-    assert(type(parts)=='table'and #parts==#meta.modules,'Invalid selected map terrain')
+    assert(type(parts)=='table'and #parts==partCount(meta),'Invalid selected map terrain')
     for _,p in ipairs(parts)do assert(type(p)=='string','Invalid selected map terrain')end
     return {meta=meta,terrain=expand(parts,meta.width*meta.height)}
 end
@@ -159,13 +162,37 @@ function M.loadMini(meta)
     for _,name in ipairs(mini.modules) do table.insert(parts,if script then require(directory[name]) else require("./"..name))end
     return expand(parts,mini.width*mini.height)
 end
+function M.normalParts(key)
+    local meta=M.sized(key,"normal");if not meta or meta.mapSize~="normal" then return nil end
+    if meta.store then return if M.storeSource then (M.storeSource(meta)) else nil end
+    local directory=script and game:GetService('ServerStorage'):FindFirstChild('FrontierMapData')
+    local parts={}
+    for _,name in ipairs(meta.modules) do table.insert(parts,if script then require(directory[name]) else require("./"..name))end
+    return parts
+end
+function M.expandChecked(meta,parts)
+    assert(type(parts)=='table'and #parts==partCount(meta),'Invalid map parts')
+    local terrain=expand(parts,meta.width*meta.height)
+    local hash=2166136261
+    for i=0,buffer.len(terrain)-1 do
+        local n=bit32.bxor(hash,buffer.readu8(terrain,i))
+        hash=((n%65536)*403+(((n//65536*403+(n%65536)*256)%65536)*65536))%4294967296
+    end
+    assert(hash==meta.fnv32,'Map parts do not match the catalog')
+    return terrain
+end
 function M.load(key,size)
     local meta=M.sized(key,size)
     assert(meta,"Unknown map")
     local directory=script and (game:GetService('RunService'):IsServer()and game:GetService('ServerStorage'):FindFirstChild('FrontierMapData')or script.Parent)
     local parts={}
-    for _,name in ipairs(meta.modules) do table.insert(parts,if script then require(directory[name]) else require("./"..name))end
-    local map={meta=meta,terrain=expand(parts,meta.width*meta.height),packed=if meta.mapSize=="normal" then parts else nil}
+    local terrain
+    if meta.store then
+        local stored,checked
+        if M.storeSource then stored,checked=M.storeSource(meta)end
+        parts=assert(stored,"Map store unavailable");terrain=checked and buffer.fromstring(buffer.tostring(checked))
+    else for _,name in ipairs(meta.modules) do table.insert(parts,if script then require(directory[name]) else require("./"..name))end end
+    local map={meta=meta,terrain=terrain or expand(parts,meta.width*meta.height),packed=if meta.mapSize=="normal" then parts else nil}
     if meta.mini and (not script or game:GetService('RunService'):IsServer()) then
         map.mini={terrain=M.loadMini(meta),width=meta.mini.width,height=meta.mini.height}
     end

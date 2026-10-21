@@ -34,6 +34,7 @@ experienceReady.OnServerEvent:Connect(function(p,version)
 end)
 local matchChat=require(services.MatchChat).new(entries)
 matchChat.telemetry=analytics
+matchChat.deliveryRemote=remote('RemoteEvent','CommsDelivery')
 local soloTransfer
 local commsPrepare=remote('RemoteFunction','CommsPrepare')
 commsPrepare.OnServerInvoke=function(p,kind,payload)
@@ -46,6 +47,10 @@ end
 local queue=require(services.MatchQueue).new();local serial,visualId,preparing=0,0,0
 analytics.resolveField=function(p,id)for _,f in ipairs(queue:directory(p.UserId).fields or {})do if f.id==id then return f end end end
 queue.telemetry=analytics
+local bigMaps=require(services.MapStream).new(remote("RemoteEvent","MapStream"),Maps,require(services.MapStore).new(Maps,{GetAsync=function(_,key)
+    return game:GetService('DataStoreService'):GetDataStore(require(services.MapStore).name):GetAsync(key)end}):attach())
+bigMaps.roster=require(services.WaitingRoster).new(remote("RemoteEvent","WaitingRoster"))
+bigMaps.log=function(p,step,data)analytics:flow(p,'match',step,data)end
 analytics.resolveParty=function(p)return parties[p.UserId]end
 local LiveModel=require(pack.Core.LiveMatchModel)
 local liveMatches=require(services.LiveMatches).new(Config,{notify=function(id,message)local e=entries[id];if e and e.player.Parent==Players then results:FireClient(e.player,{action='lobby',ok=false,message=message,version=e.version})end end})
@@ -57,9 +62,22 @@ local badgeSent={}
 local function awardBadges(player,view)
     if not require(services.LiveConfig).enabled('badges')then return end
     local sent=badgeSent[player.UserId]or {};badgeSent[player.UserId]=sent
-    for _,key in ipairs(BadgeRules.earned(view))do if (sent[key]==nil or sent[key]~=true and os.clock()>=sent[key])and BadgeRules.ids[key]then sent[key]=true
-        task.spawn(function()local ok=pcall(function()game:GetService('BadgeService'):AwardBadge(player.UserId,BadgeRules.ids[key])end);if not ok then sent[key]=os.clock()+60 end end)
-    end end
+    local fresh={}
+    for _,key in ipairs(BadgeRules.earned(view))do if (sent[key]==nil or sent[key]~=true and os.clock()>=sent[key])and BadgeRules.ids[key]then sent[key]=true;table.insert(fresh,key)end end
+    if #fresh==0 then return end
+    task.spawn(function()
+        local Badges=game:GetService('BadgeService');local owned={}
+        for i=1,#fresh,10 do
+            local ids={};for j=i,math.min(#fresh,i+9)do table.insert(ids,BadgeRules.ids[fresh[j]])end
+            local ok,list=pcall(function()return Badges:CheckUserBadgesAsync(player.UserId,ids)end)
+            if ok and type(list)=='table'then for _,id in ipairs(list)do owned[id]=true end end
+        end
+        for _,key in ipairs(fresh)do
+            if not owned[BadgeRules.ids[key]]then
+                local ok=pcall(function()Badges:AwardBadge(player.UserId,BadgeRules.ids[key])end);if not ok then sent[key]=os.clock()+60 end
+            end
+        end
+    end)
 end
 local Participation=require(pack.Core.Participation)
 local ResultPresentation=require(pack.Core.ResultPresentation)
@@ -80,6 +98,7 @@ local accounts=require(services.AccountService).new(function(p,a)
     end
 end)
 local ranked=require(services.RankedService).new(careers,accounts,Config)
+accounts.rankedOf=function(id)if not careers.profiles[id]or not ranked:allowed()then return nil end;local out={};for _,l in ipairs(require(pack.Core.RankedRules).ladders)do out[l]=ranked:ladderView(id,l)end;return out end
 local rewards=require(services.RewardInbox).new(accounts)
 analytics:watchInbox('RewardInbox',rewards.worker);analytics:watchInbox('CareerInbox',careers.worker)
 local function recordProgress(id,progress)
@@ -141,7 +160,7 @@ local function observerSnapshot(e,full,shared)
     local room=e.room;local session=room.session
     e.watch=LiveModel.pick(session,e.watch)
     local s=session:observerState(e.watch,full,shared)
-    if full then if session.map.packed then s.mapPacked=session.map.packed else s.mapTerrain=session.map.terrain end end
+    if full then if session.map.packed then bigMaps:pack(e,s,session.map)else s.mapTerrain=session.map.terrain end end
     local a=accounts:sessionView(e.player,false);s.cosmetics=a.cosmetics or Cosmetics.loadout("classic");s.style=s.cosmetics.territory
     s.version=e.version;s.controller=e.player.UserId;s.player.userId=e.player.UserId;s.paused=room.paused==true;s.canPause=false;s.studio=Run:IsStudio()
     s.multiplayer=true;s.roomId=room.id;s.mode=room.mode;s.queueMode=room.queueMode;s.loading=false;s.attackTargets={}
@@ -154,12 +173,12 @@ local function snapshot(e,full,shared)
     local room=e.room;if not room then local s=baseState(e);s.snapshotSerial=serial;return s end
     if e.observer then local s=observerSnapshot(e,full,shared);s.snapshotSerial=serial;return s end
     local s=room.single and room.session:state(full) or room.session:stateFor(e.faction,full,shared)
-    if full then if room.session.map.packed then s.mapPacked=room.session.map.packed else s.mapTerrain=room.session.map.terrain end end
+    if full then if room.session.map.packed then bigMaps:pack(e,s,room.session.map)else s.mapTerrain=room.session.map.terrain end end
     local progress=room.progress and room.progress[e.player.UserId]
     local a=accounts:sessionView(e.player,progress and progress.ended);s.cosmetics=a.cosmetics or Cosmetics.loadout("classic");s.style=s.cosmetics.territory
     s.version=e.version;s.controller=e.player.UserId;s.player.userId=e.player.UserId;s.paused=room.paused==true;s.speed=room.single and (room.speed or 1)or nil;s.canPause=room.single or room.hostUserId==e.player.UserId;s.studio=Run:IsStudio()
     s.multiplayer=not room.single;s.roomId=room.id;s.mode=room.mode;s.queueMode=room.queueMode;s.customRules=room.customRules;s.note=room.note;s.loading=false
-    s.unrecorded=room.unrecorded==true;s.watchers=room.observerCount;s.ranked=room.ranked;s.clanwar=room.clanwar~=nil or nil
+    s.unrecorded=room.unrecorded==true;s.watchers=room.observerCount;s.ranked=room.ranked;s.clanwar=room.clanwar and {size=room.clanwar.size or 2,count=room.clanwar.count or 2}or nil
     s.casual=room.casual or nil;s.intro=room.intro or nil;s.awaitFirst=room.awaitFirst or nil
     s.spawnRemaining=math.max(0,math.ceil((room.spawnUntil or 0)-os.clock()));s.spawnLeft=math.max(0,(room.spawnUntil or 0)-os.clock())
     s.allSpawned=room.allSpawned or nil;s.randomSpawn=room.randomSpawn or nil;s.nextRoundIn=room.endedAt and math.max(0,math.ceil(room.endedAt+Config.resultSeconds-os.clock()))or nil
@@ -179,6 +198,12 @@ local function snapshot(e,full,shared)
         if receipt and receipt.totalsComplete then s.personalResult.bonus={xp=math.max(0,receipt.grantedXP-receipt.xp),medals=math.max(0,receipt.grantedMedals-receipt.medals),parts=ResultPresentation.bonusParts(receipt)};s.personalResult.granted={xp=receipt.grantedXP,medals=receipt.grantedMedals}end
         if progress.daily then local D=Outgame.dailyOperation;local score=D.score(progress);local d=a.progress and a.progress.dailyOp;local top=math.max(score or -1,d and d.day==progress.daily and d.best or -1)
             s.personalResult.daily={score=D.label(score),best=D.label(top>=0 and top or nil)}end
+        if progress.campaign then local C=Outgame.campaign;local stage=C.stage(progress.campaign);local saved=a.progress and a.progress.campaign
+            local mask=C.stars(stage,progress);local best=bit32.bor(mask,saved and saved.stars and saved.stars[stage.id]or 0)
+            local nxt=Replay.campaignNext(room,e.player.UserId,saved)
+            s.personalResult.campaign={id=stage.id,name=stage.name,stars=mask,best=best,task=stage.task.label,taskValue=C.taskValue(stage,progress),taskDone=C.taskDone(stage,progress),next=nxt~=stage.id and nxt or nil}
+            if progress.ended then pcall(analytics.flowOnce,analytics,e.player,'campaign:'..tostring(progress.id),'campaign','campaignEnd',{item='stage_'..stage.id:gsub('%-','_'),value=C.count(mask),level=C.count(best),result=progress.outcome=='won'and 'won'or 'lost',map_key=progress.map,active=s.personalResult.campaign.taskDone==true})end
+        end
         if progress.ended and a.ready and not progress.unrecorded then
             local view=a.progress
             awardBadges(e.player,view)
@@ -193,7 +218,7 @@ local function snapshot(e,full,shared)
             else s.personalResult.ranked={ladder=room.ranked,pending=true}end
         elseif progress.ended and room.clanwar then
             local W=require(pack.Core.ClanWarRules);local won=progress.outcome=='won'
-            s.personalResult.clanwar={won=won,points=won and W.winPoints or W.lossPoints,contribution=won and W.winContribution or W.lossContribution}
+            s.personalResult.clanwar={won=won,points=won and W.winFor(room.clanwar.count or 2,room.clanwar.size or 2)or W.lossPoints,contribution=won and W.winContribution or W.lossContribution}
         end
     end
     if room.single then for _,f in ipairs(s.factions or {})do if f.id==1 then f.userId=e.player.UserId end end end
@@ -293,7 +318,7 @@ local function release(e,forfeit)
     local wasOut=progress and progress.ended
     if progress and forfeit and not progress.ended then if room.intro then progress.basicsComplete=true end;progress:finish('forfeit',os.time(),true);recordProgress(e.player.UserId,progress)end
     if forfeit and not room.endedAt and wasOut then analytics:flow(e.player,'spectate','postDeath',{result='left',value=math.max(0,os.time()-(progress.time or os.time())),mode=room.single and 'single'or room.casual and 'pvp'or room.mode})
-    elseif forfeit and not room.endedAt then analytics:flow(e.player,'match','leaveMidMatch',{mode=room.single and 'single'or room.casual and 'pvp'or room.mode,elapsed_seconds=os.time()-(room.startedAt or os.time()),result='forfeit'})end
+    elseif forfeit and not room.endedAt then analytics:flow(e.player,'match','leaveMidMatch',{item=type(room.campaign)=='string'and 'stage_'..room.campaign:gsub('%-','_')or nil,mode=room.single and 'single'or room.casual and 'pvp'or room.mode,elapsed_seconds=os.time()-(room.startedAt or os.time()),result='forfeit'})end
     if room.casual then if not room.endedAt then room.session:handBack(e.faction)end;room.members[e.player.UserId]=nil
     elseif forfeit and not room.single and not room.session.winnerId then if room.replayLog then room.replayLog:add(room.session.sim.ticks,e.faction,'forfeit')end;room.session:forfeit(e.faction)end
     if room.customRules then e.recentCustom=Outgame.copy(room.customRules)end
@@ -334,6 +359,11 @@ local function watchReplay(e,id)
     if not ReplayLog.playable(data,game.PlaceVersion)then return false,'업데이트 전 경기라 다시 볼 수 없어요.'end
     if full(false)then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 시도하세요.'end
     local h=data.header
+    if h.settings and h.settings.mapSize=='normal'then
+        e.loading=true;pcall(function()bigMaps.store:ensure(h.map)end);e.loading=false
+        if entries[player.UserId]~=e or user(player.UserId)~=player or e.version~=version or e.room~=previous then return false end
+        if full(false)then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 시도하세요.'end
+    end
     Guards.count(e.guards,'room',os.clock(),Guards.roomWindow)
     preparing+=1;e.loading=true;e.loadingMap=h.map;updates:FireClient(e.player,baseState(e));task.wait()
     local ok,s=pcall(function()
@@ -364,9 +394,10 @@ local function createRoom(selection,single)
             table.remove(rooms,i)
         end
     end
-    if not single and not selection.ranked and not selection.clanwar then
+    local ffa=selection.ranked=='ffa'
+    if not single and (not selection.ranked or ffa)and not selection.clanwar then
         local kept={};for _,id in ipairs(selection.users)do if user(id)and entries[id]then table.insert(kept,id)end end
-        if #kept>=math.max(1,selection.customRules and selection.customRules.minimum or 1)and #kept<#selection.users then selection.users=kept end
+        if #kept>=math.max(1,ffa and 4 or selection.customRules and selection.customRules.minimum or 1)and #kept<#selection.users then selection.users=kept end
     end
     local roster={};for _,id in ipairs(selection.users)do local p=user(id);local e=entries[id];if not p or not e or e.room and not e.room.practice or e.loading then return false,"파티원 상태가 바뀌었어요. 다시 시도해 주세요."end;table.insert(roster,{userId=id,name=p.DisplayName,team=selection.teams[id]})end
     local soloTakesLast=single and not(selection.intro or selection.practice or selection.soloTransfer)and #roster==1 and soloTransfer.a.live
@@ -409,14 +440,17 @@ local function createRoom(selection,single)
         elseif selection.mode=='ffa'then cfg.nations='disabled'end
     end
     if selection.daily then cfg=Outgame.copy(selection.daily.settings);cfg.seed=selection.daily.seed end
+    if selection.campaign then local seed=cfg.seed;cfg=Outgame.campaign.settings(Outgame.campaign.stage(selection.campaign));cfg.seed=seed end
     if selection.practice then cfg={difficulty="Medium",nations=3,bots=30,startingGold=125000,goldMultiplier=1,customAllianceDuration=5,seed=cfg.seed}end
-    if selection.intro then cfg={difficulty='Easy',nations=2,bots=12,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=10,seed=cfg.seed}end
+    if selection.intro then cfg={difficulty='Easy',nations=2,bots=30,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=5,seed=cfg.seed}end
     if single then cfg=require(pack.Core.SoloChallenge).resolve(Maps.meta(selection.map),cfg)end
-    if selection.intro or selection.official or selection.goal then cfg.lastCommanderWins=true end
+    if selection.intro or selection.official or selection.goal or selection.campaign and not Outgame.campaign.stage(selection.campaign).team then cfg.lastCommanderWins=true end
     if selection.ranked or selection.clanwar then cfg.lastCommanderWins=nil end
     preparing+=1
     for _,id in ipairs(selection.users)do local e=entries[id];e.loading=true;e.loadingMap=selection.map;updates:FireClient(e.player,baseState(e))end
     task.wait()
+    local _,settled=pcall(bigMaps.settle,bigMaps,cfg,selection.map,selection.official)
+    if settled==false then for _,id in ipairs(selection.users)do local pl=user(id);if pl then pcall(analytics.flow,analytics,pl,'match','mapFallback',{item='compact',map_key=selection.map,result='failed',reason='storage_unavailable'})end end end
     local replaySettings,replayInput
     local ok,s=pcall(function()
         replaySettings=single and Replay.settings(cfg)or nil
@@ -435,6 +469,7 @@ local function createRoom(selection,single)
     if not ok then warn(s);return false,"경기를 준비하지 못했어요. 다시 참가하세요."end
     local room={id=cfg.seed,session=s,single=single,practice=selection.practice,queueMode=selection.queueMode or selection.mode,mode=selection.mode,members={},progress={},progressTimer=0,startedAt=os.time(),spawnUntil=single and nil or os.clock()+Config.spawnSeconds,accumulator=0,display=0,knownBuildings={},note="육지에서 시작 위치를 선택하세요."}
     if selection.daily then room.id=game.HttpService:GenerateGUID(false);room.daily=selection.daily.day end
+    room.campaign=selection.campaign
     if replayInput then
         local flags={};for index in ipairs(roster)do flags[index]=s.resources[index]and s.resources[index].flag or false end
         room.replayLog=ReplayLog.new({map=selection.map,mode=selection.mode,settings=replayInput.settings,roster=replayInput.roster,flags=flags,place=game.PlaceVersion,started=os.time()})
@@ -457,7 +492,7 @@ local function createRoom(selection,single)
         room.progress[r.userId]=Participation.new(room.id,mode,selection.map,#roster,os.time())
         room.progress[r.userId].unrecorded=room.unrecorded
         room.progress[r.userId].ranked=room.ranked~=nil or nil
-        room.progress[r.userId].daily=room.daily
+        room.progress[r.userId].daily=room.daily;room.progress[r.userId].campaign=room.campaign
         waited(r.userId,'QueueWait',selection.map,mode)
         analytics:match(e.player,selection.map,room.intro and 'training'or selection.practice and 'practice'or room.ranked and 'ranked'or mode=='pvp'and (room.official and 'official'or 'custom')or mode,room);if room.daily then analytics:custom(e.player,'DailyOpStarted',selection.map,mode,1)end
         local account=accounts:snapshot(e.player);local progress=account.progress
@@ -577,12 +612,13 @@ end
 local function handle(p,action,value,extra,requestId,version)
     local e=entries[p.UserId];if not e then return end
     local observedAt=os.clock();local observedDuplicate=false
-    if table.find({'start','learn','practiceSolo','daily'},action)then analytics:requested(p,action=='learn'and 'training'or 'single')end
+    if table.find({'start','learn','practiceSolo','daily','campaign'},action)then analytics:requested(p,action=='learn'and 'training'or 'single')end
     local function reply(ok,message)
         analytics:command(p,action,ok,message,requestId,version,observedAt,type(value)=='string'and value or nil,observedDuplicate)
         results:FireClient(p,{action=action,requestId=requestId,ok=ok,message=message,version=e.version})
     end
     if type(action)~="string"or e.loading or e.arriving then reply(false,"경기를 준비 중이에요.");return end
+    if not e.room then local held=require(services.OpsService).blocked(action,p);if held then reply(false,held);return end end
     if version~=e.version then reply(false,"화면을 갱신한 뒤 다시 시도하세요.");return end
     e.commandGate=e.commandGate or CommandGate.new()
     observedDuplicate=type(requestId)=='number'and requestId==requestId and e.commandGate.version==version and requestId<=e.commandGate.request
@@ -596,11 +632,11 @@ local function handle(p,action,value,extra,requestId,version)
         else ok=false;message="관전 중에는 명령할 수 없어요."end
         reply(ok==true,message);if not e.room then updates:FireClient(p,baseState(e))end;return
     end
-    if not room and table.find({'start','setting','preset','daily'},action)and not accounts:snapshot(p).ready then reply(false,'저장을 다시 연결하거나 저장 없이 연습하세요.');return end
+    if not room and table.find({'start','setting','preset','daily','campaign'},action)and not accounts:snapshot(p).ready then reply(false,'저장을 다시 연결하거나 저장 없이 연습하세요.');return end
     if (action=='learn'or action=='practiceSolo')and not room then
         if queue.membership[p.UserId]then reply(false,'참가 대기를 먼저 취소하세요.');return end
         if #group(p.UserId).users>1 then reply(false,'첫 연습은 혼자 해볼 수 있어요.');return end
-        ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map='pangaea',intro=true,unrecorded=action=='practiceSolo'or not accounts:snapshot(p).ready})
+        ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map='korea',intro=true,unrecorded=action=='practiceSolo'or not accounts:snapshot(p).ready})
     elseif action=="start" and not room and type(value)=="string"and Maps.meta(value)then
         if queue.membership[p.UserId]then reply(false,"참가 대기를 먼저 취소하세요.");return end
         if extra=='goal'then
@@ -617,6 +653,13 @@ local function handle(p,action,value,extra,requestId,version)
         if not accounts.live.enabled('dailyOp')then reply(false,'오늘의 작전을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.');return end
         local Daily=require(pack.Core.DailyOperation);local op=Daily.of(Daily.day(os.time()))
         ok,message=openRoom(e,{users={p.UserId},teams={},mode="single",map=op.map,daily=op,rewardMode='single'})
+    elseif action=='campaign'and not room then
+        local C=Outgame.campaign;local stage=C.stage(value);local view=(accounts:snapshot(p).progress or {}).campaign
+        if queue.membership[p.UserId]then reply(false,"참가 대기를 먼저 취소하세요.");return end
+        if not stage then ok,message=false,'작전을 찾지 못했어요.'
+        elseif not C.unlocked({campaign=view},stage.id)then ok,message=false,'앞 작전을 먼저 이겨야 열려요.'
+        else ok,message=openRoom(e,{users={p.UserId},teams={},mode='single',map=stage.map,campaign=stage.id,rewardMode='single'})end
+        analytics:flow(p,'solo','campaignStart',{item=stage and 'stage_'..stage.id:gsub('%-','_')or nil,map_key=stage and stage.map or nil,result=ok and 'accepted'or 'rejected'})
     elseif action=="setting" and not room then ok,message=setting(e,value,extra);if ok then e.settingsTouched=true;saveLobby(e)end
     elseif action=="preset"and not room and type(value)=="string"and Presets[value]then e.settings=Outgame.copy(Presets[value]);e.settingsTouched=true;saveLobby(e);ok=true;message="프리셋을 적용했어요."
     elseif action=="menu" then if room and room.practice then local cancelled,why=queue:cancel(p.UserId,os.clock());if cancelled==false then reply(false,why);return end end;release(e,true);ok=true
@@ -794,6 +837,7 @@ local function lobbyHandle(p,action,value)
     if e.arriving or e.loading then return {ok=false,message='경기를 준비 중이에요.'}end
     if table.find({'map','selectMode'},action)and not accounts:snapshot(p).ready then return {ok=false,message='저장을 다시 연결하거나 저장 없이 연습하세요.'}end
     if os.clock()-(e.lastLobby or 0)<.2 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end;e.lastLobby=os.clock()
+    do local held=require(services.OpsService).blocked(action,p);if held then return {ok=false,message=held}end end
     local ok,message=true,nil;local party=group(id)
     if action=='selectMode'then
         if not table.find({'single','pvp','coop'},value)then return {ok=false}end
@@ -818,9 +862,10 @@ local function lobbyHandle(p,action,value)
         if queue.membership[id]then return {ok=false,message='대전 대기 중에는 연습을 다시 시작할 수 없어요. 대기를 취소해 주세요.'}end
         local single,map,mode=room.single,room.session.map.meta.key or e.singleMap,room.queueMode
         if room.daily and not accounts.live.enabled('dailyOp')then return {ok=false,message='오늘의 작전을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.'}end
-        local repeatSelection=single and Replay.single(room,id,os.time())or nil
+        local repeatSelection=single and Replay.single(room,id,os.time(),(accounts:snapshot(p).progress or {}).campaign)or nil
         release(e,false)
         if single then ok,message=openRoom(e,repeatSelection)
+        elseif room.ranked and not room.clanwar and room.ranked~='2v2'then ok,message=ranked:join(queue,{id},room.ranked,os.clock());if ok then queued({id},'ranked')end
         else message=mode=='custom'and '같은 규칙을 확인하고 다음 방을 만드세요.'or '다음 전장의 지도와 규칙을 확인하고 참가하세요.'end
     elseif action=='customCreate'or action=='customUpdate'or action=='customReady'or action=='customStart'or action=='customLaunch'or action=='customTeam'or action=='joinCode'then
         if e.room or e.loading then return {ok=false,message='경기를 마친 뒤 참가할 수 있어요.'}end
@@ -1026,7 +1071,8 @@ queue:start({
         return createRoom(selection,false)
     end,
     notify=function(id,message)local p=user(id);local e=entries[id];if p and e then results:FireClient(p,{action='lobby',ok=true,message=message,version=e.version});lobbyState:FireClient(p,lobbySnapshot(id))end end,
-    arrival=function(id,waiting)local e=entries[id];if e then e.arriving=waiting;if user(id)and not(e.room and not e.room.endedAt and not e.room.practice)then updates:FireClient(e.player,baseState(e))end end end,
+    claimed=function(id,rules,m,hint)local p=user(id);if p then bigMaps:arrive(p,rules);bigMaps.roster:arrive(p,hint,m)end end,
+    arrival=function(id,waiting)local e=entries[id];if not waiting and user(id)then bigMaps.roster:leave(user(id))end;if e then e.arriving=waiting;if user(id)and not(e.room and not e.room.endedAt and not e.room.practice)then updates:FireClient(e.player,baseState(e))end end end,
 })
 soloTransfer=require(services.SoloTransfer).new(Config,{
     waiting=function(id,value)local e=entries[id];if e then e.arriving=value;if user(id)and not(e.room and not e.room.endedAt and not e.room.practice)then updates:FireClient(e.player,baseState(e))end end end,
@@ -1050,7 +1096,8 @@ soloTransfer=require(services.SoloTransfer).new(Config,{
             e.settings=Outgame.copy(ticket.settings);e.singleMap=ticket.map;e.settingsTouched=true
         end
         local daily=ticket.daily and require(pack.Core.DailyOperation).of(ticket.daily)
-        return createRoom({users={id},teams={},mode='single',map=daily and daily.map or ticket.map,intro=ticket.intro,rewardMode=ticket.rewardMode,daily=daily or nil,soloTransfer=true,goal=goal,resumeSettings=goal and Outgame.copy(ticket.settings)or nil},true)
+        local stage=ticket.campaign and Outgame.campaign.stage(ticket.campaign)
+        return createRoom({users={id},teams={},mode='single',map=daily and daily.map or stage and stage.map or ticket.map,intro=ticket.intro,rewardMode=ticket.rewardMode,daily=daily or nil,campaign=stage and stage.id or nil,soloTransfer=true,goal=goal,resumeSettings=goal and Outgame.copy(ticket.settings)or nil},true)
     end,
 })
 local world=Instance.new("Folder");world.Name="FrontierWorld";world.Parent=workspace
@@ -1122,9 +1169,10 @@ local function added(p)
     task.spawn(function()for attempt=1,3 do if rewards:recover(p.UserId)then break end;task.wait(attempt*2)end end)
 end
 Players.PlayerAdded:Connect(added);for _,p in ipairs(Players:GetPlayers())do added(p)end
+bigMaps.missing=function(p)local e=entries[p.UserId];if e and e.room and user(p.UserId)==p then updates:FireClient(p,snapshot(e,true))end end
 Players.PlayerRemoving:Connect(function(p)
     analytics:leaving(p);badgeSent[p.UserId]=nil
-    soloTransfer:leaving(p.UserId);liveMatches:leaving(p.UserId)
+    soloTransfer:leaving(p.UserId);liveMatches:leaving(p.UserId);bigMaps:leave(p);bigMaps.roster:leave(p)
     if entries[p.UserId]and entries[p.UserId].observer then unobserve(entries[p.UserId],true)end
     local e=entries[p.UserId];task.spawn(function()queue:cancel(p.UserId,os.clock(),true)end)
     local party=parties[p.UserId];if party then for i,id in ipairs(party.users)do if id==p.UserId then table.remove(party.users,i);break end end;party.ready={};parties[p.UserId]=nil;if #party.users==1 then parties[party.users[1]]=nil elseif #party.users>0 then party.leader=party.users[1]end end
@@ -1167,7 +1215,7 @@ local lobbyTimer=0
 local boardTimer=9
 local function stepRoom(room,dt,now)
         local s=room.session
-        analytics:room(room,now)
+        local okA,errA=pcall(analytics.room,analytics,room,now);if not okA then warn('TOYFRONT telemetry room error',room.id,errA)end
         if s.phase=='spawn'and room.drop then DropService.step(room,now,function(id,tile)
             local p=room.session.roster and room.session.roster[id]and user(room.session.roster[id].userId)or room.single and user(next(room.members))
             if p then emit(room,p,'settle',tile)end
@@ -1202,7 +1250,7 @@ local function stepRoom(room,dt,now)
                 e.markedAway=true;if s:markDisconnected(faction,true) and room.replayLog then room.replayLog:add(s.sim.ticks,faction,'disconnect')end
             end
             pr:step(s,faction,math.min(dt,.5),os.time(),connected,room.paused)
-            if room.daily and not pr.ended then pr.gameSeconds=s.sim.ticks//10 end
+            if (room.daily or room.campaign) and not pr.ended then pr.gameSeconds=s.sim.ticks//10 end
             if connected then analytics:observe(e.player,pr,s.map.meta.key,pr.mode)end
             local guide=room.guides[id]
             if guide then
@@ -1297,7 +1345,8 @@ local function lobbyTick(now)
             boardTimer=0
             local waiting=0;for _,g in pairs(queue.membership)do if g.mode=='pvp'then waiting+=1 end end
             local online=#Players:GetPlayers()
-            live.StatsNote.Stats.Text=(waiting>0 or #rooms>0)and string.format('지금 접속 %d명   대전 대기 %d명   진행 중 전장 %d',online,waiting,#rooms)
+            local away=0;for _,p in ipairs(Players:GetPlayers())do if p:GetAttribute('FrontierRoom')~=nil then away+=1 end end
+            live.StatsNote.Stats.Text=(waiting>0 or #rooms>0)and string.format('로비 %d명   경기 중 %d명   대전 대기 %d명',online-away,away,waiting)
                 or online>2 and string.format('지금 접속 %d명   AI 지휘관 상시 대기',online)or 'AI 지휘관 상시 대기   혼자도 바로 출발'
             task.spawn(function()
                 local rows=careers:leaders()
@@ -1337,6 +1386,19 @@ Run.Heartbeat:Connect(function(dt)
         local ok,err=pcall(lobbyTick,now);if not ok then warn('TOYFRONT lobby tick error',err)end
     end
 end)
+require(services.OpsService).start({
+    inMatch=function(p)local e=entries[p.UserId];return e~=nil and(e.room~=nil or e.loading==true or e.arriving==true)end,
+    partyOf=function(p)return group(p.UserId)end,
+    onHold=function(message)
+        local seated={};for id,e in pairs(entries)do if queue.membership[id]and e.player.Parent==Players then seated[id]=e end end
+        for id,e in pairs(seated)do if queue.membership[id]and e.player.Parent==Players then
+            local ok=pcall(function()return queue:cancel(id,os.clock())end)
+            if ok then analytics:queueExit(e.player,'cancelled')end
+            if e.player.Parent==Players then results:FireClient(e.player,{action='lobby',ok=false,message=message,version=e.version})end
+        end end
+        pushLobby()
+    end,
+})
 print("TOYFRONT MULTIPLAYER READY: independent rooms, 1-20 humans, teams/co-op, solo; ranked follows LiveConfig ranked")
 game:BindToClose(function()
     shuttingDown=true

@@ -17,10 +17,11 @@ local M={};M.__index=M
 M.modes={
     {id='quick',name='빠른 출전',hint='가장 빠른 공식전 / AI 충원'},
     {id='fields',name='전장 고르기',hint='공식, 커스텀 전장 선택'},
+    {id='campaign',name='캠페인',hint='쉬움부터 불지옥까지 30작전',icon='campaign'},
     {id='solo',name='혼자 하기',hint='AI 상대 / 자유 설정'},
     {id='daily',name='오늘의 작전',hint='같은 지도 / 오늘의 순위'},
     {id='custom',name='커스텀 방',hint='친구와 내 규칙으로'},
-    {id='ranked',name='랭크',hint='1대1, 2대2'},
+    {id='ranked',name='랭크',hint='1대1, 2대2, 개인전'},
     {id='watch',name='경기 관전',hint='진행 중 공식전 관전'},
 }
 local tabIcons={play='deploy',wardrobe='wardrobe',shop='reward',clan='clan',missions='missions',records='records',preferences='settings'}
@@ -65,17 +66,17 @@ function M.new(lobby)
     for _,m in ipairs(M.modes)do
         local b=UI.button(self.list,'Mode_'..m.id,'',function()self.mode=m.id;self.listOpen=false;if lobby.firstLesson then lobby.skipIntro=true;lobby:refresh()end;self:refresh();lobby:layout()end)
         b.BackgroundColor3=UI.colors.accent;b.BackgroundTransparency=1;b.AutoButtonColor=false;b:FindFirstChildOfClass('UIStroke').Enabled=false
-        local bar=UI.make('Frame',b,{Name='Bar',BackgroundColor3=UI.colors.accent,BorderSizePixel=0})
+        local bar=require(script.Parent.EdgeMask).fit(UI.make('Frame',b,{Name='Bar',BackgroundColor3=UI.colors.accent,BorderSizePixel=0}))
         self.rows[m.id]={button=b,bar=bar,icon=Icons.create(b,m.icon or m.id,20,UI.colors.muted),name=line(b,'Name',m.name,15,UI.colors.ink),hint=line(b,'Hint',m.hint,12,UI.colors.muted,true)}
     end
     self.notice=glass(UI.panel(f,'LiveNotice'),.25);self.notice.Visible=false
-    self.noticeStrip=UI.make('Frame',self.notice,{Name='Strip',BackgroundColor3=UI.colors.accent,BorderSizePixel=0})
+    self.noticeStrip=require(script.Parent.EdgeMask).fit(UI.make('Frame',self.notice,{Name='Strip',BackgroundColor3=UI.colors.accent,BorderSizePixel=0}))
     self.noticeKicker=line(self.notice,'Kicker','공지',12,UI.colors.accent);self.noticeIcon=Icons.create(self.notice,'notice',14,UI.colors.accent)
     self.noticeText=UI.label(self.notice,'Text','',13,UI.colors.ink);self.noticeText.TextWrapped=true;self.noticeText.TextTruncate=Enum.TextTruncate.AtEnd
     self.noticeText.TextYAlignment=Enum.TextYAlignment.Top
     self.daily=glass(UI.button(f,'DailyEvent','',function()local op=Daily.current((lobby.account.progress or {}).dailyOp,os.time());if op then require(script.Parent.LobbyConfirm).open(lobby,'오늘의 작전',((Maps.meta(op.map)or {}).label or op.map)..'\n'..op.conditionName,'출전',function()self.mode='daily';if lobby.firstLesson then lobby.skipIntro=true;lobby:refresh()end;lobby:closePage();self:refresh();self:go()
     self.mode='quick';self:refresh()end,nil,op.map)end end),.25)
-    self.dailyStrip=UI.make('Frame',self.daily,{Name='Strip',BackgroundColor3=UI.colors.gold,BorderSizePixel=0})
+    self.dailyStrip=require(script.Parent.EdgeMask).fit(UI.make('Frame',self.daily,{Name='Strip',BackgroundColor3=UI.colors.gold,BorderSizePixel=0}))
     self.dailyKicker=line(self.daily,'Kicker','오늘의 작전',12,UI.colors.gold);self.dailyIcon=Icons.create(self.daily,'daily',14,UI.colors.gold)
     self.dailyTitle=line(self.daily,'Title','',16,UI.colors.ink)
     self.dailySub=line(self.daily,'Sub','',12,UI.colors.muted,true)
@@ -107,7 +108,7 @@ function M.new(lobby)
     self.goalIcon=Icons.create(lobby.mission,'missions',18,UI.colors.accent)
     self.medalIcon=Icons.create(lobby.profile,'coin',14,UI.colors.gold)
     self.motionIcon=Icons.create(lobby.motions,'wave',18,UI.colors.accent);self.motionPad=UI.make('UIPadding',lobby.motions,{})
-    lobby.mission.ZIndex=2;self.missionStrip=UI.make('Frame',lobby.mission,{Name='Strip',BackgroundColor3=UI.colors.accent,BorderSizePixel=0})
+    lobby.mission.ZIndex=2;self.missionStrip=require(script.Parent.EdgeMask).fit(UI.make('Frame',lobby.mission,{Name='Strip',BackgroundColor3=UI.colors.accent,BorderSizePixel=0}))
     lobby.friends.Visible=false
     if lobby.deployment then lobby.deployment.hideShortcut=true;lobby.deployment.expanded=false end
     self.fieldPreview=require(script.Parent.LobbyFieldPreview).new(lobby)
@@ -148,7 +149,7 @@ function M:refresh()
     do local p=l.account.progress or {};local streak=p.login and p.login.streak or 0
         l.medals.Text=UI.number(p.medals or 0)..(streak>0 and '  🔥'..streak or '');l.medals.TextWrapped=false end
     FreeDraw.dot(l.navButtons.shop,FreeDraw.ready(l.account.billing))
-    if l.firstLesson and not q then title,sub='첫 작전','10분, 점령과 병력 기초'
+    if l.firstLesson and not q then title,sub='첫 작전','5분, 점령과 병력 기초'
     elseif q then
         local left=q.remaining and math.max(0,q.remaining-(os.clock()-(l.queueUpdated or os.clock())))
         title=q.mode=='custom'and '방 보기'or q.phase=='transferring'and '이동 중'or '대기 중'
@@ -158,10 +159,12 @@ function M:refresh()
     elseif s and s.rejoin and mode=='quick'then title='경기로 복귀';sub=((Maps.meta(s.rejoin.map)or {}).label or s.rejoin.map or '진행 중인 경기')..' / 내 자리가 남아 있어요'
     elseif mode=='quick'then
         local pick=d and d:quickPick()
-        local where=pick and (Maps.meta(pick.rules.map)or {}).label or pick and pick.rules.map;local kind=pick and (pick.rules.mode=='teams'and '팀전'or '개인전')
+        local where=pick and (Maps.meta(pick.rules.map)or {}).label or pick and pick.rules.map;local kind=pick and (pick.rules.special and '특수 'or '')..(pick.rules.mode=='teams'and '팀전'or '개인전')
         sub=pick and (party and #party.users>1 and pick.rules.mode=='ffa'and string.format('%s / 같은 경기에서 각자 경쟁',where)or pick.remaining and string.format('%s / %s / 출발 %s',where,kind,clock(pick.remaining-elapsed))or string.format('%s / %s / 빈자리는 AI',where,kind))or party and #party.users>1 and '파티 전장 보기 / 협동도 준비할 수 있어요'or '전장을 찾는 중…'
     elseif mode=='fields'then local n=d and d.fields and #d.fields or 0;sub=n>0 and string.format('열린 전장 %d곳',n)or '전장을 찾는 중…'
     elseif mode=='solo'then title='시작';sub=(Maps.meta(l.map)or Maps.catalog[1]).label..' / '..difficulty[(l.settings or {}).difficulty or 'Medium']
+    elseif mode=='campaign'then local Campaign=require(script.Parent.Parent.Core.CampaignRules);local cv=(l.account.progress or {}).campaign or {}
+        local st=Campaign.stage(cv.next)or Campaign.stages[1];title='캠페인';sub=string.format('%s %s / ★ %d/%d',st.id,st.name,cv.total or 0,Campaign.maxStars)
     elseif mode=='daily'and op then title='시작';sub=((Maps.meta(op.map)or {}).label or op.map)..' / '..op.conditionName
     elseif mode=='custom'then local n=0;for _,x in ipairs(d and d.fields or {})do if x.kind=='custom'then n+=1 end end;sub=n>0 and string.format('열린 방 %d개',n)or '방 만들고 친구 초대'
     elseif mode=='ranked'then title='랭크전';sub=require(script.Parent.RankedEntry).summary(s and s.ranked,q)
@@ -237,10 +240,24 @@ function M:go()
     elseif m=='fields'then d:open('all')
     elseif m=='solo'then d.callbacks.solo()
     elseif m=='daily'then if not Commands.soloLoading(l)then l:closePage();l.callbacks.daily()end
+    elseif m=='campaign'then l.goalTab='campaign';l:openPage('missions')
     elseif m=='custom'then d:open('custom')
     elseif m=='ranked'then l:openPage('ranked')
     elseif m=='watch'then l:openPage('watch')end
     l:layout()
+end
+function M:dockQueue(on,q)
+    local l=self.lobby;local d=l.deployment
+    if not self.queueCancel then
+        self.queueCancel=UI.button(self.start.Parent,'QueueCancel','취소',function()if d and d.callbacks.cancel then d.callbacks.cancel()end end)
+        self.queueCancel.BackgroundColor3=UI.colors.bg;self.queueCancel.BackgroundTransparency=.1;self.queueCancel.TextColor3=UI.colors.ink;self.queueCancel.TextSize=15
+    end
+    local b=self.queueCancel;b.Visible=on and q~=nil and q.phase~='transferring'
+    if not b.Visible then return end
+    local p,sz=self.start.Position,self.start.Size;local bw=76;local bh=math.min(44,sz.Y.Offset-8)
+    UI.box(b,p.X.Offset+sz.X.Offset-bw-8,p.Y.Offset+(sz.Y.Offset-bh)/2,bw,bh);b.ZIndex=self.start.ZIndex+6
+    UI.enabled(b,not l.busy and not q.locked)
+    for _,t in ipairs({self.title,self.sub})do t.Size=UDim2.fromOffset(math.max(40,math.min(t.Size.X.Offset,sz.X.Offset-bw-16-t.Position.X.Offset)),t.Size.Y.Offset)end
 end
 function M:quickJoin()
     local l=self.lobby;self.listOpen=false
@@ -253,7 +270,10 @@ function M:layout(w,h)
     local show=menu and l.page=='motions';if l.page then home=false end
     local full=menu and l.page~=nil and M.FULL[l.page]==true
     local covered=short and not narrow and l.page~=nil and not show and not full
-    local q=l.data and l.data.queue;local lift=q and (short or narrow)and ((d and d.barHeight or 48)+8)or 0
+    local q=l.data and l.data.queue;local lift=q and ((d and d.barHeight or 48)+8)or 0
+    local docked=q~=nil and home
+    if d then d.barDocked=docked;d.bar.Visible=q~=nil and not docked end
+    if docked then lift=0 end
     self.top.Visible=menu and not(short and open);self.left.Visible=home and not narrow;self.bottom.Visible=home
     UI.box(self.top,0,0,w,short and 72 or 120);UI.box(self.left,0,0,short and 320 or 460,h);UI.box(self.bottom,0,h-(narrow and 320 or 160),w,narrow and 320 or 160)
     for _,o in ipairs({self.start,self.select})do o.Visible=home end
@@ -381,7 +401,7 @@ function M:layout(w,h)
     do local edge=l.pageCard:FindFirstChildOfClass('UIStroke');if edge then edge.Enabled=not full end end
     for _,o in ipairs({l.header,l.profile})do o.ZIndex=full and 31 or 1 end
     if full and narrow then l.header.Visible=false;l.profile.Visible=false end
-    do local sheet=l.overlay:FindFirstChild('OddsSheet');if sheet and l.page~='shop'then sheet:Destroy()end end
+    if l.page~='shop'then for _,n in ipairs({'OddsSheet','PerksSheet'})do local sheet=l.overlay:FindFirstChild(n);if sheet then sheet:Destroy()end end end
     do local V=require(script.Parent.VipLock);local cover=full or (menu and l.page~=nil)
         if V.covered~=cover then V.covered=cover;if V.wanted~=nil then V.hqPill(V.wanted)end end
         if V.fullCover~=full then V.fullCover=full
@@ -398,12 +418,12 @@ function M:layout(w,h)
     local entryX=(narrow or short)and 12 or 24
     local entryY=narrow and 128 or short and 60 or 64
     local entryH=short and 44 or 60
-    local queueBarOwnsStart=short and q~=nil
+    local queueBarOwnsStart=short and q~=nil and not docked
     self.start.Visible=home and not queueBarOwnsStart
     UI.box(self.start,entryX,entryY,entryW,entryH);UI.box(self.title,16,short and 2 or 4,entryW-72,short and 24 or 28);self.title.TextSize=short and 20 or 24
     UI.box(self.sub,16,short and 26 or 32,entryW-72,short and 16 or 22);self.sub.TextSize=short and 12 or 14;UI.box(self.mark,entryW-52,0,40,entryH)
     local fieldsY=entryY+(queueBarOwnsStart and 0 or entryH+8)
-    self.fieldPreview:layout(entryX,fieldsY,entryW,home,narrow,short,math.max(100,h-fieldsY-(narrow and 98+lift or short and 28+lift or 140)))
+    self.fieldPreview:layout(entryX,fieldsY,entryW,home,narrow,short,math.max(100,h-fieldsY-(narrow and 98+lift or short and 28+lift or 140+lift)))
     local grouped=l.data and l.data.party and #l.data.party.users>1
     self.partyOptions.Visible=home and grouped and not short and not narrow and h-(fieldsY+222)>=154
     if self.partyOptions.Visible then
@@ -418,7 +438,8 @@ function M:layout(w,h)
         end
     end
     if home then require(script.Parent.LobbyHomeB).layout(self,w,h,short,q,lift,narrow)else require(script.Parent.LobbyHomeB).hide(self)end
-    self.uiToggle:apply(w,h,home and narrow,lift,self.toggleSpot)
+    self:dockQueue(docked and self.start.Visible,q)
+    self.uiToggle:apply(w,h,home,lift,self.toggleSpot)
     if l.page and not show and not full then local size=l.pageCard.Size;self.pageMax={size.X.Offset,size.Y.Offset,w,h,l.pageCard.Position.Y.Offset};self:fit()end
     if l.page~=self.shownPage then
         if l.page and not self.reduced then local scale=l.pageCard:FindFirstChild('EntryScale')or UI.make('UIScale',l.pageCard,{Name='EntryScale',Scale=1})

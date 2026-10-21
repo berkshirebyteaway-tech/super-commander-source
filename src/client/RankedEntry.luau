@@ -7,12 +7,14 @@ local Board=require(script.Parent.RankBoard)
 local Rules=require(script.Parent.Parent.Core.RankedRules)
 local M={}
 local C=UI.colors
-local function step(name,item)pcall(function()require(script.Parent.TelemetryClient).step('queue',name,{item=item})end)end
+local function step(name,item)pcall(function()require(script.Parent.TelemetryClient).step('queue',name,{item=item=='clanwar'and item or 'r'..tostring(item)})end)end
 local function clock(n)n=math.max(0,math.floor(n or 0));return string.format('%d:%02d',n//60,n%60)end
 local ladderInfo={
     ['1v1']={title='1대1',sub='솔로 2명',icon='solo'},
     ['2v2']={title='2대2',sub='솔로 또는 친구와 4명',icon='friends'},
+    ffa={title='개인전',sub='솔로 4~10명',icon='fields'},
 }
+local ladderTitle={['1v1']='1대1',['2v2']='2대2',ffa='개인전'}
 local function text(parent,name,value,size,color,x,y,w,h)
     local l=UI.label(parent,name,value,size,color);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(l,x,y,w,h);return l
 end
@@ -54,6 +56,7 @@ local function ladderCard(lobby,parent,ladder,v,x,y,w,h,ctx)
         local function paint()
             local waited=(q.waited or 0)+(os.clock()-(lobby.rankedQAt or os.clock()))
             local window=waited>=60 and '모든 점수'or string.format('±%d RP',waited>=45 and 500 or waited>=30 and 350 or waited>=15 and 200 or 100)
+            if ladder=='ffa'and q.phase~='transferring'and q.count then window=string.format('%d명 대기  %s',q.count,window)end
             status.Text=q.phase=='transferring'and '상대 찾음, 전장으로 이동 중'or string.format('상대 찾는 중 %s  %s',clock(waited),window)
         end
         paint();task.spawn(function()while status.Parent do task.wait(1);if status.Parent then paint()end end end)
@@ -61,14 +64,18 @@ local function ladderCard(lobby,parent,ladder,v,x,y,w,h,ctx)
     else
         local party=ctx.partySize;local reason
         if not ctx.enabled then reason='곧 열려요'
+        elseif ctx.level and ctx.level<(ctx.minLevel or 0)then reason=string.format('레벨 %d부터 열려요',ctx.minLevel)
         elseif other then reason='다른 대기 중'
         elseif ladder=='1v1'and party>1 then reason='1대1은 혼자 참가'
+        elseif ladder=='ffa'and party>1 then reason='개인전은 혼자 참가'
         elseif party>2 then reason='2대2는 둘까지'
         elseif not ctx.loaded then reason='전적 불러오는 중'end
+        pcall(function()local Step=require(script.Parent.TelemetryStep);local key='rankLock:'..tostring(ladder);local locked=ctx.enabled and ctx.level and ctx.level<(ctx.minLevel or 0)
+            if locked or Step.last[key]and ctx.enabled then Step.change(key,'ranked','levelLocked',{item='r'..tostring(ladder),result=locked and 'rejected'or 'ready',reason=locked and 'locked'or nil,level=ctx.level,value=ctx.minLevel})end end)
         local label=reason or (ladder=='2v2'and party==2 and '친구와 대전 찾기'or '대전 찾기')
         local b=UI.button(card,'RankedJoin'..ladder,label,function()step('rankedJoin',ladder);lobby:request('ranked',ladder)end,reason==nil)
         UI.box(b,14,by,w-28,48);b.TextSize=16;UI.enabled(b,reason==nil and not lobby.busy)
-        if not ctx.enabled then local lock=Icons.create(b,'lock',14,C.muted);UI.box(lock,14,15,14,14)end
+        if not ctx.enabled or ctx.level and ctx.level<(ctx.minLevel or 0)then local lock=Icons.create(b,'lock',14,C.muted);UI.box(lock,14,15,14,14)end
     end
     return card
 end
@@ -85,7 +92,7 @@ local function rewardsView(parent,v,x,y,w)
     for _,ladder in ipairs(Rules.ladders)do local l=v.ladders[ladder];if l and not l.placing then
         local b=Rules.band(l.rp,l.rank);if not bestBand or Rules.rewards[b]>Rules.rewards[bestBand]then bestBand=b end end end
     local head=text(parent,'RewardHead','시즌이 끝나면 등급만큼 코인',15,C.ink,x+4,y,w-8,24);y+=26
-    local info=UI.label(parent,'RewardHow','다음 시즌 첫 접속 때 1회 지급, 1대1과 2대2 중 높은 쪽, 배치 완료자',12,C.muted);UI.box(info,x+4,y,w-8,34);y+=40
+    local info=UI.label(parent,'RewardHow','다음 시즌 첫 접속 때 1회 지급, 1대1, 2대2, 개인전 중 가장 높은 쪽, 배치 완료자',12,C.muted);UI.box(info,x+4,y,w-8,34);y+=40
     if v.lastReward then
         local got=UI.panel(parent,'LastReward');got.BackgroundColor3=C.raised;UI.box(got,x,y,w,40);got:FindFirstChildOfClass('UIStroke').Color=C.gold
         local i=Icons.create(got,'coin',18,C.gold);UI.box(i,12,11,18,18)
@@ -109,23 +116,27 @@ local function rewardsView(parent,v,x,y,w)
 end
 local ruleLines={
     {'ranked','원작 오픈프론트 랭크 규칙 그대로'},
-    {'fields','지도: 오스트레일리아 40%, 아이슬란드, 아시아, 유럽 클래식 각 20%'},
-    {'deploy','AI 국가 없음, 중립 봇 100, 10분 제한'},
+    {'fields','1대1, 2대2 지도: 오스트레일리아 40%, 아이슬란드, 아시아, 유럽 클래식 각 20%'},
+    {'fields','개인전 지도: 유럽, 아시아, 아프리카, 북아메리카, 남아메리카, 오스트레일리아'},
+    {'deploy','AI 국가 없음, 중립 봇 100, 1대1과 2대2는 10분, 개인전은 20분 제한'},
     {'solo','1대1: 끝까지 남은 지휘관 승리, 시작 보호 30초'},
     {'friends','2대2: 마지막 남은 팀 승리, 팀원 지원 가능, 시작 보호 60초'},
-    {'records','10분이 끝나면 땅이 가장 넓은 쪽 승리, 80% 점령 시 즉시 승리'},
-    {'check','모두 접속해야 시작, 못 모이면 점수 변동 없이 취소'},
+    {'solo','개인전: 4~10명 혼자 참가, 끝까지 남은 지휘관 승리, 시작 보호 30초'},
+    {'records','시간이 끝나면 땅이 가장 넓은 쪽 승리, 80% 점령 시 즉시 승리'},
+    {'check','1대1, 2대2는 모두 접속해야 시작, 못 모이면 점수 변동 없이 취소'},
+    {'check','개인전은 4명 이상 접속하면 시작, 3명 이하면 점수 변동 없이 취소'},
+    {'ranked','개인전 점수: 1위는 나머지 모두를 이긴 만큼, 나머지는 1위에게 진 만큼'},
     {'daily','배치 5판, 매달 1일 0시(UTC) 초기화, 점수 절반 유지, 재배치 3판'},
     {'lock','같은 상대와 하루 4번째 판부터 점수 절반, 6번째부터 없음'},
     {'medal','점수와 판수는 팔지 않아요'},
 }
 function M.summary(v,q)
-    if q and q.mode=='ranked'then return q.phase=='transferring'and '상대 찾음, 이동 중'or (q.ladder=='clanwar'and '클랜전 상대 찾는 중'or q.ladder=='2v2'and '2대2 상대 찾는 중'or '1대1 상대 찾는 중')end
-    if not v then return '1대1, 2대2'end
-    if not v.enabled then return '곧 열려요  1대1, 2대2'end
+    if q and q.mode=='ranked'then return q.phase=='transferring'and '상대 찾음, 이동 중'or (q.ladder=='clanwar'and '클랜전 상대 찾는 중'or q.ladder=='2v2'and '2대2 상대 찾는 중'or q.ladder=='ffa'and '개인전 상대 찾는 중'or '1대1 상대 찾는 중')end
+    if not v then return '1대1, 2대2, 개인전'end
+    if not v.enabled then return '곧 열려요  1대1, 2대2, 개인전'end
     local best;for _,ladder in ipairs(Rules.ladders)do local l=v.ladders[ladder];if l and l.games>0 and (not best or (not l.placing and (best.placing or l.rp>best.rp)))then best=l end end
-    if not best then return string.format('%s  1대1, 2대2',v.season.label)end
-    local title=best.ladder=='2v2'and '2대2'or '1대1'
+    if not best then return string.format('%s  1대1, 2대2, 개인전',v.season.label)end
+    local title=ladderTitle[best.ladder]or '1대1'
     if best.placing then return string.format('%s 배치 %d/%d',title,best.placementTotal-best.placementLeft,best.placementTotal)end
     return string.format('%s %s  %s RP',title,tierLabel(best),Theme.commas(best.rp))
 end
@@ -142,22 +153,24 @@ function M.draw(lobby,p,w)
         p.CanvasSize=UDim2.fromOffset(0,80);return
     end
     local s=v.season
-    local banner=UI.panel(p,'SeasonBanner');banner.BackgroundColor3=C.raised;banner.BackgroundTransparency=0;UI.box(banner,2,y,cw,78)
+    local compact=cw<400;local bannerH=compact and 110 or 78
+    local banner=UI.panel(p,'SeasonBanner');banner.BackgroundColor3=C.raised;banner.BackgroundTransparency=0;UI.box(banner,2,y,cw,bannerH)
     UI.make('UIGradient',banner,{Rotation=0,Color=ColorSequence.new(Color3.fromRGB(40,34,18),C.raised),Transparency=NumberSequence.new(0,.1)})
     banner:FindFirstChildOfClass('UIStroke').Color=C.gold
-    local bi=Icons.create(banner,'ranked',30,C.gold);UI.box(bi,16,24,30,30)
-    local title=text(banner,'SeasonTitle',s.label,24,C.ink,56,8,cw-220,34);UI.display(title)
-    text(banner,'SeasonSub',string.format('매달 1일 초기화, %d일 남음',s.daysLeft),13,C.muted,56,42,cw-220,22)
-    local chip=UI.pill(banner,'SeasonState',v.live and '진행 중'or v.enabled and 'STUDIO 테스트'or v.paused and '잠시 점검 중'or '곧 오픈',v.live and C.accent or C.gold);UI.box(chip,cw-14-104,14,104,24)
-    local seal=UI.label(banner,'Seal','NO PAY-TO-WIN',13,C.muted);seal.TextXAlignment=Enum.TextXAlignment.Right;UI.box(seal,cw-14-180,46,180,18)
-    y+=86
-    local party=data.party;local ctx={queue=data.queue,enabled=v.enabled,loaded=v.loaded,partySize=party and party.users and #party.users or 1}
-    local two=cw>=540;local gap=10;local cardH=228
-    if two then local half=(cw-gap)/2
-        ladderCard(lobby,p,'1v1',v.ladders['1v1'],2,y,half,cardH,ctx);ladderCard(lobby,p,'2v2',v.ladders['2v2'],2+half+gap,y,half,cardH,ctx);y+=cardH+12
-    else
-        ladderCard(lobby,p,'1v1',v.ladders['1v1'],2,y,cw,cardH,ctx);y+=cardH+10
-        ladderCard(lobby,p,'2v2',v.ladders['2v2'],2,y,cw,cardH,ctx);y+=cardH+12
+    local bi=Icons.create(banner,'ranked',30,C.gold);UI.box(bi,16,compact and 10 or 24,30,30)
+    local title=text(banner,'SeasonTitle',s.label,24,C.ink,56,8,compact and cw-70 or cw-220,34);UI.display(title)
+    text(banner,'SeasonSub',string.format('매달 1일 초기화, %d일 남음',s.daysLeft),13,C.muted,compact and 16 or 56,42,compact and cw-32 or cw-220,22)
+    local chip=UI.pill(banner,'SeasonState',v.live and '진행 중'or v.enabled and 'STUDIO 테스트'or v.paused and '잠시 점검 중'or '곧 오픈',v.live and C.accent or C.gold);UI.box(chip,compact and 14 or cw-14-104,compact and 76 or 14,104,24)
+    local seal=UI.label(banner,'Seal','NO PAY-TO-WIN',13,C.muted);seal.TextXAlignment=Enum.TextXAlignment.Right;UI.box(seal,compact and 124 or cw-14-180,compact and 79 or 46,compact and math.max(40,cw-138)or 180,18);if compact then seal.TextSize=11 end
+    y+=bannerH+8
+    local party=data.party;local ctx={queue=data.queue,enabled=v.enabled,loaded=v.loaded,level=v.level,minLevel=v.minLevel,partySize=party and party.users and #party.users or 1}
+    local gap=10;local cardH=228;local cols=cw>=800 and 3 or cw>=540 and 2 or 1
+    local list={'1v1','2v2','ffa'}
+    for i,ladder in ipairs(list)do
+        local col=(i-1)%cols;local left=#list-(i-1-col)
+        local n=math.min(cols,left);local cardW=(cw-gap*(n-1))/n
+        if v.ladders[ladder]then ladderCard(lobby,p,ladder,v.ladders[ladder],2+col*(cardW+gap),y,cardW,cardH,ctx)end
+        if col==cols-1 or i==#list then y+=cardH+(i==#list and 12 or 10)end
     end
     local q=data.queue
     if q and q.mode=='ranked'and q.ladder=='clanwar'then
@@ -172,13 +185,13 @@ function M.draw(lobby,p,w)
     end
     if v.last and v.last.delta then
         local d=v.last.delta;local up=d>=0
-        local l=UI.label(p,'LastResult',string.format('최근 %s  %s%d RP',v.last.ladder=='2v2'and '2대2'or '1대1',up and '+'or '',d),13,up and C.good or C.danger);UI.box(l,4,y,cw-8,20);y+=28
+        local l=UI.label(p,'LastResult',string.format('최근 %s  %s%d RP',ladderTitle[v.last.ladder]or '1대1',up and '+'or '',d),13,up and C.good or C.danger);UI.box(l,4,y,cw-8,20);y+=28
     end
     lobby.rankedTab=lobby.rankedTab or 'board'
     y+=tabs(lobby,p,{{'board','순위'},{'rewards','시즌 보상'},{'rules','규칙'}},lobby.rankedTab,2,y,cw,'rankedTab','rankedTab')+6
     if lobby.rankedTab=='board'then
         lobby.rankedBoard=lobby.rankedBoard or '1v1'
-        y+=tabs(lobby,p,{{'1v1','1대1'},{'2v2','2대2'},{'clan','클랜전'}},lobby.rankedBoard,2,y,cw,'rankedBoard','rankedBoard')+4
+        y+=tabs(lobby,p,{{'1v1','1대1'},{'2v2','2대2'},{'ffa','개인전'},{'clan','클랜전'}},lobby.rankedBoard,2,y,cw,'rankedBoard','rankedBoard')+4
         local which=lobby.rankedBoard
         if which=='clan'then
             local cw2=data.clanWar;local rows=cw2 and cw2.board or {}

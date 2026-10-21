@@ -244,6 +244,7 @@ function S:publish(player,a)
     player:SetAttribute('CommanderVIP',benefits.club)
     player:SetAttribute('CommanderPermanent',benefits.permanent)
     player:SetAttribute('CommanderVoiceTeam',((a.profile or {}).preferences or {}).voiceTeamOnly~=false)
+    if a.profile then player:SetAttribute('ToyfrontLocale',(a.profile.preferences or {}).language)end
     player:SetAttribute('CommanderTrailStyle',snapshot.cosmetics and snapshot.cosmetics.commanderTrail or 'classic')
     player:SetAttribute('CommanderParachuteStyle',snapshot.cosmetics and snapshot.cosmetics.parachute or 'classic')
     player:SetAttribute('CommanderStandardStyle',snapshot.commanderStandard)
@@ -353,6 +354,16 @@ function S:requestAction(player,action,value,extra)
         end
         return {ok=true,account=self:snapshot(player)}
     end
+    if action=="profile" then
+        if not a then return {ok=false}end
+        a.readBudget=a.readBudget or {}
+        if not Guards.take(a.readBudget,'profile',os.clock(),3,1)then return {ok=false,busy=true,message="잠시 뒤 다시 시도하세요."}end
+        local target=type(value)=='number'and Players:GetPlayerByUserId(value)or nil
+        local t=target and self.accounts[target]
+        if not(t and t.ready and t.profile)then return {ok=false,message="지금은 이 지휘관의 전적을 볼 수 없어요."}end
+        local ladders=nil;if self.rankedOf then local ok,v=pcall(self.rankedOf,value);ladders=ok and v or nil end
+        return {ok=true,profile=require(pack.Core.PublicProfile).build(value,O.view(t.profile.outgame,os.time()),ladders)}
+    end
     if action=="dailyBoard" then
         if os.clock()-((a and a.lastBoard)or -10)<3 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end
         if a then a.lastBoard=os.clock()end
@@ -428,7 +439,7 @@ function S:requestAction(player,action,value,extra)
                     local saved=o.loadouts[tostring(value)]
                     if saved then
                         for slot,style in pairs(saved)do if C.validSlot(slot)and C.styles[style]and O.owns(o,a.owned,style,slot)then p.loadout[slot]=style end end
-                        if saved.commanderStandard then p.commanderStandard=require(pack.Core.CommanderStandardRules).effective(saved.commanderStandard,O.level(o.xp))end
+                        if saved.commanderStandard then p.commanderStandard=require(pack.Core.CommanderStandardRules).effective(saved.commanderStandard,O.level(o.xp),type(p.commerce)=='table'and p.commerce.owned or nil)end
                     end
                     o.activeLoadout=value;P.syncPreset(p)
                 end
@@ -465,7 +476,9 @@ function S:requestAction(player,action,value,extra)
     elseif action=='commanderStandard'then
         if not a.ready then return {ok=false,message=messages['profile-not-loaded']}end
         if player:GetAttribute('FrontierRoom')then return {ok=false,message='스킨은 로비에서 바꿀 수 있어요.'}end
-        if type(value)~='string'or not require(pack.Core.CommanderStandardRules).owns(value,O.level(a.profile.outgame.xp))then return {ok=false,message='해금 레벨에 도달하면 장착할 수 있어요.'}end
+        local Flags=require(pack.Core.CommanderStandardRules);local c=a.profile.commerce
+        if type(value)~='string'or not Flags.owns(value,O.level(a.profile.outgame.xp),type(c)=='table'and c.owned or nil)then
+            local f=type(value)=='string'and Flags.find(value);return {ok=false,message=f and f.supply and '보급 상자에서 얻으면 장착할 수 있어요.'or '해금 레벨에 도달하면 장착할 수 있어요.'}end
         local profile,err=self.repo:save(tostring(player.UserId),{commanderStandard=value})
         if not profile then return {ok=false,message=messages[err]or '깃발을 저장하지 못했어요.'}end
         a.profile=profile;self:publish(player,a);self.analytics:flow(player,'cosmetics','standardEquip',{item=require(script.Parent.TelemetryProgress).code(value),result='accepted'});return {ok=true,account=self:snapshot(player)}
@@ -476,7 +489,7 @@ function S:requestAction(player,action,value,extra)
         if not profile then return {ok=false,message=messages[err] or "국기를 저장하지 못했어요."} end
         a.profile=profile;self:publish(player,a);return {ok=true,account=self:snapshot(player)}
     elseif action=="preference" then
-        if not a.ready or (value~="reducedEffects" and value~="soundsMuted" and value~="cameraShake"and value~='mapFlashes'and value~='voiceTeamOnly'and value~="sfxVolume"and value~='emojiFavorites'and value~='motionLoadout') or type(extra)~=((value=='emojiFavorites'or value=='motionLoadout')and 'table'or value=="sfxVolume"and "number"or "boolean") then pcall(function()self.analytics:flow(player,'settings','preference',{item='invalid',result='rejected',reason=a.ready and 'invalid'or 'not_loaded'})end);return {ok=false,message="설정을 저장할 수 없어요."} end
+        if not a.ready or (value~="reducedEffects" and value~="soundsMuted" and value~="cameraShake"and value~='mapFlashes'and value~='voiceTeamOnly'and value~="sfxVolume"and value~='emojiFavorites'and value~='motionLoadout'and value~='hudOpacity'and value~='language') or type(extra)~=((value=='emojiFavorites'or value=='motionLoadout')and 'table'or (value=="sfxVolume"or value=='hudOpacity')and "number"or value=='language'and 'string'or "boolean") then pcall(function()self.analytics:flow(player,'settings','preference',{item='invalid',result='rejected',reason=a.ready and 'invalid'or 'not_loaded'})end);return {ok=false,message="설정을 저장할 수 없어요."} end
         local profile,err=self.repo:save(tostring(player.UserId),{preferences=value=='sfxVolume'and {sfxVolume=extra,soundsMuted=false}or {[value]=extra}})
         self.analytics:flow(player,'settings','preference',{item=value,active=type(extra)=='boolean'and extra or nil,value=type(extra)=='number'and extra or nil,result=profile and 'ok'or 'failed'})
         if not profile then return {ok=false,message=messages[err] or "설정을 저장하지 못했어요."} end

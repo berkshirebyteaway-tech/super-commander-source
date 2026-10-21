@@ -448,4 +448,5 @@ I.delay={singularity=.75}
 T.impacts=I
 T.radiusRing,T.prism=radiusRing,prism
 require(script.Parent.NukeVolume)(T)
+require(script.Parent.NukeVolume2)(T)
 return T

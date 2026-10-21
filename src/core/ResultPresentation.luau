@@ -11,7 +11,7 @@ function M.tally(out,before,event)
     return out
 end
 M.partNames={daily='오늘의 목표',weekly='주간 목표',onboarding='처음 시작하기',firstWin='오늘의 첫 승리',firstMatch='오늘 첫 판 2배',returned='복귀 보너스',pool='주간 2배 XP',
-    recruit='초대 보상',dailyOp='오늘의 작전',boost='이벤트 XP',benefit='커맨더 XP 보너스',conquest='지도 정복',tactic='전술 기장',season='시즌 단계',achievement='업적'}
+    recruit='초대 보상',dailyOp='오늘의 작전',campaign='캠페인 첫 클리어',campaignChest='캠페인 별 상자',boost='이벤트 XP',benefit='커맨더 XP 보너스',conquest='지도 정복',tactic='전술 기장',season='시즌 단계',achievement='업적'}
 function M.bonusParts(receipt)
     if not receipt or type(receipt.parts)~='table'then return nil end
     local list={};for kind,e in pairs(receipt.parts)do if type(e)=='table'and ((e.x or 0)>0 or (e.m or 0)>0)then table.insert(list,{kind=kind,xp=e.x or 0,medals=e.m or 0})end end
@@ -84,9 +84,9 @@ function M.view(state)
     local rank,total;if not continuing then rank,total=M.rank(state,won)end
     return {title=title,won=won,continuing=continuing,status=status,message=message,rewardNote=rewardNote,winner=M.winner(state,won),
         peak=math.clamp(r.peak or (state.player and state.player.share)or 0,0,1),cities=r.cities or 0,supports=r.supports or 0,seconds=r.seconds or 0,
-        xp=status=='practice'and 0 or xp,medals=status=='practice'and 0 or medals,rank=rank,total=total,daily=r.daily,
+        xp=status=='practice'and 0 or xp,medals=status=='practice'and 0 or medals,rank=rank,total=total,daily=r.daily,campaign=r.campaign,
         retryIntro=M.retryIntro(state),
-        again=M.retryIntro(state)and '첫 작전 다시 도전'or r.daily and '다시 도전'or state.casual and (state.nextRoundIn and string.format('다음 판 바로 시작 %d초',state.nextRoundIn)or '다음 판 바로 시작')or state.intro and '첫 공식전 출전'or state.multiplayer and (state.queueMode=='custom'and '같은 설정으로 방 만들기'or '다음 전장 고르기')or '같은 설정으로 한 판 더',
+        again=M.retryIntro(state)and '첫 작전 다시 도전'or r.campaign and (r.campaign.next and string.format('다음 작전 %s',r.campaign.next)or '다시 도전')or r.daily and '다시 도전'or state.casual and (state.nextRoundIn and string.format('다음 판 바로 시작 %d초',state.nextRoundIn)or '다음 판 바로 시작')or state.intro and '첫 공식전 출전'or state.multiplayer and (state.queueMode=='custom'and '같은 설정으로 방 만들기'or '다음 전장 고르기')or '같은 설정으로 한 판 더',
         bonus=r.bonus,progression=r.progression,goal=M.goal(r.progression),
         records=r.conquered~=nil and {conquered=r.conquered or 0,troops=r.troopsSent or 0,built=r.built or 0,nukes=r.nukes or 0}or nil,
         settled=status=='saved'or status=='local'or status=='practice'or status=='training'}

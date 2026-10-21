@@ -37,7 +37,7 @@ local function paint(img,style,phase,W,H,owner)
                 c=tint:Lerp(EDGE,front and .66 or .2)
             else
                 c=LAND:Lerp(tint,o=='ours'and .56 or .5)
-                if o=='ours'and spec then c=Pattern.pattern(c,y*W+x,W,spec)end
+                if o=='ours'and spec then c=Pattern.pattern(c,y*W+x,W,spec,spec.band and Pattern.bandRow(function(a,b)return at(a,b)=='ours'end,x,y,spec.band.h))end
             end
         end
         local i=(y*W+x)*4
@@ -66,7 +66,8 @@ local function demo(frame,img,style,owner)
         for i,o in pairs(grid)do
             if o=='sea'then out[i]=SEA elseif o=='land'then out[i]=LAND
             elseif o=='theirs'then out[i]=LAND:Lerp(THEIRS,.5)
-            else local c=LAND:Lerp(OURS,.56);out[i]=s and Pattern.pattern(c,i,W,s)or c end
+            else local c=LAND:Lerp(OURS,.56);local x,y=i%W,i//W
+                out[i]=s and Pattern.pattern(c,i,W,s,s.band and Pattern.bandRow(function(a,b)return at(a,b)=='ours'end,x,y,s.band.h))or c end
         end
         base[phase]=out;return out
     end
@@ -93,7 +94,10 @@ local function demo(frame,img,style,owner)
     end
     draw(LOOP*0+GROW)
     local sparks={};local rng=Random.new(1018)
-    local count=tier>=5 and 9 or tier>=4 and 5 or 0
+    local count=tier>=5 and 9 or tier>=4 and 5 or tier>=3 and 3 or 0
+    local want=require(script.Parent.TerritoryGlints).sources[style.id];local s1=want and Pattern.spec(style,1);local srcSet
+    if s1 then srcSet={};for _,c in ipairs(want)do srcSet[c]=true end end
+    local function source(x,y)return not srcSet or srcSet[buffer.readu8(s1.buf,(y%s1.h)*s1.w+x%s1.w)]==true end
     for i=1,count do
         local s=UI.make('ImageLabel',frame,{Name='Glint',BackgroundTransparency=1,Image='rbxasset://textures/particles/sparkles_main.dds',ImageTransparency=1,AnchorPoint=Vector2.new(.5,.5),ZIndex=3})
         sparks[i]={label=s,age=rng:NextNumber()*1.2,life=tier>=5 and 1.1 or 1.4}
@@ -107,12 +111,12 @@ local function demo(frame,img,style,owner)
             s.age+=dt
             if s.age>=s.life then
                 s.age=0;s.at=nil
-                for _=1,8 do local x,y=rng:NextInteger(0,W-1),rng:NextInteger(0,H-1);local i=y*W+x
-                    if grid[i]=='ours'and dist[i]<r-.05 then s.at=Vector2.new(x+.5,y+.5);break end end
+                for try=1,srcSet and 40 or 8 do local x,y=rng:NextInteger(0,W-1),rng:NextInteger(0,H-1);local i=y*W+x
+                    if grid[i]=='ours'and dist[i]<r-.05 and(try>32 or source(x,y))then s.at=Vector2.new(x+.5,y+.5);break end end
                 s.color=tier>=5 and (rng:NextNumber()<.5 and wave or alt)or wave
             end
             local bloom=s.at and math.sin(s.age/s.life*math.pi)or 0
-            local px=(tier>=5 and 46 or 36)*(.4+.6*bloom)
+            local px=(tier>=5 and 46 or tier>=4 and 36 or 28)*(.4+.6*bloom)
             s.label.Visible=s.at~=nil
             if s.at then
                 s.label.Position=UDim2.fromScale((ox+s.at.X*k)/size.X,(oy+s.at.Y*k)/size.Y);s.label.Size=UDim2.fromOffset(px,px)
@@ -218,7 +222,7 @@ local function parachute(parent,item)
     run(frame,function(t)
         local u=math.min(1,(t%(drop+rest))/drop);local y=14*(1-u)^1.3+.2
         if extra and extra.rig then
-            local m=extra.motion;m.time=t;m.landed=u>=1;m.inflation=u>=1 and math.max(0,1-((t%(drop+rest))-drop)/.6)or 1
+            local m=extra.motion;m.time=t;m.landed=u>=1;m.landAge=math.max(0,(t%(drop+rest))-drop);m.inflation=u>=1 and math.max(0,1-((t%(drop+rest))-drop)/.6)or 1
             m.canopyRoll=math.sin(t*.8)*.04;extra.rig:step(CFrame.new(-5,y,0),m,true)
             Art.step(extra.rig.canopy,t,reduced(),1+math.floor(t/2)%3)
         else model:PivotTo(CFrame.new(-5,y,0))end

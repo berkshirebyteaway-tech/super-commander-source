@@ -24,6 +24,7 @@ function M.draw(hub,body,w,y,p)
     local redraw=function()hub:drawPage()end
     local phone=w<520
     local data=p.records or Records.view({})
+    local styleName=hub.recordOther and '플레이 스타일'or '내 스타일'
     hub.recordTab=hub.recordTab or 'all';hub.recordSection=hub.recordSection or 'totals';hub.recordAvg=hub.recordAvg or false
     y+=tabs(hub,body,{{'all','전체'},{'public','공개 게임'},{'ranked','랭크전'}},'recordTab',y,w,redraw)
     local c=data[hub.recordTab]or data.all
@@ -39,11 +40,17 @@ function M.draw(hub,body,w,y,p)
     end
     y+=math.ceil(#big/cols)*(bh+8)+8
     local function section(id)return not phone or hub.recordSection==id end
-    if phone then y+=tabs(hub,body,{{'totals','누적 기록'},{'style','내 스타일'},{'recent','최근 경기'}},'recordSection',y,w,redraw)end
+    if phone then y+=tabs(hub,body,{{'totals','누적 기록'},{'style',styleName},{'recent','최근 경기'}},'recordSection',y,w,redraw)end
     if section('totals')then
-        local head=text(body,'TotalsHead','누적 기록',2,y,w-200,32,18,C.ink);head.Font=Enum.Font.BuilderSansBold
-        local sw=UI.button(body,'AvgToggle',hub.recordAvg and '판당 평균'or '누적',function()hub.recordAvg=not hub.recordAvg;redraw()end);UI.box(sw,w-150,y-8,148,48)
-        y+=44
+        local segW=phone and 76 or 88
+        local head=text(body,'TotalsHead','누적 기록',2,y+4,w-segW*2-12,32,18,C.ink);head.Font=Enum.Font.BuilderSansBold
+        for i,v in ipairs({{false,'누적'},{true,'판당 평균'}})do
+            local on=hub.recordAvg==v[1]
+            local b=UI.button(body,i==1 and 'AvgToggle_total'or 'AvgToggle',v[2],function()if hub.recordAvg~=v[1]then hub.recordAvg=v[1];redraw()end end,on)
+            UI.box(b,w-segW*(3-i),y,segW,40);b.TextSize=13
+            if on then b.BackgroundColor3=C.ink;b.TextColor3=C.bg end
+        end
+        y+=50
         local tc=phone and 2 or 4;local tw=(w-(tc-1)*8)/tc
         for i,cell in ipairs(CELLS)do
             local card=UI.panel(body,'Total_'..cell[1]);UI.box(card,(i-1)%tc*(tw+8),y+math.floor((i-1)/tc)*84,tw,76)
@@ -65,7 +72,7 @@ function M.draw(hub,body,w,y,p)
     end
     if section('style')then
         local st=c.style or Records.style(c)
-        local sh=text(body,'StyleHead','내 스타일',2,y,w-160,32,18,C.ink);sh.Font=Enum.Font.BuilderSansBold
+        local sh=text(body,'StyleHead',styleName,2,y,w-160,32,18,C.ink);sh.Font=Enum.Font.BuilderSansBold
         if st.name then local badge=UI.pill(body,'StyleBadge',st.name,C.accent);UI.box(badge,w-150,y+2,148,28)end
         y+=42
         local labelW=56;local barW=w-labelW-70
@@ -78,7 +85,7 @@ function M.draw(hub,body,w,y,p)
             local val=text(body,'StyleValue_'..s[1],string.format('x%.1f',ratio),labelW+barW+12,y,56,24,13,C.muted);val.TextXAlignment=Enum.TextXAlignment.Right
             y+=32
         end
-        text(body,'StyleNote',c.games>0 and '흰 선 = 평균 지휘관, 가장 높은 막대가 내 유형'or '경기를 마치면 내 스타일이 나타나요',2,y,w,22,13,C.muted);y+=32
+        text(body,'StyleNote',c.games>0 and (hub.recordOther and '흰 선 = 평균 지휘관, 가장 높은 막대가 이 지휘관의 유형'or '흰 선 = 평균 지휘관, 가장 높은 막대가 내 유형')or hub.recordOther and '아직 마친 경기가 없어요'or '경기를 마치면 내 스타일이 나타나요',2,y,w,22,13,C.muted);y+=32
     end
     if section('recent')then
         local rh=text(body,'RecentHead','최근 경기',2,y,w,32,18,C.ink);rh.Font=Enum.Font.BuilderSansBold;y+=40
@@ -87,13 +94,14 @@ function M.draw(hub,body,w,y,p)
             local fits=hub.recordTab=='all'or hub.recordTab=='ranked'and r.ranked or hub.recordTab=='public'and not r.ranked and (r.mode=='pvp'or r.mode=='coop')
             if fits and shown<5 then shown+=1
                 local row=UI.panel(body,'Recent_'..shown);UI.box(row,0,y,w,64)
-                UI.make('Frame',row,{Name='Mode',BackgroundColor3=MODE_COLOR[r.mode]or C.muted,BorderSizePixel=0,Size=UDim2.new(0,4,1,0)})
+                require(script.Parent.EdgeMask).fit(UI.make('Frame',row,{Name='Mode',BackgroundColor3=MODE_COLOR[r.mode]or C.muted,BorderSizePixel=0,Size=UDim2.new(0,4,1,0)}))
                 local place=r.place and r.field and string.format('#%d / %d',r.place,r.field)or ({won='승리',lost='탈락',forfeit='기권'})[r.outcome]or '—'
                 local pl=text(row,'Place',place,16,8,110,28,20,r.outcome=='won'and C.gold or C.ink);UI.display(pl)
                 text(row,'Mode',Rules.modes[r.mode]or r.mode,16,38,110,20,13,C.muted)
-                if r.top10 then local chip=UI.pill(row,'Top10','상위 10%',C.gold);UI.box(chip,128,18,76,26);chip.TextSize=13 end
+                if r.top10 then local chip=UI.pill(row,'Top10','상위 10%',C.gold);UI.box(chip,128,phone and 36 or 18,76,phone and 22 or 26);chip.TextSize=13 end
                 local detail=string.format('점령 %d  병력 %s',r.conquered or 0,UI.number(math.floor((r.troops or 0)/10)))
-                local d=text(row,'Detail',detail,212,8,w-224,24,14,C.ink);d.TextXAlignment=Enum.TextXAlignment.Right
+                local dx=phone and 128 or 212
+                local d=text(row,'Detail',detail,dx,8,w-dx-12,24,14,C.ink);d.TextXAlignment=Enum.TextXAlignment.Right
                 local t=text(row,'When',string.format('%d분',math.floor((r.seconds or 0)/60)),212,34,w-224,20,13,C.muted);t.TextXAlignment=Enum.TextXAlignment.Right
                 y+=72
             end

@@ -34,7 +34,7 @@ function M.new(lobby)
     self.frame=UI.make('ScrollingFrame',lobby.frame,{Name='LobbyFieldPreview',Active=true,BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=UI.colors.line,ScrollingDirection=Enum.ScrollingDirection.Y,CanvasSize=UDim2.fromOffset(0,0)})
     for _,key in ipairs(order)do
         local c={};c.frame=UI.panel(self.frame,key);c.frame.BackgroundTransparency=.08
-        c.strip=UI.make('Frame',c.frame,{Name='Strip',BorderSizePixel=0,BackgroundColor3=colors[key]})
+        c.strip=require(script.Parent.EdgeMask).fit(UI.make('Frame',c.frame,{Name='Strip',BorderSizePixel=0,BackgroundColor3=colors[key]}))
         c.type=label(c.frame,'Type',names[key],14,colors[key]);c.type.Visible=false
         c.chips=UI.make('Frame',c.frame,{Name='Tags',BackgroundTransparency=1})
         c.count=label(c.frame,'Count','',14,UI.colors.ink);c.count.Font=Enum.Font.BuilderSansBold
@@ -65,7 +65,7 @@ function M:refresh()
     local party=l.data and l.data.party;local own=l.data and l.data.queue and l.data.queue.field;local grouped=party and #party.users>1
     local selected=Highlights.select(d.fields,party,own);local elapsed=os.clock()-(d.updated or os.clock())
     local count=PartyPlay.available(d.fields,party,own)
-    self.more.Text=d.directoryError and '전장 목록 보기'or grouped and string.format('함께 입장할 전장 (%d)',count)or string.format('전장 목록 (%d)',count)
+    self.more.Text=d.directoryError and '전장 목록 보기'or self.one and string.format('전장 %d개 ›',count)or grouped and string.format('함께 입장할 전장 (%d)',count)or string.format('전장 목록 (%d)',count)
     self.friends.Text=grouped and string.format('파티 %d/5',#party.users)or '파티'
     for _,key in ipairs(order)do local c=self.cards[key];local f=selected[key];c.field=f
         if f then require(script.Parent.TelemetryClient).card(c.frame,f,key=='ffa'and 1 or key=='teams'and 2 or 3,'home')end
@@ -81,22 +81,34 @@ function M:refresh()
         if f and c.map~=f.rules.map then c.map=f.rules.map;c.raster:setPreview(Maps.preview(c.map));self:paint(c)end
     end
 end
-function M:layoutRows(x,y,w,rowH,visible)
-    self.frame.Visible=visible;self.rows=true;if not visible then return 0 end
-    local gap=8;local total=#order*rowH+(#order-1)*gap
+function M:pick()
+    local best,soon
+    for _,key in ipairs(order)do local f=self.cards[key].field
+        if f then local r=f.remaining or math.huge;if not best or r<soon then best,soon=key,r end end
+    end
+    return best or order[1]
+end
+function M:layoutRows(x,y,w,rowH,visible,one)
+    self.frame.Visible=visible;self.rows=true;self.one=one;if not visible then return 0 end
+    local shown=one and {self:pick()}or order;local right=one and 108 or 44
+    local gap=8;local total=#shown*rowH+(#shown-1)*gap
     UI.box(self.frame,x,y,w,total);self.frame.CanvasSize=UDim2.fromOffset(0,total);self.frame.ScrollingEnabled=false
     for _,b in ipairs({self.more,self.solo,self.ranked,self.friends})do b.Visible=false end
     self.selected=self.selected or 'ffa'
     local pw,ph=rowH>=56 and 72 or 52,rowH>=56 and 44 or 38
-    for i,key in ipairs(order)do local c=self.cards[key]
+    for _,key in ipairs(order)do self.cards[key].frame.Visible=table.find(shown,key)~=nil end
+    for i,key in ipairs(shown)do local c=self.cards[key]
         UI.box(c.frame,0,(i-1)*(rowH+gap),w,rowH);UI.box(c.strip,0,0,4,rowH)
         UI.box(c.picture,12,(rowH-ph)/2,pw,ph);c.picture.Active=false;c.picture:SetAttribute('AllowOverlap',true)
         local tx=12+pw+12
-        c.chipW=w-tx-60;UI.box(c.chips,tx,rowH>=56 and 6 or 3,c.chipW,20)
-        UI.box(c.title,tx,rowH>=56 and 28 or 22,math.min(170,w-tx-60),rowH>=56 and 26 or 22);c.title.TextSize=rowH>=56 and 16 or 14
-        c.row={x=tx+math.min(170,w-tx-60)+6,y=rowH>=56 and 30 or 23,w=w-tx-math.min(170,w-tx-60)-60,h=22};c.state.TextSize=13
+        c.chipW=w-tx-right-16;UI.box(c.chips,tx,rowH>=56 and 6 or 3,c.chipW,20)
+        c.title.TextSize=rowH>=56 and 16 or 14
         c.place=function()
-            local r=c.row;local w1=c.count.Text~=''and math.min(r.w*.5,game:GetService('TextService'):GetTextSize(L.text(c.count.Text),13,Enum.Font.BuilderSansBold,Vector2.new(1000,r.h)).X+2)or 0
+            local TS=game:GetService('TextService');local maxW=math.min(170,w-tx-right-16)
+            local tw=math.min(maxW,TS:GetTextSize(L.text(c.title.Text),c.title.TextSize,Enum.Font.BuilderSansBold,Vector2.new(1000,26)).X+4)
+            UI.box(c.title,tx,rowH>=56 and 28 or 22,tw,rowH>=56 and 26 or 22)
+            c.row={x=tx+tw+8,y=rowH>=56 and 30 or 23,w=w-right-(tx+tw+8),h=22};c.state.TextSize=13
+            local r=c.row;local w1=c.count.Text~=''and math.min(r.w*.5,game:GetService('TextService'):GetTextSize(L.text(c.count.Text),13,Enum.Font.BuilderSansBold,Vector2.new(1000,r.h)).X+6)or 0
             UI.box(c.count,r.x,r.y,w1,r.h);c.count.TextSize=13;UI.box(c.state,r.x+(w1>0 and w1+6 or 0),r.y,r.w-(w1>0 and w1+6 or 0),r.h)
         end;c.place()
         c.join.Visible=false
@@ -106,7 +118,7 @@ function M:layoutRows(x,y,w,rowH,visible)
             c.check=UI.label(c.frame,'Check','✓',22,UI.colors.ink);c.check.TextXAlignment=Enum.TextXAlignment.Center;c.check:SetAttribute('LocalizationSkip',true)
             c.edge=c.frame:FindFirstChildOfClass('UIStroke')
         end
-        c.pick.Visible=true;UI.box(c.check,w-44,0,36,rowH)
+        c.pick.Visible=true;UI.box(c.check,w-44,0,36,rowH);c.check:SetAttribute('Hide',one==true)
         if c.tags then Chips.render(c.chips,c.tags,c.chipW,20)end
         self:paint(c,'rows:'..w)
     end
@@ -116,7 +128,7 @@ end
 function M:paintRows()
     if not self.rows then return end
     for _,key in ipairs(order)do local c=self.cards[key];if c.edge then
-        c.edge.Color=UI.colors.line;c.edge.Thickness=1;c.check.Visible=true;c.check.Text='›';c.check.TextColor3=UI.colors.muted
+        c.edge.Color=UI.colors.line;c.edge.Thickness=1;c.check.Visible=c.check:GetAttribute('Hide')~=true;c.check.Text='›';c.check.TextColor3=UI.colors.muted
         c.frame.BackgroundColor3=colors[key]:Lerp(UI.colors.panel,.82);c.frame.BackgroundTransparency=.04
     end end
 end
@@ -129,12 +141,20 @@ function M:ask(key)
     local mapName=(Maps.meta(f.rules.map)or {}).label or f.rules.map
     local elapsed=os.clock()-(d.updated or os.clock())
     local when=f.remaining and string.format('%d초 후 출발',math.max(0,math.ceil(f.remaining-elapsed)))or '모집 중'
-    local mode=f.kind=='custom'and '커스텀'or f.rules.mode=='teams'and '공식 팀전'or '공식 개인전'
-    require(script.Parent.LobbyConfirm).open(l,mode,string.format('%s  %d/%d명  %s\n빈자리는 AI 지휘관이 채워요. 참가할까요?',mapName,f.count,f.rules.maximum,when),'참가',function()d:join(f.id);l:closePage();l:layout()end,nil,f.rules.map)
+    local special=f.kind=='official'and f.rules.special
+    local mode=f.kind=='custom'and '커스텀'or f.rules.mode=='teams'and (special and '공식 특수 팀전'or '공식 팀전')or (special and '공식 특수 개인전'or '공식 개인전')
+    local fill=f.kind=='official'and f.rules.teamFormat=='HumansVsNations'and '사람은 모두 한 팀, 같은 수의 어려운 국가와 싸워요.'or '빈자리는 AI 지휘관이 채워요.'
+    if special and f.rules.modifiers and #f.rules.modifiers>0 then
+        local Official=require(script.Parent.Parent.Core.BattlefieldRules);local list={}
+        for _,k in ipairs(Chips.modifierOrder)do if table.find(f.rules.modifiers,k)then table.insert(list,Official.modifierLabels[k]or k)end end
+        fill=table.concat(list,', ')..'\n'..fill
+    end
+    require(script.Parent.LobbyConfirm).open(l,mode,string.format('%s  %d/%d명  %s\n%s 참가할까요?',mapName,f.count,f.rules.maximum,when,fill),'참가',function()d:join(f.id);l:closePage();l:layout()end,nil,f.rules.map)
 end
 function M:joinSelected()return false end
 function M:leaveRows()
-    if not self.rows then return end;self.rows=nil;self.frame.ScrollingEnabled=true
+    if not self.rows then return end;self.rows=nil;self.one=nil;self.frame.ScrollingEnabled=true
+    for _,key in ipairs(order)do self.cards[key].frame.Visible=true end
     for _,key in ipairs(order)do local c=self.cards[key];if c.pick then c.pick.Visible=false;c.check.Visible=false;c.picture.Active=true;c.picture:SetAttribute('AllowOverlap',nil);c.join.Visible=true;if c.edge then c.edge.Color=UI.colors.line;c.edge.Thickness=1 end end end
 end
 function M:layout(x,y,w,visible,portrait,short,maxHeight)

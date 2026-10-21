@@ -2,7 +2,8 @@
 local M={}
 M.N=64
 M.motifs={carbon='stripes',cobalt='frost',pulse='scan',venom='bubbles',tidal='waves',ember='cracks',storm='bolts',
-    solaris='lattice',crown='crown',phoenix='chevrons',parallax='rings',eclipse='rays'}
+    solaris='lattice',crown='crown',phoenix='chevrons',parallax='rings',eclipse='rays',
+    dragon='scales',diamond='facets',seraph='feathers',glitch='pixels',leviathan='tentacles'}
 local function clamp(x:number,a:number,b:number):number return math.clamp(x,a,b)end
 local function frac(x:number):number return x-math.floor(x)end
 local function hash(a:number,b:number):number local x=math.sin(a*12.9898+b*78.233)*43758.5453;return x-math.floor(x)end
@@ -50,6 +51,18 @@ function M.motif(name:string,px:number,py:number,N:number):number
         return math.max(l,clamp(2.2-math.sqrt(gx*gx+gy*gy)*24*.75,0,1))
     elseif name=='chevrons'then return lines(y+math.abs(x)*.9,8,2.6)
     elseif name=='rings'then return lines(r,6,1.6)
+    elseif name=='scales'then
+        local yy=y+math.sin(x*.2)*2;local row=math.floor(yy/6);local cx=x+(row%2)*4
+        local dx,dy=(cx%8)-4,(yy%6)-6;return band(math.sqrt(dx*dx+dy*dy)-4,-1.2,0)
+    elseif name=='facets'then
+        return math.max(lines(x,11,1.1),lines(x*.5+y*.866,11,1.1),lines(x*.5-y*.866,11,1.1))
+    elseif name=='feathers'then
+        local t=a/(math.pi*2)*12;local f=math.abs(frac(t)-.5)*2;return lines(r+f*5,5,1.5)
+    elseif name=='pixels'then
+        local cx,cy=math.floor(x/4),math.floor(y/4);return hash(cx,cy)>.62 and 1 or 0
+    elseif name=='tentacles'then
+        local arm=math.abs(frac(a/(math.pi*2)*6+r*.035)-.5)*2
+        return math.max(clamp(1.6-arm*7,0,1),lines(r,9,1)*.6)
     elseif name=='rays'then return clamp(1-math.abs(frac(a/(math.pi*2)*16)-.5)*2*3+.6,0,1)*clamp(r/6,0,1)
     end
     return 0

@@ -1,4 +1,4 @@
-return {
+local t={
 	['standard/pole1']={origin='grip',tris=744,parts={
 		{name='Pole',meshId='rbxassetid://100952624832298',size={0.096,4.25,0.096},pos={0,1.12,0},rot={0,-180,0},color={91,110,128},material='Metal'},
 		{name='Grip',meshId='rbxassetid://140628233681864',size={0.136,0.5,0.136},pos={0,0,0},rot={0,-180,0},color={30,38,50},material='SmoothPlastic'},
@@ -58,10 +58,12 @@ return {
 		{name='Crossbar',meshId='rbxassetid://110316006470941',size={2.42,0.404,0.14},pos={1.23,3.038,0},rot={0,-180,0},color={247,221,156},material='Metal'},
 		{name='CrossbarGem',meshId='rbxassetid://115074854096616',size={0.086,0.09,0.09},pos={2.28,3.17,0},rot={0,-180,0},color={200,200,200},material='SmoothPlastic',tint='team'},
 	}},
-	['carbon_vehicle']={origin='ground',tris=502,parts={
+	['carbon_vehicle']={origin='ground',tris=1275,parts={
 		{name='Deck',meshId='rbxassetid://133596907195380',size={1.5,0.381,4.434},pos={0,0.72,-0.094},rot={0,-180,0},color={56,64,74},material='SmoothPlastic',tint='primary'},
 		{name='Chassis',meshId='rbxassetid://86730390958790',size={1.96,0.679,2.54},pos={0,0.37,0},rot={0,-180,0},color={170,182,196},material='Metal',tint='secondary'},
 		{name='Fittings',meshId='rbxassetid://101971409463488',size={1.35,2.064,3.089},pos={0.225,1.683,0.046},rot={0,-180,0},color={190,205,220},material='Metal',tint='accent'},
+		{name='DeckRimTop',meshId='rbxassetid://125645467178714',size={1.42,0.258,4.354},pos={0,0.814,-0.094},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
+		{name='GroundTop',meshId='rbxassetid://101631987004724',size={4.8,0.03,4.8},pos={0,0.035,0},rot={0,-180,0},color={151,165,180},material='SmoothPlastic',tint='secondary',pivot={-0,-0.015,-0}},
 	}},
 	['carbon_nuclear']={origin='center',tris=210,parts={
 		{name='Body',meshId='rbxassetid://105336508511392',size={0.9,0.9,3.93},pos={0,0,0.055},rot={0,-180,0},color={150,160,172},material='Metal',tint='primary'},
@@ -73,54 +75,63 @@ return {
 		{name='Hem',meshId='rbxassetid://126998105257832',size={7.36,0.16,7.36},pos={0,6.33,0},rot={0,-180,0},color={170,176,140},material='SmoothPlastic',tint='secondary'},
 		{name='Vent',meshId='rbxassetid://71236511131363',size={1.5,0.16,1.5},pos={0,8.98,0},rot={0,-180,0},color={210,200,150},material='SmoothPlastic',tint='accent'},
 	}},
-	['carbon_buildings/City']={origin='ground',tris=124,parts={
+	['carbon_buildings/City']={origin='ground',tris=412,parts={
 		{name='Plinth',meshId='rbxassetid://86275884229838',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://139966206183836',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Bunker',meshId='rbxassetid://78298239655093',size={3.4,1.9,3.4},pos={0,1.25,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='Tower',meshId='rbxassetid://93035499296320',size={1.9,2.7,1.9},pos={0,3.55,0},rot={0,-180,0},color={196,190,150},material='SmoothPlastic',tint='secondary'},
 		{name='Roof',meshId='rbxassetid://126530851347367',size={2.3,0.36,2.3},pos={0,5.08,0},rot={0,-180,0},color={236,170,56},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://138908278971369',size={4.48,0.025,4.48},pos={0,0.327,-0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['carbon_buildings/DefensePost']={origin='ground',tris=192,parts={
+	['carbon_buildings/DefensePost']={origin='ground',tris=492,parts={
 		{name='Plinth',meshId='rbxassetid://115985922178065',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://118681749304280',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Sandbags',meshId='rbxassetid://117615760136386',size={3.954,0.6,3.954},pos={0,0.58,0},rot={0,-180,0},color={196,190,150},material='Concrete',tint='secondary'},
 		{name='Pillbox',meshId='rbxassetid://76964215568023',size={2.3,2.1,2.3},pos={0,1.35,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='Turret',meshId='rbxassetid://105107966725963',size={0.856,1.325,2.8},pos={0,2.283,-0.95},rot={0,-180,0},color={70,74,60},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://92196501571476',size={4.48,1.586,4.56},pos={0,1.108,-0.04},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['carbon_buildings/Port']={origin='ground',tris=124,parts={
+	['carbon_buildings/Port']={origin='ground',tris=412,parts={
 		{name='Plinth',meshId='rbxassetid://109638040118343',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://91833274488924',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Pier',meshId='rbxassetid://101906723874230',size={3.2,0.25,1.9},pos={-0.4,0.425,-1.25},rot={0,-180,0},color={196,190,150},material='SmoothPlastic',tint='secondary'},
 		{name='Shed',meshId='rbxassetid://107404295210709',size={2.84,1.9,2},pos={-0.6,1.25,0.95},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='Crane',meshId='rbxassetid://92067223680461',size={0.5,3.3,3.6},pos={1.55,1.95,-0.45},rot={0,-180,0},color={236,170,56},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://118836408118491',size={4.48,3.325,4.48},pos={0,1.977,-0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['carbon_buildings/Factory']={origin='ground',tris=84,parts={
+	['carbon_buildings/Factory']={origin='ground',tris=457,parts={
 		{name='Plinth',meshId='rbxassetid://104929566134133',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://83885887622270',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://139665781933032',size={3.7,0.8,3.4},pos={-0.15,0.7,0},rot={0,-180,0},color={196,190,150},material='SmoothPlastic',tint='secondary'},
 		{name='Roof',meshId='rbxassetid://97396682505102',size={3.7,0.45,3.55},pos={-0.15,1.325,0},rot={0,-180,0},color={88,94,70},material='Metal',tint='primary'},
 		{name='Ramp',meshId='rbxassetid://112927036982934',size={1,0.3,1.8},pos={2.75,0.15,0},rot={0,-180,0},color={236,170,56},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://91567513547833',size={5.46,0.316,4.48},pos={0.49,0.182,-0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['carbon_buildings/MissileSilo']={origin='ground',tris=238,parts={
+	['carbon_buildings/MissileSilo']={origin='ground',tris=526,parts={
 		{name='Plinth',meshId='rbxassetid://135303260281387',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://98694292980106',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Drum',meshId='rbxassetid://83134927895248',size={2.9,0.6,2.9},pos={0,0.6,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='Missile',meshId='rbxassetid://131625745746696',size={0.9,2.4,0.9},pos={0,2.1,0},rot={0,-180,0},color={196,190,150},material='Metal',tint='secondary'},
 		{name='Fins',meshId='rbxassetid://99900302134856',size={1.252,2.68,1.252},pos={0,2.24,0},rot={0,-180,0},color={236,170,56},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://88267530628443',size={4.48,0.025,4.48},pos={0,0.327,-0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['carbon_buildings/SAMLauncher']={origin='ground',tris=148,parts={
+	['carbon_buildings/SAMLauncher']={origin='ground',tris=436,parts={
 		{name='Plinth',meshId='rbxassetid://112107980467644',size={4.5,0.3,4.5},pos={0,0.15,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://133937672219767',size={4.54,0.07,4.54},pos={0,0.17,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Base',meshId='rbxassetid://75854012580942',size={3,1.68,3},pos={0,1.135,0},rot={0,-180,0},color={88,94,70},material='Concrete',tint='primary'},
 		{name='Pod',meshId='rbxassetid://78152691480717',size={1.4,2.253,2.646},pos={0,2.1,0},rot={0,-180,0},color={196,190,150},material='Metal',tint='secondary'},
 		{name='PodCap',meshId='rbxassetid://73614117468829',size={1.44,0.898,0.662},pos={0,2.857,-1.081},rot={0,-180,0},color={236,170,56},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://76102893586640',size={4.48,0.025,4.48},pos={0,0.327,-0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic'},
 	}},
-	['cobalt_vehicle']={origin='ground',tris=576,parts={
+	['cobalt_vehicle']={origin='ground',tris=1660,parts={
 		{name='Hull',meshId='rbxassetid://126466765726230',size={2.3,2.6,4.328},pos={0,1.315,-0.264},rot={0,-180,0},color={34,56,88},material='Metal',tint='primary'},
 		{name='Skirts',meshId='rbxassetid://76303552157622',size={2.953,0.568,3.9},pos={0,0.6,-0.05},rot={0,-180,0},color={170,200,235},material='Metal',tint='secondary'},
 		{name='RamBar',meshId='rbxassetid://86363786510068',size={2.7,0.2,0.57},pos={0,0.55,-2.535},rot={0,-180,0},color={170,200,235},material='Metal',tint='secondary'},
 		{name='Shield',meshId='rbxassetid://113840976299384',size={1.2,0.77,0.508},pos={0,1.15,-1.494},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='SeamGlow',meshId='rbxassetid://101904441180766',size={2.45,0.05,3.3},pos={0,0.79,-0.1},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='DeckRimTop',meshId='rbxassetid://101031587722751',size={2.22,2.116,4.246},pos={0,1.597,-0.265},rot={0,-180,0},color={76,141,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://113052574748289',size={4.037,0.03,4.037},pos={0,0.035,0},rot={0,-180,0},color={175,202,231},material='SmoothPlastic',tint='secondary',pivot={-0,-0.015,-0}},
+		{name='GroundBracketTop',meshId='rbxassetid://92680693340714',size={3.563,0.03,3.563},pos={0,0.035,0},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
 	}},
 	['cobalt_nuclear']={origin='center',tris=350,parts={
 		{name='Body',meshId='rbxassetid://96693441443548',size={1.1,1.072,4.06},pos={0,0,-0.26},rot={0,-180,0},color={60,110,170},material='Metal',tint='primary'},
@@ -134,23 +145,25 @@ return {
 		{name='EndPanels',meshId='rbxassetid://140446015604918',size={11.029,0.626,4.2},pos={0,5.244,-0.2},rot={0,-180,0},color={34,60,100},material='Metal',tint='primary'},
 		{name='EdgeGlow',meshId='rbxassetid://93177841540131',size={11.217,2.374,0.1},pos={0,6.903,-2.58},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
 	}},
-	['cobalt_buildings/City']={origin='ground',tris=532,parts={
+	['cobalt_buildings/City']={origin='ground',tris=885,parts={
 		{name='Plinth',meshId='rbxassetid://123805962504076',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://85978215721482',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Frame',meshId='rbxassetid://75451280240645',size={3,3.8,2.6},pos={0,2.25,0},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='Module',meshId='rbxassetid://104258460919614',size={3.5,1.5,3.1},pos={0,2.12,0},rot={0,-180,0},color={240,248,255},material='SmoothPlastic',tint='secondary'},
 		{name='Radome',meshId='rbxassetid://124167824239681',size={1.326,1.36,1.36},pos={-0,4.5,0},rot={0,-180,0},color={210,224,236},material='SmoothPlastic',tint='primary'},
 		{name='SignalStrip',meshId='rbxassetid://116492261664563',size={3.54,0.08,3.14},pos={0,2.55,0},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://108034591783038',size={4.48,0.145,4.48},pos={-0,0.318,0},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['cobalt_buildings/DefensePost']={origin='ground',tris=430,parts={
+	['cobalt_buildings/DefensePost']={origin='ground',tris=783,parts={
 		{name='Plinth',meshId='rbxassetid://113056341931532',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://139157305164499',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='SnowWall',meshId='rbxassetid://74333465875476',size={3.917,0.55,3.917},pos={0,0.605,0},rot={0,-180,0},color={240,248,255},material='Concrete',tint='secondary'},
 		{name='Dome',meshId='rbxassetid://130377574870769',size={2.9,1.5,2.827},pos={0,1.1,0},rot={0,-180,0},color={210,224,236},material='SmoothPlastic',tint='primary'},
 		{name='Turret',meshId='rbxassetid://87103834566976',size={1,1.645,2.35},pos={0,2.498,-0.675},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='Beacon',meshId='rbxassetid://83889358069118',size={0.26,0.26,0.26},pos={0.35,3.24,0.3},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://91357413861801',size={4.48,0.145,4.48},pos={-0,0.318,0},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['cobalt_buildings/Port']={origin='ground',tris=212,parts={
+	['cobalt_buildings/Port']={origin='ground',tris=550,parts={
 		{name='Plinth',meshId='rbxassetid://90224660604442',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://117861455812351',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Hangar',meshId='rbxassetid://122542294607472',size={2.5,1.25,2.9},pos={-0.75,0.975,0.65},rot={0,-180,0},color={240,248,255},material='SmoothPlastic',tint='secondary'},
@@ -158,8 +171,9 @@ return {
 		{name='Crane',meshId='rbxassetid://96429441919306',size={0.55,3.55,3.7},pos={1.55,2.125,-0.15},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='Cab',meshId='rbxassetid://140147300067649',size={0.6,0.5,0.55},pos={1.55,3,0.45},rot={0,-180,0},color={150,200,240},material='Glass'},
 		{name='SignalStrip',meshId='rbxassetid://137161246899124',size={0.08,0.08,2.95},pos={-0.75,1.61,0.65},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://103322768576035',size={4.48,0.433,4.63},pos={-0,0.453,-0.005},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['cobalt_buildings/Factory']={origin='ground',tris=156,parts={
+	['cobalt_buildings/Factory']={origin='ground',tris=516,parts={
 		{name='Plinth',meshId='rbxassetid://106543551794991',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://121530671165893',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://122169777162295',size={3.8,1,3.5},pos={-0.15,0.85,0},rot={0,-180,0},color={240,248,255},material='SmoothPlastic',tint='secondary'},
@@ -167,24 +181,27 @@ return {
 		{name='Skylight',meshId='rbxassetid://137130126189564',size={2.4,0.14,0.7},pos={-0.15,1.65,0},rot={0,-180,0},color={150,200,240},material='Glass'},
 		{name='Ramp',meshId='rbxassetid://72311762219095',size={1.51,1.15,2},pos={2.495,0.575,0},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='SignalStrip',meshId='rbxassetid://116948163892083',size={3.84,0.08,0.08},pos={-0.15,1.13,-1.78},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://82173948511350',size={5.46,1.295,4.48},pos={0.49,0.673,-0},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['cobalt_buildings/MissileSilo']={origin='ground',tris=498,parts={
+	['cobalt_buildings/MissileSilo']={origin='ground',tris=851,parts={
 		{name='Plinth',meshId='rbxassetid://88264724340458',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://75366223219961',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Drum',meshId='rbxassetid://126893832506446',size={3,0.6,3},pos={0,0.65,0},rot={0,-180,0},color={240,248,255},material='Concrete',tint='secondary'},
 		{name='Hatches',meshId='rbxassetid://85340151150275',size={4.22,1.292,1.8},pos={0,1.568,0},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='Missile',meshId='rbxassetid://140377646370516',size={1.096,3.4,1.096},pos={-0,2.65,-0},rot={0,-180,0},color={210,224,236},material='SmoothPlastic',tint='primary'},
 		{name='SignalRing',meshId='rbxassetid://117537883883727',size={3.1,0.1,3.1},pos={0,0.95,0},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://78593284634237',size={4.48,1.991,4.48},pos={-0,1.24,0},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['cobalt_buildings/SAMLauncher']={origin='ground',tris=264,parts={
+	['cobalt_buildings/SAMLauncher']={origin='ground',tris=616,parts={
 		{name='Plinth',meshId='rbxassetid://71689707255499',size={4.5,0.35,4.5},pos={0,0.175,0},rot={0,-180,0},color={120,136,152},material='Concrete',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://119050346660998',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={230,230,230},material='Metal',tint='team'},
 		{name='Base',meshId='rbxassetid://86305618674159',size={2.827,1.68,2.9},pos={0,1.185,0},rot={0,-180,0},color={210,224,236},material='Metal',tint='primary'},
 		{name='Pod',meshId='rbxassetid://72935422307372',size={1.4,2.152,2.708},pos={0,2.15,0.1},rot={0,-180,0},color={240,248,255},material='SmoothPlastic',tint='secondary'},
 		{name='Radar',meshId='rbxassetid://111465990183401',size={0.414,2.59,1.3},pos={-2.155,1.645,1},rot={0,-180,0},color={64,76,92},material='Metal'},
 		{name='SignalStrip',meshId='rbxassetid://135232408633222',size={1.52,1.384,2.157},pos={0,2.15,0.1},rot={0,-180,0},color={80,165,255},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://72920527399921',size={4.572,2.729,4.48},pos={-0.046,1.608,-0},rot={0,-180,0},color={76,141,255},material='Neon'},
 	}},
-	['pulse_vehicle']={origin='ground',tris=1436,parts={
+	['pulse_vehicle']={origin='ground',tris=3274,parts={
 		{name='Fuselage',meshId='rbxassetid://120428614568070',size={0.95,0.62,5.258},pos={0,0.81,-0.199},rot={0,-180,0},color={88,65,139},material='SmoothPlastic',tint='primary'},
 		{name='Pontoons',meshId='rbxassetid://102659261701579',size={3.44,0.4,3.4},pos={0,0.6,0},rot={0,-180,0},color={201,176,252},material='Metal',tint='secondary'},
 		{name='Cowl',meshId='rbxassetid://119531526107798',size={1.52,0.589,0.972},pos={0,1.171,-1.411},rot={0,-180,0},color={201,176,252},material='Metal',tint='secondary'},
@@ -192,6 +209,9 @@ return {
 		{name='ThrusterGlow',meshId='rbxassetid://78068052555043',size={3.166,0.89,3.715},pos={0,0.595,0.588},rot={0,-180,0},color={180,110,255},material='Neon',tint='accent'},
 		{name='NeonStrip',meshId='rbxassetid://127168628574575',size={1.03,0.06,2.6},pos={0,0.85,-0.3},rot={0,-180,0},color={180,110,255},material='Neon',tint='accent'},
 		{name='RingTurbine',meshId='rbxassetid://115306863235630',size={0.98,0.98,0.14},pos={0,0.8,2.56},rot={0,-180,0},color={201,176,252},material='Metal',tint='secondary',pivot={-0,0,-0}},
+		{name='DeckRimTop',meshId='rbxassetid://105890701583548',size={3.36,0.513,5.174},pos={0,0.902,-0.197},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://96998284966149',size={4.865,0.03,4.213},pos={0,0.035,0},rot={0,-180,0},color={204,187,242},material='SmoothPlastic',tint='secondary',pivot={-0,-0.015,-0}},
+		{name='GroundRing1Top',meshId='rbxassetid://77470463803038',size={5.4,0.03,5.4},pos={0,0.035,0},rot={0,-180,0},color={173,119,255},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
 	}},
 	['pulse_nuclear']={origin='center',tris=1408,parts={
 		{name='Casing',meshId='rbxassetid://82622789773557',size={1.04,1.04,1.42},pos={0,0,0.91},rot={0,-180,0},color={89,48,153},material='Metal',tint='primary'},
@@ -209,23 +229,27 @@ return {
 		{name='WingREdge',meshId='rbxassetid://93624556068061',size={5.583,1.089,4.85},pos={2.882,7.491,0.025},rot={0,-180,0},color={180,110,255},material='Neon',tint='accent',pivot={2.782,-0.491,0.025}},
 		{name='NavLights',meshId='rbxassetid://71338274963328',size={0.228,1.62,5.77},pos={0,7.65,0.315},rot={0,-180,0},color={180,110,255},material='Neon',tint='accent'},
 	}},
-	['pulse_buildings/City']={origin='ground',tris=516,parts={
+	['pulse_buildings/City']={origin='ground',tris=854,parts={
 		{name='Plinth',meshId='rbxassetid://136362997759788',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://119087218386147',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='Towers',meshId='rbxassetid://91427778097205',size={2.95,3.9,3.1},pos={0.075,2.37,-0.15},rot={0,-180,0},color={81,67,123},material='Glass',tint='primary'},
 		{name='Crowns',meshId='rbxassetid://118658958932237',size={3.07,3.33,3.22},pos={0.075,3.685,-0.15},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
 		{name='NeonTrim',meshId='rbxassetid://71706514192091',size={3.01,3.7,3.16},pos={0.065,2.37,-0.16},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingHolo',meshId='rbxassetid://83257123186611',size={2.355,0.3,2.4},pos={-0.673,3.75,-0.35},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={-0.023,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://81097173450469',size={4.495,2.863,4.495},pos={-0,1.748,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://103523941638303',size={4.201,1.725,3.684},pos={0,1.312,0.259},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['pulse_buildings/DefensePost']={origin='ground',tris=698,parts={
+	['pulse_buildings/DefensePost']={origin='ground',tris=1099,parts={
 		{name='Plinth',meshId='rbxassetid://105677226135958',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://120973179935618',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='Bunker',meshId='rbxassetid://121227318208715',size={3.141,1.23,3.141},pos={0,1.035,0},rot={0,-180,0},color={81,67,123},material='Glass',tint='primary'},
 		{name='Frame',meshId='rbxassetid://126627996207716',size={3.523,2.78,3.523},pos={0,1.81,0},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
 		{name='NeonTrim',meshId='rbxassetid://126042916321918',size={3.594,1.455,3.594},pos={0,1.692,0},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingShield',meshId='rbxassetid://86151752457498',size={1.379,0.12,1.379},pos={0,2.7,0},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={-0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://112495331421016',size={4.495,2.143,4.495},pos={0,1.388,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://119672312577302',size={3.238,2.025,3.238},pos={0,1.462,0},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['pulse_buildings/Port']={origin='ground',tris=596,parts={
+	['pulse_buildings/Port']={origin='ground',tris=950,parts={
 		{name='Plinth',meshId='rbxassetid://87901284782937',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://94955660407254',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='Terminal',meshId='rbxassetid://129824610140599',size={2.2,2.1,1.9},pos={-0.7,1.47,0.75},rot={0,-180,0},color={81,67,123},material='Glass',tint='primary'},
@@ -233,8 +257,10 @@ return {
 		{name='Crane',meshId='rbxassetid://108214910325905',size={0.3,3.65,2.7},pos={1.35,2.245,0},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
 		{name='NeonTrim',meshId='rbxassetid://140700432664306',size={3.69,1.325,2.11},pos={0.005,1.252,-1.235},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingBeacon',meshId='rbxassetid://123005443904481',size={0.709,0.22,0.72},pos={1.344,3.8,1.2},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={-0.006,0,0}},
+		{name='RoofRimTop',meshId='rbxassetid://107829979402711',size={4.495,2.279,4.507},pos={0,1.395,-0.006},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://74575889475806',size={4.201,2.113,3.607},pos={0,1.507,-0.309},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['pulse_buildings/Factory']={origin='ground',tris=512,parts={
+	['pulse_buildings/Factory']={origin='ground',tris=941,parts={
 		{name='Plinth',meshId='rbxassetid://135262497317268',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://113683036983030',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://102027055402691',size={3.6,0.8,3.2},pos={-0.2,0.82,0},rot={0,-180,0},color={81,67,123},material='Glass',tint='primary'},
@@ -242,8 +268,10 @@ return {
 		{name='Annex',meshId='rbxassetid://101151070395806',size={1.525,0.75,2.35},pos={2.462,0.375,0.025},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='NeonTrim',meshId='rbxassetid://121445078909887',size={5.22,1.005,2.15},pos={0.66,1.023,0.52},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingFan',meshId='rbxassetid://106563659791248',size={0.992,0.1,0.992},pos={2.55,0.8,0.3},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={-0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://107084428058243',size={5.488,1.33,4.495},pos={0.496,0.92,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://96564355869111',size={4.87,0.776,2.816},pos={0.613,1.168,-0.014},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['pulse_buildings/MissileSilo']={origin='ground',tris=976,parts={
+	['pulse_buildings/MissileSilo']={origin='ground',tris=1306,parts={
 		{name='Plinth',meshId='rbxassetid://111169211352374',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://109297605153301',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='Collar',meshId='rbxassetid://133431705241059',size={2.864,0.53,2.864},pos={0,0.685,0},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
@@ -251,16 +279,20 @@ return {
 		{name='Gantry',meshId='rbxassetid://93656639722524',size={2.65,2.6,0.775},pos={0,2.25,0.263},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
 		{name='NeonTrim',meshId='rbxassetid://129452493723892',size={2.67,1.465,0.89},pos={0,2.897,0},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingLaunch',meshId='rbxassetid://96559990902238',size={1.542,0.1,1.542},pos={0,1.55,0},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://89683788686513',size={4.495,0.143,4.495},pos={0,0.388,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://126838962625692',size={4.201,0.025,4.202},pos={0,0.462,0},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['pulse_buildings/SAMLauncher']={origin='ground',tris=602,parts={
+	['pulse_buildings/SAMLauncher']={origin='ground',tris=932,parts={
 		{name='Plinth',meshId='rbxassetid://79843841689385',size={4.5,0.42,4.5},pos={0,0.21,0},rot={0,-180,0},color={81,67,123},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://111334084367637',size={4.555,0.08,4.555},pos={0,0.2,0},rot={0,-180,0},color={120,90,190},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://99201128025583',size={2.31,0.73,2.31},pos={0,0.785,0},rot={0,-180,0},color={81,67,123},material='Glass',tint='primary'},
 		{name='Launcher',meshId='rbxassetid://92891547194206',size={1.995,2.2,2.055},pos={-0.078,2.15,0.098},rot={0,-180,0},color={135,101,213},material='Metal',tint='secondary'},
 		{name='NeonTrim',meshId='rbxassetid://133208560368456',size={1.02,0.597,0.373},pos={0,2.235,-0.767},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent'},
 		{name='RingRadar',meshId='rbxassetid://118331768626381',size={0.756,0.22,0.84},pos={-0.95,3.15,1},rot={0,-180,0},color={190,110,255},material='Neon',tint='accent',pivot={0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://117138355451581',size={4.495,0.143,4.495},pos={0,0.388,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://108210157472449',size={4.201,0.025,4.202},pos={0,0.462,0},rot={0,-180,0},color={173,119,255},material='Neon'},
 	}},
-	['venom_vehicle']={origin='ground',tris=2004,parts={
+	['venom_vehicle']={origin='ground',tris=3614,parts={
 		{name='Carapace',meshId='rbxassetid://104401224673082',size={2,0.855,4.42},pos={0,0.938,-0.04},rot={0,-180,0},color={88,124,97},material='SmoothPlastic',tint='primary'},
 		{name='Fittings',meshId='rbxassetid://110323882180663',size={1.76,1.59,4.161},pos={0,1.335,-0.311},rot={0,-180,0},color={100,144,103},material='Metal',tint='secondary'},
 		{name='Tanks',meshId='rbxassetid://115060653315968',size={1.446,0.9,0.56},pos={0,1.6,1.45},rot={0,-180,0},color={181,243,165},material='Glass'},
@@ -278,6 +310,9 @@ return {
 		{name='LegShinMR',meshId='rbxassetid://127046467608637',size={0.173,1.49,0.2},pos={1.899,0.737,0},rot={0,-180,-13.44},color={165,243,134},material='Metal',tint='secondary',pivot={0,0.65,0}},
 		{name='LegThighBR',meshId='rbxassetid://73993386295619',size={0.225,1.18,0.26},pos={1.278,1.149,1.002},rot={29.87,0,125.42},color={100,144,103},material='Metal',tint='primary',pivot={0,0.525,0}},
 		{name='LegShinBR',meshId='rbxassetid://112772693821325',size={0.173,1.49,0.2},pos={1.878,0.729,1.214},rot={-5.58,-180,-15.36},color={165,243,134},material='Metal',tint='secondary',pivot={0,0.65,0}},
+		{name='DeckRimTop',meshId='rbxassetid://127514853152816',size={1.92,0.669,4.34},pos={0,1.071,-0.04},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://94519174127666',size={3.706,0.03,3.55},pos={0.088,0.035,0.043},rot={0,-180,0},color={125,239,94},material='SmoothPlastic',tint='accent',pivot={0.088,-0.015,0.043}},
+		{name='GroundRingTop',meshId='rbxassetid://73877214735771',size={5.4,0.03,5.4},pos={0,0.035,0},rot={0,-180,0},color={160,236,130},material='Neon',tint='secondary',pivot={-0,-0.015,-0}},
 	}},
 	['venom_nuclear']={origin='center',tris=946,parts={
 		{name='Casing',meshId='rbxassetid://132943205799020',size={1,0.985,2.94},pos={0,-0,0.15},rot={0,-180,0},color={91,130,91},material='Metal',tint='primary'},
@@ -296,7 +331,7 @@ return {
 		{name='WingR',meshId='rbxassetid://107553042352496',size={4.611,2.912,3.8},pos={2.59,7.181,0.9},rot={0,-180,0},color={79,124,88},material='Fabric',tint='primary',pivot={2.29,-1.431,0.6}},
 		{name='WingRStripe',meshId='rbxassetid://125100116061803',size={4.251,2.708,3.24},pos={2.653,7.221,0.8},rot={0,-180,0},color={160,236,130},material='Neon',tint='secondary',pivot={2.353,-1.471,0.5}},
 	}},
-	['venom_buildings/City']={origin='ground',tris=1040,parts={
+	['venom_buildings/City']={origin='ground',tris=1367,parts={
 		{name='Plinth',meshId='rbxassetid://80172743538224',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://105806116311051',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='LabBase',meshId='rbxassetid://129182336505740',size={2.9,0.68,2.511},pos={0,0.76,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -304,8 +339,10 @@ return {
 		{name='Brew',meshId='rbxassetid://91225594711145',size={3.53,2.72,1.946},pos={0,1.8,0.25},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='Fittings',meshId='rbxassetid://139545311745956',size={3.719,3.87,2.24},pos={0,3.015,0.2},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary'},
 		{name='RingStir',meshId='rbxassetid://100651709453307',size={1.916,0.14,1.939},pos={-0.012,3.55,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent',pivot={-0.012,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://89574430569933',size={4.99,2.061,4.322},pos={0,1.349,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://84245575288617',size={2.176,0.025,4.029},pos={0,0.462,0},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['venom_buildings/DefensePost']={origin='ground',tris=694,parts={
+	['venom_buildings/DefensePost']={origin='ground',tris=1021,parts={
 		{name='Plinth',meshId='rbxassetid://129956283766091',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://98187800051477',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='Pod',meshId='rbxassetid://126069965074452',size={3.4,1.66,3.4},pos={0,1.25,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -313,8 +350,10 @@ return {
 		{name='Tank',meshId='rbxassetid://83521636573473',size={0.702,0.84,0.72},pos={0,2.57,0},rot={0,-180,0},color={181,243,165},material='Glass'},
 		{name='Brew',meshId='rbxassetid://86328675299135',size={0.597,0.571,0.612},pos={0,2.456,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='RingSpore',meshId='rbxassetid://98085952112916',size={1.145,0.1,1.16},pos={-0.007,2.62,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent',pivot={-0.007,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://92279344341825',size={4.99,1.479,4.322},pos={0,1.058,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://103673920405641',size={2.176,0.025,4.029},pos={0,0.462,0},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['venom_buildings/Port']={origin='ground',tris=750,parts={
+	['venom_buildings/Port']={origin='ground',tris=1097,parts={
 		{name='Plinth',meshId='rbxassetid://79695114953207',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://122098604185371',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='Pier',meshId='rbxassetid://137900660098123',size={2.2,0.465,2.4},pos={0.85,0.652,-0.9},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -323,8 +362,10 @@ return {
 		{name='Pipes',meshId='rbxassetid://80372269926048',size={2.519,3.66,2.13},pos={-0.279,2.245,0.385},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary'},
 		{name='PierLights',meshId='rbxassetid://95125540662560',size={2.24,0.06,2.44},pos={0.87,0.62,-0.92},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='RingValve',meshId='rbxassetid://129875073597503',size={0.08,0.56,0.56},pos={1.12,2.3,-0.6},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary',pivot={0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://77939147976248',size={4.99,0.67,4.322},pos={0,0.59,-0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://125555011106115',size={2.901,0.49,4.028},pos={0.362,0.695,0},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['venom_buildings/Factory']={origin='ground',tris=668,parts={
+	['venom_buildings/Factory']={origin='ground',tris=1070,parts={
 		{name='Plinth',meshId='rbxassetid://123016355743480',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://91479026620684',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://111052042955707',size={3.3,1.2,3},pos={-0.35,1.02,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -333,8 +374,10 @@ return {
 		{name='Fittings',meshId='rbxassetid://133139419309704',size={4.883,1.665,1.915},pos={0.808,0.832,0.082},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary'},
 		{name='RoofGlow',meshId='rbxassetid://116622355519606',size={2.84,0.05,2.4},pos={-0.24,1.34,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='RingFan',meshId='rbxassetid://80868042105805',size={0.833,0.08,0.833},pos={0.55,1.38,0.7},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary',pivot={0,0,0}},
+		{name='RoofRimTop',meshId='rbxassetid://118166979112282',size={5.715,1.105,4.322},pos={0.362,0.808,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://87974232644673',size={4.896,0.572,2.606},pos={0.625,1.134,-0.02},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['venom_buildings/MissileSilo']={origin='ground',tris=884,parts={
+	['venom_buildings/MissileSilo']={origin='ground',tris=1211,parts={
 		{name='Plinth',meshId='rbxassetid://103042233103726',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://82415008660513',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='Collar',meshId='rbxassetid://138758922958433',size={3,0.53,2.598},pos={0,0.685,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -343,8 +386,10 @@ return {
 		{name='Brew',meshId='rbxassetid://138871740570559',size={1.064,0.7,1.08},pos={0,1.31,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='Struts',meshId='rbxassetid://95268604858971',size={2.283,2.585,1.998},pos={0,2.128,0.309},rot={0,-180,0},color={128,158,137},material='Metal'},
 		{name='RingClamp',meshId='rbxassetid://132303758148073',size={1.382,0.14,1.4},pos={-0.009,2.25,0},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent',pivot={-0.009,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://73448072745246',size={4.99,0.141,4.322},pos={0,0.389,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://139273254871852',size={2.176,0.025,4.029},pos={0,0.462,0},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['venom_buildings/SAMLauncher']={origin='ground',tris=1046,parts={
+	['venom_buildings/SAMLauncher']={origin='ground',tris=1373,parts={
 		{name='Plinth',meshId='rbxassetid://106556289790245',size={5,0.42,4.33},pos={0,0.21,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://139988546698560',size={5.06,0.08,4.382},pos={0,0.2,0},rot={0,-180,0},color={150,230,120},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://100034400664382',size={2.4,2.63,2.078},pos={0,1.735,0},rot={0,-180,0},color={99,125,112},material='Metal',tint='primary'},
@@ -353,13 +398,18 @@ return {
 		{name='Tank',meshId='rbxassetid://74408490463887',size={0.624,1.1,0.64},pos={-0.95,1.7,0.55},rot={0,-180,0},color={181,243,165},material='Glass'},
 		{name='Brew',meshId='rbxassetid://134627385860573',size={0.497,0.68,0.51},pos={-0.95,1.51,0.55},rot={0,-180,0},color={120,230,90},material='Neon',tint='accent'},
 		{name='RingSensor',meshId='rbxassetid://83635001032461',size={0.576,0.2,0.64},pos={0.9,3.15,0.75},rot={0,-180,0},color={156,239,125},material='Metal',tint='secondary',pivot={-0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://135247153980829',size={4.99,0.141,4.322},pos={0,0.389,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://89937381667926',size={2.176,0.025,4.029},pos={0,0.462,0},rot={0,-180,0},color={120,230,90},material='Neon'},
 	}},
-	['tidal_vehicle']={origin='ground',tris=1380,parts={
+	['tidal_vehicle']={origin='ground',tris=2755,parts={
 		{name='Hull',meshId='rbxassetid://87165947343057',size={1.5,0.85,4.25},pos={0,0.475,-0.175},rot={0,-180,0},color={20,60,90},material='SmoothPlastic',tint='primary'},
 		{name='Trim',meshId='rbxassetid://122728112326393',size={1.62,1.465,4.255},pos={0,0.952,0.028},rot={0,-180,0},color={170,236,250},material='SmoothPlastic',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://129674301076590',size={1.56,1.11,3.43},pos={0,1.01,-0.365},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingJet',meshId='rbxassetid://94764001182475',size={0.512,0.512,0.06},pos={0,0.42,2.2},rot={0,-180,0},color={88,130,150},material='Metal',pivot={-0,0,0}},
 		{name='Wake',meshId='rbxassetid://83229293400184',size={3.461,0.04,4.796},pos={0,0.045,0.948},rot={0,-180,0},color={210,245,252},material='Neon'},
+		{name='DeckRimTop',meshId='rbxassetid://106668601578087',size={1.42,0.585,4.17},pos={0,0.508,-0.175},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://83187069079892',size={3.869,0.03,3.869},pos={0,0.035,-0},rot={0,-180,0},color={170,236,250},material='SmoothPlastic',tint='secondary',pivot={-0,-0.015,-0}},
+		{name='GroundWaveTop',meshId='rbxassetid://71872792429537',size={5.266,0.03,5.266},pos={0,0.035,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
 	}},
 	['tidal_nuclear']={origin='center',tris=1616,parts={
 		{name='Hull',meshId='rbxassetid://111897549169258',size={1.16,1.16,2.85},pos={0,0,0.125},rot={0,-180,0},color={20,60,90},material='SmoothPlastic',tint='primary'},
@@ -376,39 +426,47 @@ return {
 		{name='OralArms',meshId='rbxassetid://132357327504139',size={1.151,4.154,1.131},pos={-0.029,7.366,-0.187},rot={0,-180,0},color={170,236,250},material='Neon'},
 		{name='RingTentacles',meshId='rbxassetid://123888467284334',size={6.102,3.951,6.154},pos={0.079,5.613,-0.234},rot={0,-180,0},color={170,236,250},material='SmoothPlastic',tint='secondary',pivot={0.079,1.987,0.016}},
 	}},
-	['tidal_buildings/City']={origin='ground',tris=1914,parts={
+	['tidal_buildings/City']={origin='ground',tris=2242,parts={
 		{name='Plinth',meshId='rbxassetid://123604562485001',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://115065554791597',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Hull',meshId='rbxassetid://134885849890881',size={3.664,3.755,3.71},pos={0,2.323,-0.205},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
 		{name='Domes',meshId='rbxassetid://89605767355304',size={3.624,3.96,3.49},pos={0,2.78,-0.295},rot={0,-180,0},color={150,220,240},material='Glass',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://93292285099708',size={3.42,3.34,3.42},pos={0,2.57,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingBubbles',meshId='rbxassetid://137421320144339',size={2.195,0.49,1.988},pos={-0.024,3.055,0},rot={0,-180,0},color={170,236,250},material='Neon',pivot={-0.024,-0.055,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://131263838720776',size={4.87,0.705,4.218},pos={0,0.732,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://127967821013713',size={2.116,0.025,3.925},pos={0,0.493,0},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['tidal_buildings/DefensePost']={origin='ground',tris=1454,parts={
+	['tidal_buildings/DefensePost']={origin='ground',tris=1782,parts={
 		{name='Plinth',meshId='rbxassetid://134570020689809',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://119458861025772',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Hull',meshId='rbxassetid://95505292674764',size={3,2.405,3},pos={0,1.647,0},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
 		{name='Dome',meshId='rbxassetid://107580059463246',size={2.5,0.98,2.5},pos={0,1.59,0},rot={0,-180,0},color={150,220,240},material='Glass',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://131358615484615',size={3.12,2.21,3.12},pos={0,1.845,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingSonar',meshId='rbxassetid://115382374825595',size={1.426,0.06,1.44},pos={0,2.3,0},rot={0,-180,0},color={170,236,250},material='Neon',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://112341035406893',size={4.87,0.11,4.218},pos={0,0.435,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://120435267245822',size={2.116,0.025,3.925},pos={0,0.493,0},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['tidal_buildings/Port']={origin='ground',tris=1444,parts={
+	['tidal_buildings/Port']={origin='ground',tris=1777,parts={
 		{name='Plinth',meshId='rbxassetid://72826262445872',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://129415619372555',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Hull',meshId='rbxassetid://111384586612226',size={3.17,3.65,3.75},pos={-0.165,2.275,-0.325},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
 		{name='Lantern',meshId='rbxassetid://97386445868763',size={2.859,2.85,1.22},pos={-0.32,2.275,0.94},rot={0,-180,0},color={150,220,240},material='Glass',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://78584634834452',size={2.655,1.824,3.555},pos={0.077,1.527,-0.322},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingBeacon',meshId='rbxassetid://93429702751096',size={2.56,0.26,1.07},pos={0.7,3.43,0.75},rot={0,-180,0},color={170,236,250},material='Neon',pivot={-0,-0,0}},
+		{name='RoofRimTop',meshId='rbxassetid://115866128290916',size={4.87,0.872,4.279},pos={0,0.816,-0.03},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://77946555275784',size={2.115,0.205,3.985},pos={0.001,0.583,-0.03},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['tidal_buildings/Factory']={origin='ground',tris=1154,parts={
+	['tidal_buildings/Factory']={origin='ground',tris=1581,parts={
 		{name='Plinth',meshId='rbxassetid://91480615784224',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://127813932588538',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Hull',meshId='rbxassetid://122518300628062',size={5.25,1.5,2.1},pos={0.625,0.75,0},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
 		{name='Domes',meshId='rbxassetid://102875722928939',size={4.12,0.667,1.379},pos={1.11,1.134,0},rot={0,-180,0},color={150,220,240},material='Glass',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://117643527949888',size={2.89,1.09,2.18},pos={-0.35,0.995,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingFan',meshId='rbxassetid://134724005248363',size={1.95,0.07,1.95},pos={2.47,0.55,0},rot={0,-180,0},color={170,236,250},material='Neon',pivot={0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://126243790320028',size={5.654,1.035,4.218},pos={0.392,0.896,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://85890679636262',size={3.81,0.939,3.925},pos={0.847,0.949,0},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['tidal_buildings/MissileSilo']={origin='ground',tris=1210,parts={
+	['tidal_buildings/MissileSilo']={origin='ground',tris=1538,parts={
 		{name='Plinth',meshId='rbxassetid://123014987119496',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://71899944004663',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Hull',meshId='rbxassetid://70426283756609',size={2.3,3.13,2.3},pos={0,2.015,0},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
@@ -416,8 +474,10 @@ return {
 		{name='Missile',meshId='rbxassetid://99548513216986',size={0.6,1.4,0.585},pos={0,2.45,0},rot={0,-180,0},color={170,236,250},material='SmoothPlastic',tint='secondary'},
 		{name='Glow',meshId='rbxassetid://112676942441569',size={2.42,1.143,2.42},pos={0,1.222,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='RingBubbles',meshId='rbxassetid://77402958851970',size={2.737,0.49,2.863},pos={0.105,2.355,0.024},rot={0,-180,0},color={170,236,250},material='Neon',pivot={0.105,-0.055,0.024}},
+		{name='RoofRimTop',meshId='rbxassetid://90571778120196',size={4.87,0.11,4.218},pos={0,0.435,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://136945308470535',size={2.116,0.025,3.925},pos={0,0.493,0},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['tidal_buildings/SAMLauncher']={origin='ground',tris=1590,parts={
+	['tidal_buildings/SAMLauncher']={origin='ground',tris=1918,parts={
 		{name='Plinth',meshId='rbxassetid://113044341750766',size={4.9,0.45,4.244},pos={0,0.225,0},rot={0,-180,0},color={34,64,86},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://112130505413765',size={4.94,0.1,4.278},pos={0,0.21,0},rot={0,-180,0},color={150,220,240},material='SmoothPlastic',tint='team'},
 		{name='Base',meshId='rbxassetid://115348589817033',size={2.6,0.945,2.6},pos={0,0.923,0},rot={0,-180,0},color={26,52,72},material='SmoothPlastic',tint='primary'},
@@ -425,13 +485,18 @@ return {
 		{name='Sensor',meshId='rbxassetid://118341647599357',size={0.64,0.3,0.624},pos={0,1.4,1},rot={0,-180,0},color={150,220,240},material='Glass'},
 		{name='Glow',meshId='rbxassetid://121410148855073',size={2.72,0.328,2.72},pos={0,0.879,0},rot={0,-180,0},color={60,200,230},material='Neon',tint='accent'},
 		{name='Beacons',meshId='rbxassetid://92701781990720',size={2.986,0.24,2.998},pos={0,0.57,0},rot={0,-180,0},color={170,236,250},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://106297454316228',size={4.87,0.339,4.218},pos={0,0.549,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://76819076203152',size={2.116,0.025,3.925},pos={0,0.493,0},rot={0,-180,0},color={60,200,230},material='Neon'},
 	}},
-	['ember_vehicle']={origin='ground',tris=1972,parts={
+	['ember_vehicle']={origin='ground',tris=3163,parts={
 		{name='Frame',meshId='rbxassetid://128876000367494',size={1.66,1.509,4.71},pos={0,0.755,-0.025},rot={0,-180,0},color={130,104,89},material='Basalt'},
 		{name='Trim',meshId='rbxassetid://87519203345414',size={1.52,1.323,4.009},pos={0,1.023,0.114},rot={0,-180,0},color={255,190,110},material='Metal',tint='secondary'},
 		{name='LavaGlow',meshId='rbxassetid://98514930320717',size={3.322,1.315,4.49},pos={0,0.672,0.355},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='WheelF',meshId='rbxassetid://92855628805824',size={0.16,0.896,0.867},pos={0,0.622,-1.787},rot={0,-180,0},color={255,190,110},material='Neon',tint='secondary',pivot={-0,0.008,-0.037}},
 		{name='WheelR',meshId='rbxassetid://96237519632549',size={0.16,0.896,0.867},pos={0,0.622,1.663},rot={0,-180,0},color={255,190,110},material='Neon',tint='secondary',pivot={-0,0.008,-0.037}},
+		{name='DeckRimTop',meshId='rbxassetid://81745100295238',size={1.58,1.112,4.611},pos={0,0.991,-0.025},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://116800508602223',size={3.979,0.03,3.94},pos={-0.031,0.035,-0.071},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent',pivot={-0.031,-0.015,-0.071}},
+		{name='GroundFlameTop',meshId='rbxassetid://102907149853140',size={5.316,0.03,5.158},pos={0,0.035,0},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
 	}},
 	['ember_nuclear']={origin='center',tris=860,parts={
 		{name='Body',meshId='rbxassetid://138408827981843',size={0.9,0.9,3.36},pos={0,-0,0.36},rot={0,-180,0},color={130,104,89},material='Basalt'},
@@ -448,23 +513,27 @@ return {
 		{name='WingR',meshId='rbxassetid://127278964140304',size={6.444,2.403,6.37},pos={3.632,7.799,0.636},rot={0,-180,0},color={126,103,92},material='SmoothPlastic',pivot={3.182,-0.649,0.636}},
 		{name='WingRVeins',meshId='rbxassetid://93279028503361',size={6.376,2.424,5.968},pos={3.557,7.815,0.65},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent',pivot={3.107,-0.665,0.65}},
 	}},
-	['ember_buildings/City']={origin='ground',tris=788,parts={
+	['ember_buildings/City']={origin='ground',tris=1122,parts={
 		{name='Plinth',meshId='rbxassetid://110966554925747',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://120815607709094',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Keep',meshId='rbxassetid://120658537258609',size={3.782,3.77,3.841},pos={0.059,2.335,0},rot={0,-180,0},color={130,104,89},material='Basalt'},
 		{name='Trim',meshId='rbxassetid://136465095245351',size={2.14,3.305,3.046},pos={0,2.157,-0.469},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='secondary'},
 		{name='LavaFlow',meshId='rbxassetid://73293624722315',size={2.116,2.883,3.534},pos={0,1.908,0.006},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='RingEmbers',meshId='rbxassetid://93958924485490',size={2.017,0.53,1.787},pos={0.011,3.325,0},rot={0,-180,0},color={255,190,110},material='Neon',pivot={0.011,-0.025,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://136229086323002',size={4.411,0.227,4.411},pos={0,0.471,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://107355809253202',size={4.117,0.025,4.118},pos={0,0.492,0},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['ember_buildings/DefensePost']={origin='ground',tris=514,parts={
+	['ember_buildings/DefensePost']={origin='ground',tris=848,parts={
 		{name='Plinth',meshId='rbxassetid://109578684462991',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://110323096370234',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Walls',meshId='rbxassetid://138363954037744',size={3.62,2.3,3.62},pos={0,1.6,0},rot={0,-180,0},color={130,104,89},material='Basalt'},
 		{name='LavaFlow',meshId='rbxassetid://139982562686267',size={3.388,0.817,3.388},pos={0,0.909,0},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='Core',meshId='rbxassetid://109087219308318',size={0.4,0.55,0.346},pos={0,2.9,0},rot={0,-180,0},color={255,190,110},material='Neon'},
 		{name='RingShards',meshId='rbxassetid://119311069311900',size={2.133,0.551,1.872},pos={0,1.888,0},rot={0,-180,0},color={255,170,90},material='Metal',tint='secondary',pivot={-0,0.012,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://88533232289883',size={4.411,0.133,4.411},pos={0,0.424,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://126969714158850',size={4.117,0.025,4.118},pos={0,0.492,0},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['ember_buildings/Port']={origin='ground',tris=780,parts={
+	['ember_buildings/Port']={origin='ground',tris=1121,parts={
 		{name='Plinth',meshId='rbxassetid://129503465539634',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://87617668843612',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Tower',meshId='rbxassetid://75079785210053',size={2.65,2.65,3.75},pos={0.125,1.775,-0.325},rot={0,-180,0},color={130,104,89},material='Basalt'},
@@ -472,16 +541,20 @@ return {
 		{name='LavaFlow',meshId='rbxassetid://135677403265471',size={2.346,2.13,3.64},pos={-0.072,1.66,-0.33},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='Flame',meshId='rbxassetid://95330575093439',size={0.605,0.74,0.55},pos={0.7,3.72,0.8},rot={0,-180,0},color={255,190,110},material='Neon'},
 		{name='RingBeacon',meshId='rbxassetid://136533547686830',size={1.64,0.3,1.64},pos={0.7,3.25,0.8},rot={0,-180,0},color={255,170,90},material='Metal',tint='secondary',pivot={-0,0,0}},
+		{name='RoofRimTop',meshId='rbxassetid://109880354446523',size={4.411,0.579,4.411},pos={0,0.64,-0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://90588701934418',size={3.127,0.465,4.118},pos={0.495,0.712,0},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['ember_buildings/Factory']={origin='ground',tris=744,parts={
+	['ember_buildings/Factory']={origin='ground',tris=1134,parts={
 		{name='Plinth',meshId='rbxassetid://140358179345996',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://81659353870040',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Forge',meshId='rbxassetid://123300190015443',size={5.2,1.71,2.6},pos={0.65,0.855,0},rot={0,-180,0},color={130,104,89},material='Basalt'},
 		{name='LavaFlow',meshId='rbxassetid://75491351772999',size={4,0.65,1.625},pos={1.15,0.675,-0.522},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='ChimneyGlow',meshId='rbxassetid://133419491036789',size={1.39,0.03,0.44},pos={-0.825,1.715,0.7},rot={0,-180,0},color={255,190,110},material='Neon'},
 		{name='RingGear',meshId='rbxassetid://105417110211935',size={0.956,0.1,0.956},pos={0.55,1.39,-0.45},rot={0,-180,0},color={255,170,90},material='Metal',tint='secondary',pivot={0,0,0}},
+		{name='RoofRimTop',meshId='rbxassetid://107113614320680',size={5.426,1.065,4.411},pos={0.507,0.807,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://95480472472689',size={5.131,0.915,2.809},pos={0.507,0.897,0.654},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['ember_buildings/MissileSilo']={origin='ground',tris=852,parts={
+	['ember_buildings/MissileSilo']={origin='ground',tris=1186,parts={
 		{name='Plinth',meshId='rbxassetid://109147801563312',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://126026121159937',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Cone',meshId='rbxassetid://80305956792397',size={3.685,1.7,3.742},pos={0.057,1.3,0},rot={0,-180,0},color={130,104,89},material='Basalt'},
@@ -489,21 +562,28 @@ return {
 		{name='LavaFlow',meshId='rbxassetid://118912764577754',size={3.447,1.637,2.06},pos={0,1.275,0.007},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='CraterGlow',meshId='rbxassetid://133429367160430',size={1.41,0.165,1.375},pos={0,2.082,0},rot={0,-180,0},color={255,190,110},material='Neon'},
 		{name='RingVent',meshId='rbxassetid://91817914014091',size={1.187,0.07,1.2},pos={0,2.55,0},rot={0,-180,0},color={255,170,90},material='Metal',tint='secondary',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://115999589792185',size={4.411,0.133,4.411},pos={0,0.424,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://135844694284083',size={4.117,0.025,4.118},pos={0,0.492,0},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['ember_buildings/SAMLauncher']={origin='ground',tris=494,parts={
+	['ember_buildings/SAMLauncher']={origin='ground',tris=828,parts={
 		{name='Plinth',meshId='rbxassetid://86454816987213',size={4.435,0.45,4.435},pos={0,0.225,0},rot={0,-180,0},color={126,106,92},material='Basalt'},
 		{name='OwnerBand',meshId='rbxassetid://139787075740998',size={4.472,0.1,4.472},pos={0,0.21,0},rot={0,-180,0},color={255,170,90},material='SmoothPlastic',tint='team'},
 		{name='Base',meshId='rbxassetid://78440606862595',size={2.494,0.8,2.494},pos={0,0.85,0},rot={0,-180,0},color={130,104,89},material='Basalt'},
 		{name='RingTurret',meshId='rbxassetid://99561300518216',size={1.42,1.976,1.335},pos={0,2.243,-0.11},rot={0,-180,0},color={255,170,90},material='Metal',tint='secondary',pivot={-0,-0.993,-0.11}},
 		{name='LavaFlow',meshId='rbxassetid://84148401402638',size={2.392,0.814,2.548},pos={-0.001,0.893,-0.101},rot={0,-180,0},color={255,140,50},material='Neon',tint='accent'},
 		{name='Braziers',meshId='rbxassetid://136110256578440',size={3.047,0.5,3.062},pos={0.015,0.7,0},rot={0,-180,0},color={255,190,110},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://90952292097612',size={4.411,0.577,4.411},pos={0,0.646,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://116526958144128',size={4.117,0.025,4.118},pos={0,0.492,0},rot={0,-180,0},color={255,140,50},material='Neon'},
 	}},
-	['storm_vehicle']={origin='ground',tris=1460,parts={
+	['storm_vehicle']={origin='ground',tris=2715,parts={
 		{name='Deck',meshId='rbxassetid://81336886215312',size={2.85,0.385,4.284},pos={0,0.852,-0.048},rot={0,-180,0},color={87,99,142},material='Metal',tint='primary'},
 		{name='Coils',meshId='rbxassetid://113418016170590',size={3.178,0.835,2.72},pos={0,1.107,0.06},rot={0,-180,0},color={210,224,255},material='Metal',tint='secondary'},
 		{name='CoilBalls',meshId='rbxassetid://100449340293940',size={3.075,0.73,2.716},pos={0,1.485,0.008},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='ArcGlow',meshId='rbxassetid://88296840883057',size={1.96,0.225,2.94},pos={0,0.728,0},rot={0,-180,0},color={210,224,255},material='Neon'},
 		{name='RingRotor',meshId='rbxassetid://123709050183148',size={1.681,0.06,1.7},pos={0,0.46,0},rot={0,-180,0},color={210,224,255},material='Metal',pivot={-0,-0,-0}},
+		{name='DeckRimTop',meshId='rbxassetid://103451368545013',size={2.77,0.27,4.204},pos={0,0.94,-0.048},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://136906994858092',size={4.106,0.03,4.042},pos={0,0.035,0.001},rot={0,-180,0},color={210,224,255},material='Neon',tint='secondary',pivot={-0,-0.015,0.001}},
+		{name='GroundRingTop',meshId='rbxassetid://124651835741619',size={5.399,0.03,5.399},pos={0,0.035,0},rot={0,-180,0},color={140,180,255},material='SmoothPlastic',tint='accent',pivot={-0,-0.015,-0}},
 	}},
 	['storm_nuclear']={origin='center',tris=1456,parts={
 		{name='Body',meshId='rbxassetid://107206431639400',size={1.24,1.24,4},pos={0,-0,-0.2},rot={0,-180,0},color={94,106,145},material='Metal',tint='primary'},
@@ -522,15 +602,17 @@ return {
 		{name='BellyGlow',meshId='rbxassetid://111671227743944',size={2.8,0.5,2.2},pos={0,8.55,0},rot={0,-180,0},color={210,224,255},material='Neon'},
 		{name='Lines',meshId='rbxassetid://81278224143600',size={3.039,4.909,2.039},pos={0,6.15,0},rot={0,-180,0},color={210,224,255},material='SmoothPlastic'},
 	}},
-	['storm_buildings/City']={origin='ground',tris=1288,parts={
+	['storm_buildings/City']={origin='ground',tris=1604,parts={
 		{name='Plinth',meshId='rbxassetid://75271423445414',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://101408617122027',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='Towers',meshId='rbxassetid://119759212428132',size={3.185,2.75,2.86},pos={0,1.775,0.35},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
 		{name='RingCoil',meshId='rbxassetid://88188548282134',size={1.44,0.914,1.418},pos={0,2.15,0},rot={0,-180,0},color={210,224,255},material='Metal',tint='secondary',pivot={-0,0,-0}},
 		{name='CoilBall',meshId='rbxassetid://83503873049889',size={0.691,0.72,0.709},pos={0,3.45,-0},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='SparkTips',meshId='rbxassetid://80459876044548',size={2.685,0.26,2.36},pos={0,2.12,0.35},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://111041250952853',size={4.79,0.12,4.149},pos={0,0.38,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://71656401491125',size={2.076,0.025,3.855},pos={0,0.442,0},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['storm_buildings/DefensePost']={origin='ground',tris=1378,parts={
+	['storm_buildings/DefensePost']={origin='ground',tris=1694,parts={
 		{name='Plinth',meshId='rbxassetid://123955254718323',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://81766500909787',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='Bunker',meshId='rbxassetid://98468744494001',size={3.5,1.48,3.031},pos={0,1.14,0},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
@@ -538,8 +620,10 @@ return {
 		{name='RingField',meshId='rbxassetid://104914869840851',size={1.885,0.06,1.9},pos={0,2.12,0},rot={0,-180,0},color={210,224,255},material='Metal',tint='secondary',pivot={-0,0,-0}},
 		{name='PostBalls',meshId='rbxassetid://84081584421292',size={3.087,0.34,2.731},pos={-0,2.58,0.4},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='DomeCore',meshId='rbxassetid://90174869793215',size={0.408,0.44,0.429},pos={-0,1.9,-0},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://129179514912676',size={4.79,0.12,4.149},pos={0,0.38,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://99199738568691',size={2.076,0.025,3.855},pos={0,0.442,0},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['storm_buildings/Port']={origin='ground',tris=968,parts={
+	['storm_buildings/Port']={origin='ground',tris=1318,parts={
 		{name='Plinth',meshId='rbxassetid://93636498106079',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://84694772490113',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='Dock',meshId='rbxassetid://78581987232455',size={2.65,1.72,4.045},pos={-0.325,0.99,-0.822},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
@@ -547,8 +631,10 @@ return {
 		{name='RingCoil',meshId='rbxassetid://79690557833475',size={0.94,0.895,0.926},pos={1.15,2.6,0.95},rot={0,-180,0},color={210,224,255},material='Metal',tint='secondary',pivot={-0,-0,0}},
 		{name='MastBall',meshId='rbxassetid://106486938940700',size={0.64,0.64,0.64},pos={1.15,3.62,0.95},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='HallStrip',meshId='rbxassetid://137182652168548',size={1.7,0.12,0.04},pos={-0.6,1.15,-0.51},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://100285710892113',size={4.79,2.351,4.889},pos={0,1.493,-0.37},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://89901763553931',size={2.075,0.055,4.596},pos={0.001,0.458,-0.37},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['storm_buildings/Factory']={origin='ground',tris=872,parts={
+	['storm_buildings/Factory']={origin='ground',tris=1287,parts={
 		{name='Plinth',meshId='rbxassetid://92075989321894',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://124879645699862',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://89908169328621',size={4.5,1.45,2.6},pos={0.25,1.125,0},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
@@ -556,8 +642,10 @@ return {
 		{name='RingCoil',meshId='rbxassetid://114951588197121',size={0.86,0.595,0.847},pos={2.75,1.45,0},rot={0,-180,0},color={210,224,255},material='Metal',tint='secondary',pivot={-0,-0,-0}},
 		{name='StackBall',meshId='rbxassetid://111867406484821',size={0.408,0.44,0.429},pos={2.75,2,-0},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='Furnace',meshId='rbxassetid://129804518365698',size={2.4,0.22,0.04},pos={-0.5,0.95,-1.32},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://132687457053201',size={5.638,1.47,4.149},pos={0.424,1.052,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://81972911603576',size={3.935,1.823,3.855},pos={0.929,1.342,0},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['storm_buildings/MissileSilo']={origin='ground',tris=1312,parts={
+	['storm_buildings/MissileSilo']={origin='ground',tris=1628,parts={
 		{name='Plinth',meshId='rbxassetid://83169239358316',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://79956569563168',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='SiloRing',meshId='rbxassetid://82878646118447',size={2.9,0.56,2.9},pos={0,0.68,0},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
@@ -566,8 +654,10 @@ return {
 		{name='RingCoil',meshId='rbxassetid://127035840967897',size={1.2,0.445,1.182},pos={0,1.775,0},rot={0,-180,0},color={210,224,255},material='Metal',pivot={-0,0.005,-0}},
 		{name='PylonBalls',meshId='rbxassetid://99486479774883',size={2.495,0.3,2.212},pos={0,2.78,0.32},rot={0,-180,0},color={140,180,255},material='Neon',tint='accent'},
 		{name='RodTip',meshId='rbxassetid://122279820043726',size={0.18,0.18,0.18},pos={0,3.67,-0},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://72280948089534',size={4.79,0.12,4.149},pos={0,0.38,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://84890631947528',size={2.076,0.025,3.855},pos={0,0.442,0},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['storm_buildings/SAMLauncher']={origin='ground',tris=1228,parts={
+	['storm_buildings/SAMLauncher']={origin='ground',tris=1550,parts={
 		{name='Plinth',meshId='rbxassetid://105071386235791',size={4.8,0.4,4.157},pos={0,0.2,0},rot={0,-180,0},color={102,114,145},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://102862283404580',size={4.86,0.09,4.209},pos={0,0.195,0},rot={0,-180,0},color={120,130,150},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://132657817175335',size={2,0.8,2},pos={0,0.8,0},rot={0,-180,0},color={102,114,145},material='Metal',tint='primary'},
@@ -576,8 +666,10 @@ return {
 		{name='CoilMast',meshId='rbxassetid://137069137433188',size={0.6,2.505,0.6},pos={-1.55,1.648,1.15},rot={0,-180,0},color={102,114,145},material='DiamondPlate'},
 		{name='RingCoil',meshId='rbxassetid://94605935532299',size={0.7,0.695,0.689},pos={-1.55,2.4,1.15},rot={0,-180,0},color={210,224,255},material='Metal',pivot={0,0,0}},
 		{name='MastBall',meshId='rbxassetid://90898271600247',size={0.371,0.4,0.39},pos={-1.55,3.05,1.15},rot={0,-180,0},color={210,224,255},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://90777002603877',size={4.79,2.951,4.149},pos={0,1.795,0},rot={0,-180,0},color={160,107,255},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://73881385268296',size={2.076,0.025,3.855},pos={0,0.442,0},rot={0,-180,0},color={140,180,255},material='Neon'},
 	}},
-	['solaris_vehicle']={origin='ground',tris=1076,parts={
+	['solaris_vehicle']={origin='ground',tris=3903,parts={
 		{name='Hull',meshId='rbxassetid://128356926024693',size={1.7,0.849,5.657},pos={-0,0.674,0.049},rot={0,-180,0},color={35,43,58},material='Metal',tint='primary'},
 		{name='HullTrim',meshId='rbxassetid://112942355261088',size={1.75,0.84,5.85},pos={0,0.85,-0.425},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Cockpit',meshId='rbxassetid://117589134020684',size={1.1,0.6,1},pos={0,1.15,-1.5},rot={0,-180,0},color={255,226,150},material='Glass'},
@@ -587,6 +679,10 @@ return {
 		{name='EngineGlow',meshId='rbxassetid://100928982256014',size={4.868,0.48,0.05},pos={0,0.78,1.33},rot={0,-180,0},color={255,226,150},material='Neon',tint='accent'},
 		{name='TailFins',meshId='rbxassetid://135810380014049',size={2.462,1.728,1.3},pos={-0,1.834,2.45},rot={0,-180,0},color={214,168,72},material='Metal'},
 		{name='Emblem',meshId='rbxassetid://109500178318252',size={0.6,0.6,0.05},pos={0,1.2,2.3},rot={0,-180,0},color={255,207,91},material='Foil'},
+		{name='DeckRimTop',meshId='rbxassetid://93994667507328',size={8.474,0.395,5.577},pos={0,1.154,0.049},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://106343194670043',size={6.085,0.03,6.085},pos={0,0.035,0},rot={0,-180,0},color={255,207,91},material='Metal',tint='accent',pivot={-0,-0.015,-0}},
+		{name='GroundLaurelTop',meshId='rbxassetid://122486795704838',size={4.407,0.03,3.961},pos={0,0.035,0.102},rot={0,-180,0},color={226,184,92},material='Metal',pivot={-0,-0.015,0.102}},
+		{name='GroundRimTop',meshId='rbxassetid://138295348830658',size={6.6,0.03,6.6},pos={0,0.035,0},rot={0,-180,0},color={226,184,92},material='Metal',pivot={-0,-0.015,-0}},
 	}},
 	['solaris_nuclear']={origin='center',tris=886,parts={
 		{name='Shaft',meshId='rbxassetid://135007973727557',size={0.9,0.9,3.25},pos={0,-0,-0.425},rot={0,-180,0},color={120,84,26},material='Metal',tint='primary'},
@@ -605,7 +701,7 @@ return {
 		{name='WingR',meshId='rbxassetid://121156104504433',size={7.237,3.299,6.654},pos={4.159,11.227,0.563},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary',pivot={3.609,-1.627,0.563}},
 		{name='WingRCovert',meshId='rbxassetid://118170824241260',size={2.789,1.33,1.9},pos={1.92,10.31,0.05},rot={0,-180,0},color={35,43,58},material='Metal',tint='primary',pivot={1.37,-0.71,0.05}},
 	}},
-	['solaris_buildings/City']={origin='ground',tris=1050,parts={
+	['solaris_buildings/City']={origin='ground',tris=1423,parts={
 		{name='Plinth',meshId='rbxassetid://93733475273136',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://93842325364612',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='Columns',meshId='rbxassetid://90262913318439',size={3.238,2,3.238},pos={0,1.47,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
@@ -613,8 +709,10 @@ return {
 		{name='Dome',meshId='rbxassetid://80462213036890',size={2.5,1.33,2.5},pos={0,3.385,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Spire',meshId='rbxassetid://105710229354478',size={0.36,0.77,0.342},pos={0,4.365,0},rot={0,-180,0},color={255,207,91},material='Foil'},
 		{name='SunDisc',meshId='rbxassetid://131361448972528',size={0.72,0.72,0.06},pos={0,4.82,0},rot={0,-180,0},color={255,207,91},material='Foil',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://120093184053776',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://90132270349032',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['solaris_buildings/DefensePost']={origin='ground',tris=1446,parts={
+	['solaris_buildings/DefensePost']={origin='ground',tris=1819,parts={
 		{name='Plinth',meshId='rbxassetid://71125272499045',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://90162616453158',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='Walls',meshId='rbxassetid://118716493241967',size={3.34,1.355,3.34},pos={0,1.148,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
@@ -622,8 +720,10 @@ return {
 		{name='TowerDomes',meshId='rbxassetid://87804304392714',size={4.1,1.03,4.1},pos={0,3.435,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Keep',meshId='rbxassetid://130570472461013',size={1.5,2.58,1.5},pos={0,1.76,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Banner',meshId='rbxassetid://121777568111207',size={0.52,1.46,0.07},pos={0,3.68,0},rot={0,-180,0},color={255,207,91},material='Foil',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://106269395826372',size={4.48,2.811,4.48},pos={0,1.655,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://78341089366319',size={4.2,3.076,4.2},pos={0,1.818,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['solaris_buildings/Port']={origin='ground',tris=538,parts={
+	['solaris_buildings/Port']={origin='ground',tris=980,parts={
 		{name='Plinth',meshId='rbxassetid://75083789545606',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://133432332617004',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='Quay',meshId='rbxassetid://98524033554994',size={2.2,0.6,1.6},pos={0,0.3,-2.9},rot={0,-180,0},color={232,222,198},material='Marble'},
@@ -632,8 +732,10 @@ return {
 		{name='Lantern',meshId='rbxassetid://129412738301169',size={1,1.05,1},pos={0.9,3.525,0.9},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='LanternGlow',meshId='rbxassetid://135730624751844',size={0.6,0.36,0.6},pos={0.9,3.25,0.9},rot={0,-180,0},color={255,226,150},material='Neon',tint='accent'},
 		{name='Pediment',meshId='rbxassetid://121295242453659',size={2.6,0.4,0.6},pos={0,2.77,-1.6},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
+		{name='RoofRimTop',meshId='rbxassetid://134737812609769',size={4.48,0.26,5.91},pos={0,0.38,-0.715},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://73758061510729',size={4.2,0.375,5.63},pos={0,0.467,-0.715},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['solaris_buildings/Factory']={origin='ground',tris=534,parts={
+	['solaris_buildings/Factory']={origin='ground',tris=967,parts={
 		{name='Plinth',meshId='rbxassetid://135819599978267',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://78533300213275',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://75710086587492',size={3,1.5,2.6},pos={-0.35,1.22,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
@@ -642,8 +744,10 @@ return {
 		{name='Obelisk',meshId='rbxassetid://129934060160701',size={0.636,3.13,0.636},pos={2.6,2.035,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Furnace',meshId='rbxassetid://95554169891877',size={0.5,0.5,0.06},pos={1.15,1,-1.32},rot={0,-180,0},color={255,226,150},material='Neon',tint='accent'},
 		{name='Annex',meshId='rbxassetid://135637944130865',size={1.2,1,1.6},pos={1.6,0.97,0},rot={0,-180,0},color={232,222,198},material='Marble'},
+		{name='RoofRimTop',meshId='rbxassetid://91544066170152',size={5.128,3.282,4.48},pos={0.324,1.891,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://80800346013456',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['solaris_buildings/MissileSilo']={origin='ground',tris=1302,parts={
+	['solaris_buildings/MissileSilo']={origin='ground',tris=1675,parts={
 		{name='Plinth',meshId='rbxassetid://75745729123724',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://129274848836548',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='Ring',meshId='rbxassetid://92593155317690',size={3,0.33,3},pos={0,0.635,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
@@ -651,16 +755,20 @@ return {
 		{name='Lintel',meshId='rbxassetid://103981201030697',size={3.4,0.173,3.4},pos={0,2.68,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='Missile',meshId='rbxassetid://138323482473110',size={0.64,3.05,0.64},pos={0,2.325,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary'},
 		{name='MissileTip',meshId='rbxassetid://115606682715990',size={0.72,1.886,0.72},pos={0,2.917,0},rot={0,-180,0},color={255,207,91},material='Foil',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://127336095395895',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://130284084365163',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['solaris_buildings/SAMLauncher']={origin='ground',tris=572,parts={
+	['solaris_buildings/SAMLauncher']={origin='ground',tris=945,parts={
 		{name='Plinth',meshId='rbxassetid://138936572902068',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://99979552016107',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={214,168,72},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://106725612225016',size={2,0.83,2},pos={0,0.885,0},rot={0,-180,0},color={232,222,198},material='Marble',tint='primary'},
 		{name='Turret',meshId='rbxassetid://112038278091416',size={1.6,1.061,1.433},pos={0,1.75,0.1},rot={0,-180,0},color={214,168,72},material='Metal',tint='secondary',pivot={-0,-0.45,0.1}},
 		{name='Javelins',meshId='rbxassetid://135935477008934',size={1.48,0.39,0.706},pos={0,2.18,-0.803},rot={0,-180,0},color={255,207,91},material='Foil',tint='accent',pivot={-0,-0.88,-0.803}},
 		{name='Crest',meshId='rbxassetid://116374507111669',size={0.6,0.6,0.05},pos={0,2.95,0.55},rot={0,-180,0},color={255,207,91},material='Foil'},
+		{name='RoofRimTop',meshId='rbxassetid://131180009020121',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://126553595070952',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_vehicle']={origin='ground',tris=3672,parts={
+	['crown_vehicle']={origin='ground',tris=5083,parts={
 		{name='Car',meshId='rbxassetid://88510415571048',size={2.3,1.74,2.685},pos={0,1.47,0.399},rot={0,-180,0},color={40,52,110},material='SmoothPlastic',tint='primary'},
 		{name='CarTrim',meshId='rbxassetid://136076949791229',size={2.4,2.4,2.95},pos={0,1.8,0.375},rot={0,-180,0},color={255,204,70},material='Metal',tint='secondary'},
 		{name='WingOrnaments',meshId='rbxassetid://135395336938307',size={5.4,1.25,0.06},pos={0,1.675,0.9},rot={0,-180,0},color={255,204,70},material='Metal',tint='accent'},
@@ -683,6 +791,10 @@ return {
 		{name='LegBL2',meshId='rbxassetid://92164492533091',size={0.2,0.96,0.24},pos={0.42,0.5,-3.97},rot={0,-180,0},color={255,204,70},material='Metal',tint='secondary',pivot={-0,0.5,-0.02}},
 		{name='LegFR2',meshId='rbxassetid://128261476643660',size={0.2,0.96,0.24},pos={0.82,0.5,-4.97},rot={0,-180,0},color={255,204,70},material='Metal',tint='secondary',pivot={-0,0.5,-0.02}},
 		{name='LegBR2',meshId='rbxassetid://80468107925647',size={0.2,0.96,0.24},pos={0.82,0.5,-3.97},rot={0,-180,0},color={255,204,70},material='Metal',tint='secondary',pivot={-0,0.5,-0.02}},
+		{name='DeckRimTop',meshId='rbxassetid://99116018780433',size={2.212,1.291,2.596},pos={-0.004,1.734,0.395},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='GroundTop',meshId='rbxassetid://80762370405857',size={4.765,0.03,4.765},pos={0,0.035,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='accent',pivot={-0,-0.015,-0}},
+		{name='GroundJewelTop',meshId='rbxassetid://127789572159865',size={5.059,0.03,5.059},pos={0,0.035,0},rot={0,-180,0},color={255,232,160},material='Neon',tint='secondary',pivot={-0,-0.015,-0}},
+		{name='GroundRimTop',meshId='rbxassetid://85307056280303',size={5.966,0.03,5.973},pos={-0.005,0.035,-0.009},rot={0,-180,0},color={226,184,92},material='Metal',pivot={-0.005,-0.015,-0.009}},
 	}},
 	['crown_nuclear']={origin='center',tris=1230,parts={
 		{name='Shell',meshId='rbxassetid://71696938578491',size={1.612,1.612,3.417},pos={0,0,-0.076},rot={0,-180,0},color={30,36,90},material='SmoothPlastic',tint='primary'},
@@ -698,7 +810,7 @@ return {
 		{name='Tassels',meshId='rbxassetid://108885489947266',size={10.177,2.416,0.2},pos={0,8.892,-2.12},rot={0,-180,0},color={255,204,70},material='Metal',pivot={-0,-1.292,0}},
 		{name='Pennants',meshId='rbxassetid://115955411490851',size={11.696,1.708,0.04},pos={0.003,6.757,0},rot={0,-180,0},color={30,36,90},material='SmoothPlastic'},
 	}},
-	['crown_buildings/City']={origin='ground',tris=1414,parts={
+	['crown_buildings/City']={origin='ground',tris=1787,parts={
 		{name='Plinth',meshId='rbxassetid://127903151254697',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://124179656689367',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='Keep',meshId='rbxassetid://105971175000500',size={2.4,2.455,2.4},pos={0,1.697,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
@@ -706,8 +818,10 @@ return {
 		{name='Roofs',meshId='rbxassetid://137747852418689',size={3.962,2.6,3.962},pos={0,4.31,0},rot={0,-180,0},color={40,52,110},material='SmoothPlastic',tint='secondary'},
 		{name='GoldTrim',meshId='rbxassetid://131952517397745',size={3.06,3.535,3.06},pos={0,4.333,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='accent'},
 		{name='Windows',meshId='rbxassetid://72530134836910',size={1.42,0.4,0.05},pos={0,1.9,-1.22},rot={0,-180,0},color={30,36,90},material='Glass'},
+		{name='RoofRimTop',meshId='rbxassetid://80076145964351',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://83903482707723',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_buildings/DefensePost']={origin='ground',tris=632,parts={
+	['crown_buildings/DefensePost']={origin='ground',tris=1005,parts={
 		{name='Plinth',meshId='rbxassetid://129645781526755',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://99488196066888',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='Gatehouse',meshId='rbxassetid://133254116412959',size={3.4,2.155,2.1},pos={0,1.547,0.4},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
@@ -716,8 +830,10 @@ return {
 		{name='Towers',meshId='rbxassetid://131571557713804',size={3.85,2.09,1.15},pos={0,1.515,-0.2},rot={0,-180,0},color={236,230,214},material='Marble'},
 		{name='Roofs',meshId='rbxassetid://82510372411111',size={3.88,0.8,1.18},pos={0,2.96,-0.2},rot={0,-180,0},color={40,52,110},material='SmoothPlastic',tint='secondary'},
 		{name='Pennants',meshId='rbxassetid://108474155514449',size={3.322,0.5,0.05},pos={0.289,3.61,-0.2},rot={0,-180,0},color={255,204,70},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://74445175322149',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://78259923496076',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_buildings/Port']={origin='ground',tris=446,parts={
+	['crown_buildings/Port']={origin='ground',tris=889,parts={
 		{name='Plinth',meshId='rbxassetid://138036119906307',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://115403627731402',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='Quay',meshId='rbxassetid://132835866023435',size={2,0.6,1.5},pos={0,0.3,-2.8},rot={0,-180,0},color={236,230,214},material='Marble'},
@@ -727,8 +843,10 @@ return {
 		{name='TowerRoof',meshId='rbxassetid://89645462926031',size={1.298,0.95,1.298},pos={1.2,3.385,1.1},rot={0,-180,0},color={40,52,110},material='SmoothPlastic'},
 		{name='Lamp',meshId='rbxassetid://93849270529237',size={0.6,0.3,0.6},pos={1.2,2.3,1.1},rot={0,-180,0},color={250,232,170},material='Neon',tint='accent'},
 		{name='GoldTrim',meshId='rbxassetid://93914745735095',size={2.55,3.8,2.67},pos={0.525,2.6,-0.21},rot={0,-180,0},color={255,204,70},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://129148270496554',size={4.48,0.26,5.76},pos={0,0.38,-0.64},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://95194857565472',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_buildings/Factory']={origin='ground',tris=484,parts={
+	['crown_buildings/Factory']={origin='ground',tris=954,parts={
 		{name='Plinth',meshId='rbxassetid://121386062480938',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://140478618990016',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='Hall',meshId='rbxassetid://132382557179986',size={3,1.2,2.6},pos={-0.35,1.07,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
@@ -736,16 +854,20 @@ return {
 		{name='Chimney',meshId='rbxassetid://109213286611047',size={0.8,2,0.8},pos={2.55,1,0},rot={0,-180,0},color={236,230,214},material='Marble'},
 		{name='ChimneyCrown',meshId='rbxassetid://131254284860122',size={0.96,0.427,0.96},pos={2.55,2.162,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='accent'},
 		{name='Windows',meshId='rbxassetid://71216764642728',size={2.45,0.45,0.05},pos={-0.25,1.15,-1.32},rot={0,-180,0},color={30,36,90},material='Glass'},
+		{name='RoofRimTop',meshId='rbxassetid://101034336456807',size={5.239,2.029,4.48},pos={0.38,1.264,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://118526404051035',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_buildings/MissileSilo']={origin='ground',tris=1566,parts={
+	['crown_buildings/MissileSilo']={origin='ground',tris=1939,parts={
 		{name='Plinth',meshId='rbxassetid://75038729246125',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://71381130320614',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='Tower',meshId='rbxassetid://123092360182745',size={2.6,1.83,2.6},pos={0,1.385,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='Crown',meshId='rbxassetid://94320659786102',size={2.68,0.778,2.68},pos={0,2.631,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='accent'},
 		{name='Missile',meshId='rbxassetid://76569001590428',size={0.68,3.8,0.68},pos={0,2.5,0},rot={0,-180,0},color={40,52,110},material='SmoothPlastic',tint='secondary'},
 		{name='MissileTrim',meshId='rbxassetid://100286137659340',size={0.77,1.835,0.77},pos={0,3.482,0},rot={0,-180,0},color={255,204,70},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://128180343957789',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://113050891948267',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['crown_buildings/SAMLauncher']={origin='ground',tris=942,parts={
+	['crown_buildings/SAMLauncher']={origin='ground',tris=1315,parts={
 		{name='Plinth',meshId='rbxassetid://115044276943070',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://100027927455056',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,204,70},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://96144359444551',size={2,0.5,2},pos={0,0.72,0},rot={0,-180,0},color={236,230,214},material='Marble',tint='primary'},
@@ -755,8 +877,10 @@ return {
 		{name='Pennant',meshId='rbxassetid://71207033223122',size={0.622,0.5,0.05},pos={0.289,2.35,0.5},rot={0,-180,0},color={255,204,70},material='Metal',pivot={0.289,-1.05,0.5}},
 		{name='Watchtower',meshId='rbxassetid://129779386167612',size={0.736,2.44,0.736},pos={-1.5,1.69,1.5},rot={0,-180,0},color={236,230,214},material='Marble'},
 		{name='WatchtowerRoof',meshId='rbxassetid://82322244448894',size={0.755,0.8,0.755},pos={-1.5,3.31,1.5},rot={0,-180,0},color={40,52,110},material='SmoothPlastic'},
+		{name='RoofRimTop',meshId='rbxassetid://111843115880964',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://126131859486620',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_vehicle']={origin='ground',tris=1562,parts={
+	['phoenix_vehicle']={origin='ground',tris=5490,parts={
 		{name='Body',meshId='rbxassetid://111543219660256',size={1.5,0.7,3},pos={0,0.75,0.3},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='Chest',meshId='rbxassetid://71386524749340',size={1.072,0.9,1},pos={0,0.95,-1.35},rot={0,-180,0},color={214,170,110},material='Sandstone'},
 		{name='Head',meshId='rbxassetid://104105499313981',size={0.634,0.65,1.167},pos={0,1.6,-2.159},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary',pivot={0,-0.4,-0.559}},
@@ -767,6 +891,10 @@ return {
 		{name='WingRFlame',meshId='rbxassetid://108235351162247',size={2.541,0.496,2.679},pos={1.966,1.333,-0.071},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent',pivot={1.266,-0.383,0.129}},
 		{name='Tail',meshId='rbxassetid://92138752152726',size={2.742,0.05,3.6},pos={0.029,0.78,3.35},rot={0,-180,0},color={230,110,30},material='Metal'},
 		{name='Talons',meshId='rbxassetid://91332369169768',size={1.1,0.3,0.3},pos={0,0.2,0.2},rot={0,-180,0},color={255,190,70},material='Metal'},
+		{name='DeckRimTop',meshId='rbxassetid://80860879768721',size={10.416,1.835,7.121},pos={0,0.933,1.51},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='GroundFlameTop',meshId='rbxassetid://99283062665781',size={6.418,0.03,6.418},pos={0,0.035,0},rot={0,-180,0},color={255,170,40},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
+		{name='GroundRimTop',meshId='rbxassetid://100066164335227',size={5.27,0.03,5.27},pos={0,0.035,0},rot={0,-180,0},color={226,184,92},material='Metal',pivot={-0,-0.015,-0}},
+		{name='GroundGlowTop',meshId='rbxassetid://96511593610867',size={2.099,0.03,2.099},pos={0,0.035,0},rot={0,-180,0},color={255,220,140},material='Neon',tint='secondary',pivot={-0,-0.015,-0}},
 	}},
 	['phoenix_nuclear']={origin='center',tris=686,parts={
 		{name='Body',meshId='rbxassetid://111762099406008',size={1,1,3.7},pos={0,0,0.05},rot={0,-180,0},color={230,110,30},material='Metal',tint='primary'},
@@ -785,7 +913,7 @@ return {
 		{name='WingRFlame',meshId='rbxassetid://103536825819063',size={4.761,3.868,4.19},pos={2.915,12.365,-0.003},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent',pivot={2.365,-2.165,-0.003}},
 		{name='Tail',meshId='rbxassetid://93839478774425',size={2.408,0.05,3},pos={0.028,10.2,2.5},rot={0,-180,0},color={230,110,30},material='Metal'},
 	}},
-	['phoenix_buildings/City']={origin='ground',tris=766,parts={
+	['phoenix_buildings/City']={origin='ground',tris=1139,parts={
 		{name='Plinth',meshId='rbxassetid://123012947468432',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://85934991045538',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='Ziggurat',meshId='rbxassetid://87586892782320',size={3.4,1.8,3.4},pos={0,1.37,0},rot={0,-180,0},color={214,170,110},material='Sandstone',tint='primary'},
@@ -794,16 +922,20 @@ return {
 		{name='WingCrest',meshId='rbxassetid://97803429848453',size={2.746,1.45,0.05},pos={-0,3.422,0.05},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary'},
 		{name='Brazier',meshId='rbxassetid://75541760664661',size={0.64,0.22,0.609},pos={0,3.51,0},rot={0,-180,0},color={255,190,70},material='Metal'},
 		{name='Flame',meshId='rbxassetid://132370838974139',size={0.55,0.85,0.495},pos={0,4.025,0},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://98211533612362',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://114855066545058',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_buildings/DefensePost']={origin='ground',tris=948,parts={
+	['phoenix_buildings/DefensePost']={origin='ground',tris=1321,parts={
 		{name='Plinth',meshId='rbxassetid://127016829038777',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://111098918380150',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='Walls',meshId='rbxassetid://107259642743919',size={3.141,0.78,3.141},pos={0,0.86,0},rot={0,-180,0},color={214,170,110},material='Sandstone',tint='primary'},
 		{name='Keep',meshId='rbxassetid://98184821480933',size={1.6,1.555,1.6},pos={0,1.248,0},rot={0,-180,0},color={96,58,36},material='Slate'},
 		{name='Braziers',meshId='rbxassetid://115217746372966',size={2.754,1.05,2.729},pos={0,1.775,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary'},
 		{name='Flames',meshId='rbxassetid://76514659064602',size={2.63,1.51,2.591},pos={0,2.305,0},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://89465753002433',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://104361409289972',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_buildings/Port']={origin='ground',tris=452,parts={
+	['phoenix_buildings/Port']={origin='ground',tris=862,parts={
 		{name='Plinth',meshId='rbxassetid://117172253147324',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://96509125398021',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='Quay',meshId='rbxassetid://107756084807474',size={1.8,0.3,1},pos={0,0.3,-2.6},rot={0,-180,0},color={214,170,110},material='Sandstone'},
@@ -812,8 +944,10 @@ return {
 		{name='Brazier',meshId='rbxassetid://136261023913023',size={0.84,0.27,0.799},pos={1.3,3.185,-1.2},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary'},
 		{name='Flame',meshId='rbxassetid://117035538204647',size={0.605,0.8,0.544},pos={1.3,3.68,-1.2},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent'},
 		{name='Crest',meshId='rbxassetid://71779521980883',size={2.466,0.76,0.05},pos={-0.4,1.754,0.4},rot={0,-180,0},color={255,190,70},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://98590803193909',size={4.48,0.26,5.31},pos={0,0.38,-0.415},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://110630963884352',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_buildings/Factory']={origin='ground',tris=628,parts={
+	['phoenix_buildings/Factory']={origin='ground',tris=1077,parts={
 		{name='Plinth',meshId='rbxassetid://74248661614864',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://130433047381689',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='Kiln',meshId='rbxassetid://96164565605668',size={2.8,1.88,2.8},pos={-0.3,1.41,0},rot={0,-180,0},color={214,170,110},material='Sandstone',tint='primary'},
@@ -821,16 +955,20 @@ return {
 		{name='Chimney',meshId='rbxassetid://93733363083829',size={2.12,1.93,0.84},pos={1.76,1.435,0},rot={0,-180,0},color={96,58,36},material='Slate'},
 		{name='ChimneyRim',meshId='rbxassetid://112184429477339',size={0.92,0.104,0.92},pos={2.4,2.42,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary'},
 		{name='Smoke',meshId='rbxassetid://117407115314026',size={0.385,0.5,0.347},pos={2.4,2.65,0},rot={0,-180,0},color={255,150,40},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://84115045417624',size={5.069,2.374,4.48},pos={0.295,1.437,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://129978790765147',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_buildings/MissileSilo']={origin='ground',tris=734,parts={
+	['phoenix_buildings/MissileSilo']={origin='ground',tris=1107,parts={
 		{name='Plinth',meshId='rbxassetid://115976233811292',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://139240403420777',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='Ring',meshId='rbxassetid://111391561291768',size={2.8,0.38,2.8},pos={0,0.66,0},rot={0,-180,0},color={214,170,110},material='Sandstone',tint='primary'},
 		{name='Feathers',meshId='rbxassetid://93911957830254',size={3.622,2.065,3.622},pos={0,1.827,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='secondary'},
 		{name='Missile',meshId='rbxassetid://133551908858282',size={0.64,2.8,0.64},pos={0,2.1,0},rot={0,-180,0},color={96,58,36},material='Slate'},
 		{name='MissileTip',meshId='rbxassetid://130960126290442',size={0.74,1.66,0.74},pos={0,2.69,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='accent'},
+		{name='RoofRimTop',meshId='rbxassetid://106965337706998',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://119057126087011',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['phoenix_buildings/SAMLauncher']={origin='ground',tris=672,parts={
+	['phoenix_buildings/SAMLauncher']={origin='ground',tris=1045,parts={
 		{name='Plinth',meshId='rbxassetid://94064458610235',size={4.5,0.47,4.5},pos={0,0.235,0},rot={0,-180,0},color={96,58,36},material='Slate',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://72821037076873',size={4.54,0.07,4.54},pos={0,0.2,0},rot={0,-180,0},color={255,190,70},material='Metal',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://138843366341761',size={2,0.5,2},pos={0,0.72,0},rot={0,-180,0},color={214,170,110},material='Sandstone',tint='primary'},
@@ -839,8 +977,10 @@ return {
 		{name='MissileTips',meshId='rbxassetid://123244935427974',size={1.5,0.188,0.309},pos={0,2.12,-0.655},rot={0,-180,0},color={255,150,40},material='Neon',tint='accent',pivot={-0,-0.87,-0.655}},
 		{name='Pylon',meshId='rbxassetid://85428194147605',size={0.68,2.23,0.647},pos={-1.5,1.585,1.5},rot={0,-180,0},color={96,58,36},material='Slate'},
 		{name='PylonFlame',meshId='rbxassetid://95109462378791',size={0.495,0.7,0.445},pos={-1.5,3.01,1.5},rot={0,-180,0},color={255,150,40},material='Neon'},
+		{name='RoofRimTop',meshId='rbxassetid://87824430807645',size={4.48,0.26,4.48},pos={0,0.38,-0},rot={0,-180,0},color={245,196,81},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://114674628489889',size={4.2,0.245,4.2},pos={0,0.403,-0},rot={0,-180,0},color={226,184,92},material='Neon'},
 	}},
-	['parallax_vehicle']={origin='ground',tris=4704,parts={
+	['parallax_vehicle']={origin='ground',tris=6918,parts={
 		{name='Chassis',meshId='rbxassetid://132865705244358',size={2,0.864,3.336},pos={0,0.882,-0.068},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='ArmorPlates',meshId='rbxassetid://131185149365204',size={2.768,0.787,3.174},pos={0,1.076,-0.237},rot={0,-180,0},color={214,236,250},material='SmoothPlastic',tint='secondary'},
 		{name='Visor',meshId='rbxassetid://71664451152365',size={1.32,0.399,0.246},pos={0,1.013,-1.694},rot={0,-180,0},color={150,250,240},material='Neon',tint='accent'},
@@ -872,6 +1012,12 @@ return {
 		{name='LegLightBR',meshId='rbxassetid://99565875605289',size={0.05,1.17,0.05},pos={2.394,0.991,1.889},rot={-15.71,-180,-18.31},color={150,250,240},material='Neon',tint='accent',pivot={0,0.975,-0.16}},
 		{name='LegKneeBR',meshId='rbxassetid://123637899340514',size={0.34,0.34,0.34},pos={2.087,1.882,1.799},rot={0,-180,0},color={150,250,240},material='Glass'},
 		{name='LegFootBR',meshId='rbxassetid://127470498051940',size={0.72,0.17,0.89},pos={2.7,0.19,2.215},rot={0,-180,0},color={36,48,66},material='Metal'},
+		{name='DeckRimTop',meshId='rbxassetid://131528480167385',size={2.688,0.683,3.344},pos={0,1.166,-0.112},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='GroundPrismTop',meshId='rbxassetid://116308183494711',size={5.008,0.03,5.782},pos={0,0.035,0},rot={0,-180,0},color={157,242,235},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
+		{name='GroundRuneTop',meshId='rbxassetid://73420482534649',size={6.576,0.03,6.576},pos={0,0.035,0},rot={0,-180,0},color={214,150,255},material='Neon',pivot={-0,-0.015,-0}},
+		{name='GroundStarTop',meshId='rbxassetid://119377247459778',size={7.616,0.03,6.671},pos={0,0.035,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='GroundCrownTop',meshId='rbxassetid://136741973414824',size={7.97,0.03,7.97},pos={0,0.035,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
+		{name='GroundHaloTop',meshId='rbxassetid://127159522624318',size={6.96,0.03,6.96},pos={0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
 	}},
 	['parallax_nuclear']={origin='center',tris=4168,parts={
 		{name='Shell',meshId='rbxassetid://71484650541757',size={1.24,1.24,4.43},pos={0,0,-0.265},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
@@ -897,7 +1043,7 @@ return {
 		{name='WingR2',meshId='rbxassetid://98466682233978',size={4.534,1.353,3},pos={3.647,9.91,2.3},rot={0,-180,0},color={196,182,255},material='Glass',phase=2,pivot={2.547,-0.61,2.3}},
 		{name='WingR3',meshId='rbxassetid://113889061438958',size={2.715,1.602,2.1},pos={7.292,12.975,-1.35},rot={0,-180,0},color={150,250,240},material='Glass',tint='accent',phase=3,pivot={6.192,-3.675,-1.35}},
 	}},
-	['parallax_buildings/City']={origin='ground',tris=1704,parts={
+	['parallax_buildings/City']={origin='ground',tris=2533,parts={
 		{name='Plinth',meshId='rbxassetid://72909406526821',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://84365113457066',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='Tower',meshId='rbxassetid://90481875574187',size={2,4.1,2},pos={0,2.55,0},rot={0,-180,0},color={214,236,250},material='SmoothPlastic',tint='secondary'},
@@ -906,8 +1052,13 @@ return {
 		{name='RingOrbit',meshId='rbxassetid://94886695468297',size={3.087,0.07,3.087},pos={0,2,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,0,-0}},
 		{name='RingOrbit2',meshId='rbxassetid://71790048749633',size={2.291,0.545,2.255},pos={0,3.4,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,-0,-0}},
 		{name='Annex',meshId='rbxassetid://81889945338872',size={2.736,0.5,2.736},pos={0,0.78,0},rot={0,-180,0},color={52,68,90},material='Metal'},
+		{name='RoofRimTop',meshId='rbxassetid://73141325065328',size={4.504,0.085,4.504},pos={-0,0.317,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://75674472339893',size={4.465,0.285,4.465},pos={0,0.432,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://133825449981750',size={5.024,0.03,5.024},pos={-0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://125981667010527',size={5.744,0.03,5.744},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://93504023781120',size={5.381,0.03,5.381},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['parallax_buildings/DefensePost']={origin='ground',tris=2380,parts={
+	['parallax_buildings/DefensePost']={origin='ground',tris=3209,parts={
 		{name='Plinth',meshId='rbxassetid://138424627679513',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://89167112084268',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='Bunker',meshId='rbxassetid://95535428086537',size={2.5,1.75,2.5},pos={0,1.375,0},rot={0,-180,0},color={214,236,250},material='SmoothPlastic',tint='secondary'},
@@ -915,8 +1066,13 @@ return {
 		{name='Barrel',meshId='rbxassetid://140723123753849',size={0.5,0.3,1.45},pos={0,2,-0.475},rot={0,-180,0},color={36,48,66},material='Metal'},
 		{name='ShieldRibs',meshId='rbxassetid://116450485833440',size={3.6,3.6,3.118},pos={0,1.4,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',phase=3},
 		{name='RingShield',meshId='rbxassetid://78338547490009',size={3.984,0.07,3.984},pos={0,1,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,-0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://91397202615175',size={4.504,0.085,4.504},pos={-0,0.317,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://102132207791046',size={4.465,1.161,4.465},pos={0,0.87,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://126863238779900',size={5.024,0.03,5.024},pos={-0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://102034891511911',size={5.744,0.03,5.744},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://132353471652684',size={5.381,0.03,5.381},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['parallax_buildings/Port']={origin='ground',tris=976,parts={
+	['parallax_buildings/Port']={origin='ground',tris=1846,parts={
 		{name='Plinth',meshId='rbxassetid://79930387296483',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://93920823460757',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='Dock',meshId='rbxassetid://119743237473759',size={1.88,0.5,1.6},pos={0,0.4,-2},rot={0,-180,0},color={52,68,90},material='Metal'},
@@ -925,8 +1081,13 @@ return {
 		{name='Crane',meshId='rbxassetid://116243745334630',size={0.4,3.5,2.8},pos={1.3,2.25,-0.3},rot={0,-180,0},color={36,48,66},material='Metal'},
 		{name='Beacon',meshId='rbxassetid://71964430628776',size={2.114,3.66,3.49},pos={0.357,2.39,-1.025},rot={0,-180,0},color={150,250,240},material='Neon',tint='accent'},
 		{name='RingOrbit',meshId='rbxassetid://139233904853339',size={1.916,0.682,1.992},pos={0,2.3,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://70913970638975',size={4.504,3.695,5.022},pos={-0,2.122,-0.259},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://81234854294051',size={4.465,0.415,3.647},pos={-0,0.497,-0.927},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://109804874432560',size={5.024,0.03,5.542},pos={-0,0.045,-0.259},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0.259}},
+		{name='RoofSparkTop',meshId='rbxassetid://75724614364536',size={6.262,0.03,6.262},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://100656680516456',size={5.859,0.03,5.859},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['parallax_buildings/Factory']={origin='ground',tris=1196,parts={
+	['parallax_buildings/Factory']={origin='ground',tris=2120,parts={
 		{name='Plinth',meshId='rbxassetid://98359927402696',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://95089383219159',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='Hall',meshId='rbxassetid://84913280317059',size={2.6,1.4,2.6},pos={-0.2,1.2,0},rot={0,-180,0},color={214,236,250},material='SmoothPlastic',tint='secondary'},
@@ -934,8 +1095,13 @@ return {
 		{name='Stack',meshId='rbxassetid://112269000337590',size={1.87,2.65,0.84},pos={1.885,1.325,0},rot={0,-180,0},color={52,68,90},material='Metal'},
 		{name='StackGlow',meshId='rbxassetid://118106717940605',size={0.74,0.087,0.74},pos={2.4,2.66,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='accent'},
 		{name='RingStack',meshId='rbxassetid://132938040640991',size={1.235,0.07,1.24},pos={0,2,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://109530143669200',size={5.041,2.434,4.504},pos={0.269,1.473,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://134049361216257',size={4.465,0.285,4.465},pos={0,0.432,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://126134445040899',size={5.56,0.03,5.024},pos={0.268,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={0.268,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://131412575716453',size={6.282,0.03,6.282},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://129931046798345',size={5.878,0.03,5.878},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['parallax_buildings/MissileSilo']={origin='ground',tris=1124,parts={
+	['parallax_buildings/MissileSilo']={origin='ground',tris=1953,parts={
 		{name='Plinth',meshId='rbxassetid://90397390665173',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://99832815115201',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='SiloRim',meshId='rbxassetid://112269402606926',size={2.6,0.45,2.6},pos={0,0.725,0},rot={0,-180,0},color={214,236,250},material='SmoothPlastic',tint='secondary'},
@@ -945,8 +1111,13 @@ return {
 		{name='HatchL',meshId='rbxassetid://98631312177416',size={0.339,0.98,1.9},pos={-1.2,1.42,0},rot={0,-180,0},color={52,68,90},material='Metal',pivot={-0.1,-0.5,-0}},
 		{name='HatchR',meshId='rbxassetid://110083644586420',size={0.339,0.98,1.9},pos={1.2,1.42,0},rot={0,-180,0},color={52,68,90},material='Metal',pivot={0.1,-0.5,-0}},
 		{name='RingOrbit',meshId='rbxassetid://94378297799848',size={1.693,0.07,1.7},pos={0,2.6,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://123030561467939',size={4.504,0.085,4.504},pos={-0,0.317,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://91877888224316',size={4.465,0.285,4.465},pos={0,0.432,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://79960135731125',size={5.024,0.03,5.024},pos={-0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://91563187569608',size={5.744,0.03,5.744},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://101576223802262',size={5.381,0.03,5.381},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['parallax_buildings/SAMLauncher']={origin='ground',tris=1540,parts={
+	['parallax_buildings/SAMLauncher']={origin='ground',tris=2369,parts={
 		{name='Plinth',meshId='rbxassetid://96744443846579',size={4.499,0.52,4.499},pos={0,0.26,0},rot={0,-180,0},color={36,48,66},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://133051445333920',size={4.564,0.12,4.564},pos={0,0.2,0},rot={0,-180,0},color={150,250,240},material='Neon',tint='team'},
 		{name='TurretBase',meshId='rbxassetid://82501752277948',size={1.8,0.8,1.8},pos={0,0.9,0},rot={0,-180,0},color={52,68,90},material='Metal'},
@@ -954,8 +1125,13 @@ return {
 		{name='MissileTips',meshId='rbxassetid://96037374488597',size={1.52,0.429,0.128},pos={0,2.11,-0.66},rot={0,-180,0},color={150,250,240},material='Neon',tint='accent',pivot={-0,-0.81,-0.66}},
 		{name='Radar',meshId='rbxassetid://83420288257858',size={1,2.023,0.544},pos={0,2.812,0.466},rot={0,-180,0},color={186,236,255},material='Metal'},
 		{name='RingOrbit',meshId='rbxassetid://104712751833724',size={3.486,0.07,3.5},pos={0,1,0},rot={0,-180,0},color={186,236,255},material='Glass',tint='accent',pivot={-0,0,-0}},
+		{name='RoofRimTop',meshId='rbxassetid://93518297546616',size={4.504,0.085,4.504},pos={-0,0.317,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://87605304864558',size={4.465,0.285,4.465},pos={0,0.432,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://91703764539790',size={5.024,0.03,5.024},pos={-0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://73582815950976',size={5.744,0.03,5.744},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://130496675791764',size={5.381,0.03,5.381},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
-	['eclipse_vehicle']={origin='ground',tris=4298,parts={
+	['eclipse_vehicle']={origin='ground',tris=5500,parts={
 		{name='BlackSun',meshId='rbxassetid://116193656942061',size={2.6,1.1,2.6},pos={0,0.55,-0},rot={0,-180,0},color={85,85,141},material='Glass',tint='primary'},
 		{name='Corona',meshId='rbxassetid://109348010197220',size={3.7,0.04,3.7},pos={0,0.55,0},rot={0,-180,0},color={200,120,255},material='Glass',tint='accent'},
 		{name='Dais',meshId='rbxassetid://100761659904464',size={1.96,0.21,1.96},pos={0,1.065,0},rot={0,-180,0},color={101,94,151},material='Metal'},
@@ -974,6 +1150,11 @@ return {
 		{name='WingL3',meshId='rbxassetid://81503455357940',size={1.879,3.177,0.21},pos={-1.746,3.397,1.12},rot={0,-180,0},color={120,220,255},material='Glass',phase=3,pivot={-0.846,-0.697,0.02}},
 		{name='WingR',meshId='rbxassetid://114957477569330',size={2.304,1.463,0.11},pos={2.044,3.189,1.13},rot={0,-180,0},color={170,146,255},material='Glass',tint='accent',phase=2,pivot={1.144,-0.489,0.03}},
 		{name='WingR3',meshId='rbxassetid://82078520705106',size={1.879,3.177,0.21},pos={1.746,3.397,1.12},rot={0,-180,0},color={120,220,255},material='Glass',phase=3,pivot={0.846,-0.697,0.02}},
+		{name='DeckRimTop',meshId='rbxassetid://130052444639297',size={1.93,0.101,1.93},pos={0,1.15,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='GroundCoronaTop',meshId='rbxassetid://81056469316719',size={6.172,0.03,6.172},pos={0,0.035,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='accent',pivot={-0,-0.015,-0}},
+		{name='GroundHaloTop',meshId='rbxassetid://91822035257009',size={6.56,0.03,6.56},pos={0,0.035,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='GroundRayTop',meshId='rbxassetid://136861440057194',size={7.743,0.03,7.743},pos={0,0.035,0},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary',phase=2,pivot={-0,-0.015,-0}},
+		{name='GroundRing2Top',meshId='rbxassetid://97361268849442',size={8.11,0.03,8.11},pos={0,0.035,0},rot={0,-180,0},color={214,150,255},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
 	['eclipse_nuclear']={origin='center',tris=4250,parts={
 		{name='BlackSun',meshId='rbxassetid://119297252725332',size={2.3,2.3,2.3},pos={0,0,-0},rot={0,-180,0},color={85,85,141},material='Glass',tint='primary'},
@@ -1002,7 +1183,7 @@ return {
 		{name='WingR2',meshId='rbxassetid://123445826630196',size={1.327,0.927,5.092},pos={3.56,9.75,0.168},rot={0,-180,0},color={170,146,255},material='Glass',tint='accent',phase=2,pivot={1.06,-0.75,0.168}},
 		{name='WingR3',meshId='rbxassetid://113913558832838',size={0.62,0.872,4.685},pos={4.423,12.268,0.293},rot={0,-180,0},color={120,220,255},material='Glass',phase=3,pivot={1.923,-3.268,0.293}},
 	}},
-	['eclipse_buildings/City']={origin='ground',tris=1720,parts={
+	['eclipse_buildings/City']={origin='ground',tris=2549,parts={
 		{name='Plinth',meshId='rbxassetid://78641628247593',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
 		{name='OwnerBand',meshId='rbxassetid://71392936038900',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
 		{name='Monoliths',meshId='rbxassetid://125245111775085',size={2.894,4.2,1.244},pos={0,2.6,0.025},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
@@ -1012,180 +1193,12 @@ return {
 		{name='EmblemRing',meshId='rbxassetid://119524767704618',size={0.845,0.845,0.055},pos={0,4.1,-0.62},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary'},
 		{name='RingHalo',meshId='rbxassetid://131934848826113',size={3.386,0.06,3.4},pos={0,2.2,0},rot={0,-180,0},color={235,230,255},material='Glass',tint='secondary',pivot={-0,-0,-0}},
 		{name='RingHalo2',meshId='rbxassetid://100307292149028',size={2.49,0.493,2.472},pos={0,3.4,0},rot={0,-180,0},color={120,220,255},material='Glass',pivot={-0,-0,-0}},
-	}},
-	['eclipse_buildings/DefensePost']={origin='ground',tris=2156,parts={
-		{name='Plinth',meshId='rbxassetid://95048619503340',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='OwnerBand',meshId='rbxassetid://86237627541906',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
-		{name='Bastions',meshId='rbxassetid://98939040143264',size={3.66,2.752,3.66},pos={0,1.852,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='BlackSun',meshId='rbxassetid://84810355918032',size={1.5,1.5,1.5},pos={0,1.6,0},rot={0,-180,0},color={85,85,141},material='Glass'},
-		{name='Corona',meshId='rbxassetid://129967396118065',size={1.9,1.9,0.087},pos={0,1.6,0},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary'},
-		{name='Edges',meshId='rbxassetid://83788740785303',size={2.341,1.9,2.341},pos={0,1.55,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='accent'},
-		{name='RingHalo',meshId='rbxassetid://80627379232687',size={1.992,0.06,2},pos={0,3,0},rot={0,-180,0},color={120,220,255},material='Glass',pivot={-0,0,-0}},
-	}},
-	['eclipse_buildings/Port']={origin='ground',tris=1504,parts={
-		{name='Plinth',meshId='rbxassetid://124875667137885',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='OwnerBand',meshId='rbxassetid://138141009622943',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
-		{name='Pier',meshId='rbxassetid://78567520452287',size={1.9,0.5,1.75},pos={0,0.5,-1.975},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='Arch',meshId='rbxassetid://93517356927029',size={3.1,1.55,0.28},pos={0,1.275,-0.4},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='ArchGlow',meshId='rbxassetid://103256681206662',size={2.494,1.167,0.3},pos={0,1.167,-0.4},rot={0,-180,0},color={200,120,255},material='Neon',tint='accent'},
-		{name='Keep',meshId='rbxassetid://110069672027378',size={0.778,2.6,0.778},pos={0,1.8,0.95},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='EmblemDisc',meshId='rbxassetid://85472383827116',size={0.72,0.72,0.1},pos={0,2.05,-0.4},rot={0,-180,0},color={85,85,141},material='Metal'},
-		{name='EmblemRing',meshId='rbxassetid://140561032395641',size={0.95,0.95,0.062},pos={0,2.05,-0.4},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary'},
-		{name='Beacon',meshId='rbxassetid://130996762640405',size={1.5,3.19,3.98},pos={0,2.105,-0.88},rot={0,-180,0},color={235,230,255},material='Glass'},
-		{name='RingHalo',meshId='rbxassetid://80942827777675',size={1.561,0.444,1.6},pos={0,2.2,0},rot={0,-180,0},color={120,220,255},material='Glass',pivot={-0,0,-0}},
-	}},
-	['eclipse_buildings/Factory']={origin='ground',tris=1144,parts={
-		{name='Plinth',meshId='rbxassetid://131255734836077',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='OwnerBand',meshId='rbxassetid://114297204982150',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
-		{name='Hall',meshId='rbxassetid://120583839987149',size={2.6,1.689,2.6},pos={-0.25,1.345,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='Vents',meshId='rbxassetid://114848966877686',size={2.45,1.15,2.2},pos={-0.375,1.475,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='accent'},
-		{name='Roof',meshId='rbxassetid://86139052167475',size={2.8,0.75,2.84},pos={-0.25,1.935,0},rot={0,-180,0},color={111,101,162},material='Metal'},
-		{name='RoofRidge',meshId='rbxassetid://121214896586283',size={2.85,0.06,0.06},pos={-0.25,2.33,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='accent'},
-		{name='Buttresses',meshId='rbxassetid://135515894988473',size={2.12,1.63,0.32},pos={-0.25,1.315,-1.46},rot={0,-180,0},color={235,230,255},material='Metal',tint='secondary'},
-		{name='Stack',meshId='rbxassetid://124209799870677',size={0.537,3.2,0.537},pos={2.45,1.6,0},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='EmblemDisc',meshId='rbxassetid://115150485376126',size={0.44,0.44,0.1},pos={2.45,2.7,-0.42},rot={0,-180,0},color={85,85,141},material='Metal'},
-		{name='EmblemRing',meshId='rbxassetid://89527870525469',size={0.581,0.581,0.038},pos={2.45,2.7,-0.42},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary'},
-		{name='RingStack',meshId='rbxassetid://128219606618253',size={1.394,0.06,1.4},pos={0,1.6,0},rot={0,-180,0},color={120,220,255},material='Glass',pivot={-0,-0,-0}},
-	}},
-	['eclipse_buildings/MissileSilo']={origin='ground',tris=1574,parts={
-		{name='Plinth',meshId='rbxassetid://136766915712504',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='OwnerBand',meshId='rbxassetid://83155927458404',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
-		{name='SiloRim',meshId='rbxassetid://136027675715612',size={2.6,0.45,2.6},pos={0,0.725,0},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='Missile',meshId='rbxassetid://96006952558171',size={0.76,3.7,0.76},pos={0,2.75,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='Warhead',meshId='rbxassetid://116860433944682',size={0.85,1.35,0.85},pos={0,3.945,0},rot={0,-180,0},color={235,230,255},material='Metal',tint='secondary'},
-		{name='Fins',meshId='rbxassetid://130130915242119',size={0.795,1.139,0.795},pos={0,1.28,0},rot={0,-180,0},color={200,120,255},material='Glass',tint='accent'},
-		{name='HatchL',meshId='rbxassetid://98631312177416',size={0.339,0.98,1.9},pos={-1.2,1.42,0},rot={0,-180,0},color={101,94,151},material='Metal',pivot={-0.1,-0.5,-0}},
-		{name='HatchR',meshId='rbxassetid://110083644586420',size={0.339,0.98,1.9},pos={1.2,1.42,0},rot={0,-180,0},color={101,94,151},material='Metal',pivot={0.1,-0.5,-0}},
-		{name='RingHalo',meshId='rbxassetid://84116946872884',size={1.693,0.06,1.693},pos={0,2.4,0},rot={0,-180,0},color={235,230,255},material='Glass',tint='secondary',pivot={-0,-0,-0}},
-	}},
-	['eclipse_buildings/SAMLauncher']={origin='ground',tris=1852,parts={
-		{name='Plinth',meshId='rbxassetid://101136644352111',size={4.499,0.5,4.499},pos={0,0.25,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary'},
-		{name='OwnerBand',meshId='rbxassetid://89306438996078',size={4.564,0.1,4.564},pos={0,0.17,0},rot={0,-180,0},color={200,120,255},material='Neon',tint='team'},
-		{name='TurretBase',meshId='rbxassetid://85126665850898',size={1.782,0.755,1.782},pos={0,0.873,0},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='Turret',meshId='rbxassetid://101575780962256',size={1.54,0.828,1.157},pos={0,1.6,0},rot={0,-180,0},color={101,94,151},material='Metal',tint='primary',pivot={-0,-0.35,-0}},
-		{name='Missiles',meshId='rbxassetid://96463497463894',size={1.66,0.45,0.779},pos={0,1.95,-0.35},rot={0,-180,0},color={200,120,255},material='Glass',tint='accent',pivot={-0,-0.7,-0.35}},
-		{name='Sensor',meshId='rbxassetid://75213582987846',size={0.4,0.5,0.4},pos={0,2.1,0.3},rot={0,-180,0},color={235,230,255},material='Glass',tint='secondary',pivot={-0,-0.85,0.3}},
-		{name='Spire',meshId='rbxassetid://135994813535507',size={3.211,2.6,0.311},pos={0,1.8,1.25},rot={0,-180,0},color={101,94,151},material='Metal'},
-		{name='SpireTips',meshId='rbxassetid://110801350906982',size={3.18,0.9,0.28},pos={0,3.15,1.25},rot={0,-180,0},color={200,120,255},material='Glass',tint='accent'},
-		{name='BadgeDisc',meshId='rbxassetid://104792215577616',size={0.36,0.36,0.1},pos={0,1.45,0.44},rot={0,-180,0},color={85,85,141},material='Metal'},
-		{name='BadgeRing',meshId='rbxassetid://95365220434625',size={0.475,0.475,0.031},pos={0,1.45,0.44},rot={0,-180,0},color={235,230,255},material='Neon',tint='secondary'},
-		{name='RingHalo',meshId='rbxassetid://117916018199964',size={3.486,0.06,3.486},pos={0,1,0},rot={0,-180,0},color={120,220,255},material='Glass',pivot={-0,0,-0}},
-	}},
-	['supply/crate_basic']={origin='ground',tris=2594,anchors={chute={{-2.6,4.6,-1.9},{2.6,4.6,-1.9},{-2.6,4.6,1.9},{2.6,4.6,1.9}},item={0,0.66,-0.09}},parts={
-		{name='Body',meshId='rbxassetid://130974455182031',size={6.1,4.07,4.65},pos={0,2.485,-0.045},rot={0,-180,0},color={112,122,138},material='Metal'},
-		{name='Frame',meshId='rbxassetid://82238470249135',size={6.8,4.715,4.9},pos={0,2.358,0},rot={0,-180,0},color={62,68,80},material='Metal'},
-		{name='Inner',meshId='rbxassetid://72769067164001',size={5.52,3.54,4.22},pos={0,2.43,-0.09},rot={0,-180,0},color={20,23,28},material='SmoothPlastic'},
-		{name='Mark',meshId='rbxassetid://116930072906617',size={6.03,2.46,3.064},pos={0,2.4,0.723},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='accent'},
-		{name='DoorL',meshId='rbxassetid://113239825256706',size={2.82,2.26,0.36},pos={1.45,1.71,-2.39},rot={0,-180,0},color={98,108,124},material='Metal',pivot={-1.45,0,-0.09}},
-		{name='DoorR',meshId='rbxassetid://121430420519915',size={2.82,2.26,0.36},pos={-1.45,1.71,-2.39},rot={0,-180,0},color={98,108,124},material='Metal',pivot={1.45,0,-0.09}},
-		{name='SealPlate',meshId='rbxassetid://106379724506151',size={4.4,0.95,0.26},pos={0,3.3,-2.48},rot={0,-180,0},color={34,38,46},material='Metal'},
-		{name='Lamp1',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp2',meshId='rbxassetid://120478858011506',size={0.32,0.32,0.12},pos={0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp3',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp4',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='SeamFront',meshId='rbxassetid://71277961472764',size={5.5,3.6,0.06},pos={0,2.4,-2.39},rot={0,-180,0},color={154,166,184},material='Neon',tint='signal'},
-		{name='SeamBody',meshId='rbxassetid://74015475197041',size={5.99,3.08,4.055},pos={0,2.4,0.228},rot={0,-180,0},color={154,166,184},material='Neon',tint='signal'},
-	}},
-	['supply/crate_epic']={origin='ground',tris=3266,anchors={chute={{-2.6,4.6,-1.9},{2.6,4.6,-1.9},{-2.6,4.6,1.9},{2.6,4.6,1.9}},item={0,0.66,-0.09}},parts={
-		{name='Body',meshId='rbxassetid://130974455182031',size={6.1,4.07,4.65},pos={0,2.485,-0.045},rot={0,-180,0},color={112,122,138},material='Metal'},
-		{name='Frame',meshId='rbxassetid://82238470249135',size={6.8,4.715,4.9},pos={0,2.358,0},rot={0,-180,0},color={62,68,80},material='Metal'},
-		{name='Inner',meshId='rbxassetid://72769067164001',size={5.52,3.54,4.22},pos={0,2.43,-0.09},rot={0,-180,0},color={20,23,28},material='SmoothPlastic'},
-		{name='Mark',meshId='rbxassetid://116930072906617',size={6.03,2.46,3.064},pos={0,2.4,0.723},rot={0,-180,0},color={160,107,255},material='SmoothPlastic',tint='accent'},
-		{name='DoorL',meshId='rbxassetid://113239825256706',size={2.82,2.26,0.36},pos={1.45,1.71,-2.39},rot={0,-180,0},color={98,108,124},material='Metal',pivot={-1.45,0,-0.09}},
-		{name='DoorR',meshId='rbxassetid://121430420519915',size={2.82,2.26,0.36},pos={-1.45,1.71,-2.39},rot={0,-180,0},color={98,108,124},material='Metal',pivot={1.45,0,-0.09}},
-		{name='SealPlate',meshId='rbxassetid://106379724506151',size={4.4,0.95,0.26},pos={0,3.3,-2.48},rot={0,-180,0},color={34,38,46},material='Metal'},
-		{name='Lamp1',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp2',meshId='rbxassetid://120478858011506',size={0.32,0.32,0.12},pos={0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp3',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp4',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='SeamFront',meshId='rbxassetid://71277961472764',size={5.5,3.6,0.06},pos={0,2.4,-2.39},rot={0,-180,0},color={160,107,255},material='Neon',tint='signal'},
-		{name='SeamBody',meshId='rbxassetid://74015475197041',size={5.99,3.08,4.055},pos={0,2.4,0.228},rot={0,-180,0},color={160,107,255},material='Neon',tint='signal'},
-		{name='Armor',meshId='rbxassetid://87961071199868',size={6.707,4.4,5.107},pos={0,2.44,0},rot={0,-180,0},color={84,76,116},material='Metal'},
-		{name='Band',meshId='rbxassetid://92929524326471',size={6.57,2.6,4.97},pos={0,2.4,0},rot={0,-180,0},color={160,107,255},material='Neon',tint='accent'},
-		{name='RingA',meshId='rbxassetid://82266165670970',size={4.373,0.12,4.4},pos={0,5,0},rot={0,-180,0},color={160,107,255},material='Metal',tint='accent',pivot={-0,0,-0}},
-	}},
-	['supply/crate_legendary']={origin='ground',tris=4234,anchors={chute={{-2.6,4.6,-1.9},{2.6,4.6,-1.9},{-2.6,4.6,1.9},{2.6,4.6,1.9}},item={0,0.66,-0.09}},parts={
-		{name='Body',meshId='rbxassetid://130974455182031',size={6.1,4.07,4.65},pos={0,2.485,-0.045},rot={0,-180,0},color={112,122,138},material='Metal'},
-		{name='Frame',meshId='rbxassetid://82238470249135',size={6.8,4.715,4.9},pos={0,2.358,0},rot={0,-180,0},color={62,68,80},material='Metal'},
-		{name='Inner',meshId='rbxassetid://72769067164001',size={5.52,3.54,4.22},pos={0,2.43,-0.09},rot={0,-180,0},color={20,23,28},material='SmoothPlastic'},
-		{name='Mark',meshId='rbxassetid://116930072906617',size={6.03,2.46,3.064},pos={0,2.4,0.723},rot={0,-180,0},color={245,196,81},material='SmoothPlastic',tint='accent'},
-		{name='DoorL',meshId='rbxassetid://124275247502135',size={2.82,2.26,0.36},pos={1.45,1.71,-2.39},rot={0,-180,0},color={245,196,81},material='Metal',pivot={-1.45,0,-0.09}},
-		{name='DoorR',meshId='rbxassetid://88660935622654',size={2.82,2.26,0.36},pos={-1.45,1.71,-2.39},rot={0,-180,0},color={245,196,81},material='Metal',pivot={1.45,0,-0.09}},
-		{name='SealPlate',meshId='rbxassetid://106379724506151',size={4.4,0.95,0.26},pos={0,3.3,-2.48},rot={0,-180,0},color={34,38,46},material='Metal'},
-		{name='Lamp1',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp2',meshId='rbxassetid://120478858011506',size={0.32,0.32,0.12},pos={0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp3',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp4',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='SeamFront',meshId='rbxassetid://71277961472764',size={5.5,3.6,0.06},pos={0,2.4,-2.39},rot={0,-180,0},color={245,196,81},material='Neon',tint='signal'},
-		{name='SeamBody',meshId='rbxassetid://74015475197041',size={5.99,3.08,4.055},pos={0,2.4,0.228},rot={0,-180,0},color={245,196,81},material='Neon',tint='signal'},
-		{name='Armor',meshId='rbxassetid://87961071199868',size={6.707,4.4,5.107},pos={0,2.44,0},rot={0,-180,0},color={84,76,116},material='Metal'},
-		{name='Band',meshId='rbxassetid://92929524326471',size={6.57,2.6,4.97},pos={0,2.4,0},rot={0,-180,0},color={245,196,81},material='Neon',tint='accent'},
-		{name='RingA',meshId='rbxassetid://82266165670970',size={4.373,0.12,4.4},pos={0,5,0},rot={0,-180,0},color={245,196,81},material='Metal',tint='accent',pivot={-0,0,-0}},
-		{name='Gild',meshId='rbxassetid://123440403153369',size={6.509,3.295,4.909},pos={0,3.032,0},rot={0,-180,0},color={245,196,81},material='Metal'},
-		{name='Crest',meshId='rbxassetid://88763239455055',size={1.8,0.83,0.19},pos={0,4.94,-1.585},rot={0,-180,0},color={245,196,81},material='Metal'},
-		{name='RingB',meshId='rbxassetid://106043638802390',size={5.36,0.795,4.963},pos={0,5.4,0},rot={0,-180,0},color={245,196,81},material='Metal',pivot={-0,-0,-0}},
-	}},
-	['supply/crate_mythic']={origin='ground',tris=4750,anchors={chute={{-2.66,5.89,-1.87},{2.67,5.89,-1.86},{-2.67,5.89,1.86},{2.66,5.89,1.87}},item={0,0.66,-0.09}},parts={
-		{name='Body',meshId='rbxassetid://130974455182031',size={6.1,4.07,4.65},pos={0,2.485,-0.045},rot={0,-180,0},color={236,224,244},material='SmoothPlastic'},
-		{name='Frame',meshId='rbxassetid://82238470249135',size={6.8,4.715,4.9},pos={0,2.358,0},rot={0,-180,0},color={70,52,92},material='Metal'},
-		{name='Inner',meshId='rbxassetid://72769067164001',size={5.52,3.54,4.22},pos={0,2.43,-0.09},rot={0,-180,0},color={24,18,30},material='SmoothPlastic'},
-		{name='Mark',meshId='rbxassetid://116930072906617',size={6.03,2.46,3.064},pos={0,2.4,0.723},rot={0,-180,0},color={255,143,216},material='SmoothPlastic',tint='accent'},
-		{name='DoorL',meshId='rbxassetid://119573302972426',size={2.82,2.26,0.36},pos={1.45,1.71,-2.39},rot={0,-180,0},color={245,196,81},material='Metal',pivot={-1.45,0,-0.09}},
-		{name='DoorR',meshId='rbxassetid://107972834886192',size={2.82,2.26,0.36},pos={-1.45,1.71,-2.39},rot={0,-180,0},color={245,196,81},material='Metal',pivot={1.45,0,-0.09}},
-		{name='SealPlate',meshId='rbxassetid://106379724506151',size={4.4,0.95,0.26},pos={0,3.3,-2.48},rot={0,-180,0},color={48,36,64},material='Metal'},
-		{name='Lamp1',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp2',meshId='rbxassetid://120478858011506',size={0.32,0.32,0.12},pos={0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp3',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-0.55,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='Lamp4',meshId='rbxassetid://110555626491642',size={0.32,0.32,0.12},pos={-1.65,3.3,-2.67},rot={0,-180,0},color={40,48,58},material='SmoothPlastic',tint='signal'},
-		{name='SeamFront',meshId='rbxassetid://71277961472764',size={5.5,3.6,0.06},pos={0,2.4,-2.39},rot={0,-180,0},color={255,143,216},material='Neon',tint='signal'},
-		{name='SeamBody',meshId='rbxassetid://74015475197041',size={5.99,3.08,4.055},pos={0,2.4,0.228},rot={0,-180,0},color={255,143,216},material='Neon',tint='signal'},
-		{name='Armor',meshId='rbxassetid://87961071199868',size={6.707,4.4,5.107},pos={0,2.44,0},rot={0,-180,0},color={96,66,126},material='Metal'},
-		{name='Band',meshId='rbxassetid://92929524326471',size={6.57,2.6,4.97},pos={0,2.4,0},rot={0,-180,0},color={255,143,216},material='Neon',tint='accent'},
-		{name='RingA',meshId='rbxassetid://82266165670970',size={4.373,0.12,4.4},pos={0,5,0},rot={0,-180,0},color={255,143,216},material='Metal',tint='accent',pivot={-0,0,-0}},
-		{name='Gild',meshId='rbxassetid://123440403153369',size={6.509,3.295,4.909},pos={0,3.032,0},rot={0,-180,0},color={245,196,81},material='Metal'},
-		{name='Crest',meshId='rbxassetid://88763239455055',size={1.8,0.83,0.19},pos={0,4.94,-1.585},rot={0,-180,0},color={245,196,81},material='Metal'},
-		{name='RingB',meshId='rbxassetid://106043638802390',size={5.36,0.795,4.963},pos={0,5.4,0},rot={0,-180,0},color={245,196,81},material='Metal',pivot={-0,-0,-0}},
-		{name='CrownA',meshId='rbxassetid://83581833584807',size={2.246,0.785,2.246},pos={0,5.592,0},rot={0,-180,0},color={255,143,216},material='Neon',tint='accent',pivot={-0,-0.392,-0}},
-		{name='Petal1',meshId='rbxassetid://85647620229567',size={1.015,1.436,1.015},pos={2.701,5.169,-1.901},rot={0,-180,0},color={255,143,216},material='SmoothPlastic',tint='accent',pivot={-0.179,-0.669,0.179}},
-		{name='Petal2',meshId='rbxassetid://106285188322478',size={1.015,1.436,1.015},pos={-2.701,5.169,-1.901},rot={0,-180,0},color={255,143,216},material='SmoothPlastic',tint='accent',pivot={0.179,-0.669,0.179}},
-		{name='Petal3',meshId='rbxassetid://120107376494162',size={1.015,1.436,1.015},pos={-2.701,5.169,1.901},rot={0,-180,0},color={255,143,216},material='SmoothPlastic',tint='accent',pivot={0.179,-0.669,-0.179}},
-		{name='Petal4',meshId='rbxassetid://97891944980327',size={1.015,1.436,1.015},pos={2.701,5.169,1.901},rot={0,-180,0},color={255,143,216},material='SmoothPlastic',tint='accent',pivot={-0.179,-0.669,-0.179}},
-	}},
-	['supply/aircraft_transport']={origin='center',tris=1900,parts={
-		{name='Body',meshId='rbxassetid://129391291808750',size={66,14.871,54.5},pos={0,4.814,0.25},rot={0,-180,0},color={84,94,110},material='Metal'},
-		{name='Glazing',meshId='rbxassetid://112133003536802',size={4.609,0.75,1.75},pos={0,2.575,-23.275},rot={0,-180,0},color={20,26,34},material='Glass'},
-		{name='Ramp',meshId='rbxassetid://81401668476870',size={3.6,2.813,7.108},pos={-0,0.006,16.9},rot={0,-180,0},color={36,43,54},material='Metal',pivot={-0,-1.406,3.4}},
-		{name='TailLight',meshId='rbxassetid://95420824474299',size={0.924,0.924,0.9},pos={0,12.35,26.05},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TailStripe',meshId='rbxassetid://130019686108175',size={0.95,5.492,1.646},pos={0,7.3,26.72},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='BellyBeacon',meshId='rbxassetid://94605368256885',size={0.831,0.831,1.1},pos={0,-2.78,0},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-	}},
-	['supply/aircraft_fighter']={origin='center',tris=608,parts={
-		{name='Body',meshId='rbxassetid://94389007759009',size={11.2,3.12,15.2},pos={0,1.02,0.1},rot={0,-180,0},color={84,94,110},material='Metal'},
-		{name='Canopy',meshId='rbxassetid://76638950244110',size={0.68,0.5,3.5},pos={0,0.65,-3.25},rot={0,-180,0},color={20,26,34},material='Glass'},
-		{name='Afterburner',meshId='rbxassetid://107244228141043',size={1.195,1.195,0.6},pos={0,0.05,7.75},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-	}},
-	['supply/aircraft_stealth']={origin='center',tris=569,parts={
-		{name='Body',meshId='rbxassetid://120750268722686',size={60,4.422,22.2},pos={0,1.089,-2.9},rot={0,-180,0},color={34,40,50},material='Metal'},
-		{name='Cockpit',meshId='rbxassetid://101876457738321',size={2.5,0.775,1.827},pos={0,2.663,-8.287},rot={0,-180,0},color={20,26,34},material='Glass'},
-		{name='TrailingEdge1',meshId='rbxassetid://119473827832022',size={6.195,0.22,4.854},pos={-3,-0.06,6.02},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge2',meshId='rbxassetid://72394650360599',size={7.159,0.22,4.278},pos={-9.5,-0.19,5.72},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge3',meshId='rbxassetid://121608859116983',size={8.188,0.22,6.059},pos={-17,-0.34,4.82},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge4',meshId='rbxassetid://106152465725062',size={9.151,0.22,5.082},pos={-25.5,-0.51,4.32},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge5',meshId='rbxassetid://92021553557792',size={6.195,0.22,4.854},pos={3,-0.06,6.02},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge6',meshId='rbxassetid://129241197624843',size={7.159,0.22,4.278},pos={9.5,-0.19,5.72},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge7',meshId='rbxassetid://128803592224938',size={8.188,0.22,6.059},pos={17,-0.34,4.82},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-		{name='TrailingEdge8',meshId='rbxassetid://74017850345885',size={9.151,0.22,5.082},pos={25.5,-0.51,4.32},rot={0,-180,0},color={154,166,184},material='SmoothPlastic',tint='signal'},
-	}},
-	['supply/chute']={origin='center',tris=1900,parts={
-		{name='Gore1',meshId='rbxassetid://123849638366127',size={6.506,4.702,7.843},pos={0,-1.961,-5.076},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore2',meshId='rbxassetid://76075106450630',size={7.375,4.702,7.375},pos={4.166,-1.961,-4.166},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore3',meshId='rbxassetid://133370867089513',size={7.843,4.702,6.506},pos={5.076,-1.961,0},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore4',meshId='rbxassetid://111609383102637',size={7.375,4.702,7.375},pos={4.166,-1.961,4.166},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore5',meshId='rbxassetid://92831312841825',size={6.506,4.702,7.843},pos={0,-1.961,5.076},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore6',meshId='rbxassetid://97474941835097',size={7.375,4.702,7.375},pos={-4.166,-1.961,4.166},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore7',meshId='rbxassetid://128279305521107',size={7.843,4.702,6.506},pos={-5.076,-1.961,0},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Gore8',meshId='rbxassetid://131170227518624',size={7.375,4.702,7.375},pos={-4.166,-1.961,-4.166},rot={0,-180,0},color={154,166,184},material='Fabric',tint='signal'},
-		{name='Vent',meshId='rbxassetid://75026687841727',size={4.481,0.27,4.481},pos={0,0.365,0},rot={0,-180,0},color={36,43,54},material='Fabric'},
-		{name='Skirt',meshId='rbxassetid://111286890220785',size={18.175,0.302,18.175},pos={0,-4.261,0},rot={0,-180,0},color={36,43,54},material='Fabric'},
+		{name='RoofRimTop',meshId='rbxassetid://139425972260913',size={4.504,0.085,4.504},pos={-0,0.277,0},rot={0,-180,0},color={255,143,216},material='Neon'},
+		{name='RoofCornerTop',meshId='rbxassetid://123479002231439',size={4.465,0.305,4.465},pos={0,0.403,0},rot={0,-180,0},color={214,150,255},material='Neon'},
+		{name='RoofHaloTop',meshId='rbxassetid://117407616123610',size={5.024,0.03,5.024},pos={-0,0.045,0},rot={0,-180,0},color={255,143,216},material='Neon',pivot={-0,-0.015,-0}},
+		{name='RoofSparkTop',meshId='rbxassetid://75982030703678',size={5.744,0.03,5.744},pos={0,0.055,0},rot={0,-180,0},color={240,246,255},material='Neon',phase=2,pivot={-0,-0.015,-0}},
+		{name='RoofCrownTop',meshId='rbxassetid://95446296554004',size={5.381,0.03,5.381},pos={0,0.055,0},rot={0,-180,0},color={255,143,216},material='Neon',phase=3,pivot={-0,-0.015,-0}},
 	}},
 }
+for k,v in pairs(if script then require(script.Parent.CosmeticMeshManifest_2)else require('./CosmeticMeshManifest_2'))do t[k]=v end
+return t

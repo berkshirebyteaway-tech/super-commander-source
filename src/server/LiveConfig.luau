@@ -12,14 +12,25 @@ M.defaults={
     commsOpen=false,
     spectate=true,
     replays=true,
+    bigMaps=true,
     notice='',
     noticeEn='',
+    ticker='',
+    tickerEn='',
+    closeAt='',
+    reopenAt='',
+    maintenance=false,
+    closeWarnMinutes=30,
+    closeGateMinutes=10,
+    softUpdate=true,
+    updateMoveSeconds=45,
     seasonEnd='',
     telemetryDetail=.1,
     telemetryPerf=.1,
     telemetryRaw=true,
 }
 local snapshot
+local missing={}
 local function load()
     if Run:IsStudio()or game.GameId==0 then return end
     local ok,service=pcall(function()return game:GetService('ConfigService')end)
@@ -27,12 +38,13 @@ local function load()
     local got,snap=pcall(function()return service:GetConfigAsync()end)
     if not got or not snap then return end
     snapshot=snap
-    pcall(function()snap.UpdateAvailable:Connect(function()pcall(function()snap:Refresh()end);M.publish()end)end)
+    pcall(function()snap.UpdateAvailable:Connect(function()pcall(function()snap:Refresh()end);table.clear(missing);M.publish()end)end)
 end
 function M.get(key)
     local default=M.defaults[key]
-    if snapshot then
+    if snapshot and not missing[key]then
         local ok,value=pcall(function()return snapshot:GetValue(key)end)
+        if ok and value==nil then missing[key]=true end
         if ok and value~=nil and typeof(value)==typeof(default)then return value end
     end
     return default
@@ -50,6 +62,7 @@ function M.publish()
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
     require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())
+    require(pack.Core.BattlefieldRules).bigMaps=M.get('bigMaps')~=false
 end
 local started=false
 function M.start()

@@ -1,6 +1,8 @@
 local Season=if script then require(script.Parent.SeasonRules) else require('./SeasonRules')
 local Daily=if script then require(script.Parent.DailyOperation) else require('./DailyOperation')
 local Period=if script then require(script.Parent.PeriodProgress)else require('./PeriodProgress')
+local Sets=if script then require(script.Parent.CollectionSets)else require('./CollectionSets')
+local Campaign=if script then require(script.Parent.CampaignRules)else require('./CampaignRules')
 local M={}
 M.firstMatchMultiplier=2
 M.weeklyPool=300
@@ -62,13 +64,15 @@ M.masteryMax=50
 M.titleTiers={'신병','야전','지휘','명장','전설'}
 M.specialTiers={['streak:7']=2,['streak:30']=3,['streak:100']=4,['daily:7']=2,['daily:30']=3,['daily:100']=4,
     ['comrade:1']=1,['comrade:7']=2,['comrade:14']=3,['recruit:joined']=1,['recruit:1']=2,['recruit:10']=3,
-    ['s0:t5']=2,['s0:t15']=3,['s0:t25']=4}
+    ['s0:t5']=2,['s0:t15']=3,['s0:t25']=4,
+    ['campaign:1']=1,['campaign:2']=2,['campaign:3']=2,['campaign:4']=3,['campaign:5']=3,['campaign:6']=4}
 function M.titleTier(id)
     if type(id)~='string'or id==''or id=='none'then return 0 end
     local lv=tonumber(id:match('^lv:(%d+)$'));if lv then return math.clamp(math.floor(lv/20)+1,1,5)end
     local step=tonumber(id:match('^mastery:.+:(%d+)$'));if step then return math.clamp(step+1,2,4)end
     if M.specialTiers[id]then return M.specialTiers[id]end
     local st=tonumber(id:match('^s%d+:t(%d+)$'));if st and Season.monthlyTitleTiers[st]then return Season.monthlyTitleTiers[st]end
+    local set=id:match('^set:(.+)$');if set and Sets.tiers[set]then return Sets.tiers[set]end
     return 2
 end
 
@@ -91,8 +95,10 @@ function M.unlocked(p,level)
     for _,r in ipairs(M.recruiterRewards)do if recruits>=r.count then if r.kind=='title'then titlesOut[r.id]=r.name else platesOut[r.id]=r end end end
     local opDays=(type(p.dailyOp)=='table'and p.dailyOp.days)or 0
     for _,t in ipairs(Daily.titles)do if opDays>=t.days then titlesOut[t.id]=t.name end end
+    do local ct,cp=Campaign.owned(p);for id,name in pairs(ct)do titlesOut[id]=name end;for id,r in pairs(cp)do platesOut[id]=r end end
     for id,r in pairs(Season.owned(p))do if r.kind=='title'then titlesOut[id]=r.name else platesOut[id]=r end end
     for map,m in pairs(p.mastery or {})do for i,mt in ipairs(M.masteryTitles)do if (m.mx or 0)>=mt.points then titlesOut['mastery:'..map..':'..i]={format=mt.format,map=map}end end end
+    for _,id in ipairs(type(p.sets)=='table'and p.sets or {})do if Sets.titles[id]then titlesOut[Sets.titleId(id)]=Sets.titles[id]end end
     return titlesOut,platesOut
 end
 

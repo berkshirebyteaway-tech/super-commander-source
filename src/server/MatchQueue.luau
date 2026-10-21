@@ -345,6 +345,7 @@ function M:arrival(p)
         self.arrivals[hint]=self.arrivals[hint]or {since=os.clock(),users={}}
         if self.telemetry then self.telemetry:acceptTransfer(p,hint)end
         self.arrivals[hint].users[p.UserId]=true
+        if self.callbacks.claimed then pcall(self.callbacks.claimed,p.UserId,m.rules,m,hint)end
         local group=m.groups and m.groups[tostring(p.UserId)]
         self:notify(p.UserId,group and '함께 출발한 친구들의 접속을 기다려요.'or '다른 지휘관들의 접속을 기다려요.')
     end)
@@ -439,7 +440,7 @@ function M:poll()
                 self.arrivals[mid]=nil
             elseif os.clock()-a.since>=35 then
                 self:update({kind='abort',match=mid});self.arrivals[mid]=nil
-                for id in pairs(a.users)do self.callbacks.arrival(id,false);if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='capacity',count=#users})end;self:notify(id,'접속한 인원으로는 양쪽 진영을 채우지 못해 출격을 취소했어요. 다시 참가해 주세요.')end
+                for id in pairs(a.users)do self.callbacks.arrival(id,false);if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='capacity',count=#users})end;self:notify(id,m.rules.ranked=='ffa'and '접속한 지휘관이 4명보다 적어 출격을 취소했어요. 다시 참가해 주세요.'or '접속한 인원으로는 양쪽 진영을 채우지 못해 출격을 취소했어요. 다시 참가해 주세요.')end
             end
         elseif os.clock()-a.since>=35 then
             self:update({kind='abort',match=mid});self.arrivals[mid]=nil

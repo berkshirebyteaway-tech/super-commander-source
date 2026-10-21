@@ -58,6 +58,7 @@ function M.rollSpecial(r,rng)
     r.spawn='select';s.startingGold=0;s.goldMultiplier=1;s.disableAlliances=nil;s.disabledUnits=nil;s.spawnImmunityDuration=nil;s.waterNukes=nil;s.doomsdayClock=nil;s.doomsdayClockSpeed=nil
     if s.difficulty=='Hard'and r.rolledHard then s.difficulty='Medium'end;r.rolledHard=nil
     if mods.isRandomSpawn then r.spawn='random'end
+    if mods.isCompact then s.mapSize=nil end
     if mods.isCrowded and r.mode~='coop'then r.maximum=20 end
     if mods.isHardNations and s.difficulty~='Impossible'then s.difficulty='Hard';r.rolledHard=true end
     s.startingGold=mods.startingGold25M and 25000000 or mods.startingGold5M and 5000000 or mods.startingGold1M and 1000000 or 0

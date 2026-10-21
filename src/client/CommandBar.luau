@@ -1,6 +1,7 @@
 local UI=require(script.Parent.Theme)
 local Icons=require(script.Parent.HotbarIcons)
 local Style=require(script.Parent.HudStyle)
+local Placement=require(script.Parent.Parent.Core.InterfacePlacement)
 local C=UI.colors
 local M={};M.__index=M
 M.HEIGHT=136
@@ -11,7 +12,7 @@ M.PRESETS={.1,.2,.5,1}
 M.STOPS={{.01,0},{.1,.1},{.2,.4},{.5,.7},{1,1}}
 local Left,Right,Center=Enum.TextXAlignment.Left,Enum.TextXAlignment.Right,Enum.TextXAlignment.Center
 function M.new(e,setFraction)
-    local self=setmetatable({e=e,wide=false,phone=false,decor={},phoneDecor={}},M)
+    local self=setmetatable({e=e,wide=false,phone=false,pcScale=1,decor={},phoneDecor={}},M)
     local c=e.controls
     local function keep(o)o.Visible=false;table.insert(self.decor,o);return o end
     self.goldBox=keep(UI.make("Frame",e.hud,{Name="GoldBox",BackgroundColor3=C.bg,BackgroundTransparency=.35,BorderSizePixel=0}));UI.corner(self.goldBox,3)
@@ -36,9 +37,9 @@ function M.new(e,setFraction)
     end
     return self
 end
-function M:fits(w,touch)return not touch and w>=M.MIN_WIDTH end
+function M:fits(w,touch,h)return Placement.desk(w,h or 0,touch)and w>=M.MIN_WIDTH end
 function M:place(w,h,touch)
-    if self:fits(w,touch)then return self:layout(w,h)end
+    if self:fits(w,touch,h)then return self:layout(w,h)end
     if self:phoneFits(w,h,touch)then return self:phoneLayout(w,h)end
     self:restore()
 end
@@ -84,12 +85,15 @@ function M:skin()
     local trackLine=e.dispatchTrack;trackLine.BackgroundColor3=Style.colors.line
     local dfill=trackLine:FindFirstChild('Fill');if dfill then dfill.BackgroundColor3=C.accent end
 end
+function M:text(n)return self.pcScale<1 and math.max(n,Placement.PC_TEXT)or n end
 function M:layout(w,h)
     local e=self.e;local H=M.HEIGHT;self.wide=true;self:leavePhone()
     for _,o in ipairs(self.decor)do o.Visible=true end
     self:skin()
-    local W=math.min(M.WIDTH,w-12-M.SHORTCUTS);local x=math.max(6,math.min(math.floor((w-W)/2),w-M.SHORTCUTS-W));local pad=8
-    UI.box(e.controls,x,h-H-8,W,H);UI.box(e.hud,0,0,W,40)
+    local s=Placement.PC_HUD;self.pcScale=s;local room=math.ceil(M.SHORTCUTS*Placement.PC_SCALE)
+    local W=math.floor(math.min(M.WIDTH*Placement.PC_HUD_WIDE,w-12-room)/s);local sw=math.floor(W*s)
+    local x=math.max(6,math.min(math.floor((w-sw)/2),w-room-sw));local pad=8
+    self:scaleTo(s);UI.box(e.controls,x,h-math.ceil(H*s)-8,W,H);UI.box(e.hud,0,0,W,40)
     Style.round(e.controls,8);e.controls.BackgroundColor3=Style.colors.panel;e.controls.BackgroundTransparency=.08
     local line=e.controls:FindFirstChildOfClass('UIStroke');if line then line.Enabled=true;line.Color=Style.colors.line end
     e.statsLand.Visible=false;e.statsGoldSub.Visible=false;e.troopIcon.Visible=false
@@ -98,38 +102,38 @@ function M:layout(w,h)
     local rateW,goldW=104,116;local barX=pad+rateW+6;local barW=W-pad*2-rateW-goldW-12
     local badge=e.growthBadge
     UI.box(badge,pad,y1,rateW,h1);UI.box(e.growthFace,0,0,rateW,h1);e.growthFace.Visible=true
-    e.statsTroopsSub.TextSize=15;self:group(self.soldier,e.statsTroopsSub,rateW,h1,16)
+    e.statsTroopsSub.TextSize=self:text(15);self:group(self.soldier,e.statsTroopsSub,rateW,h1,16)
     local track=e.troopBar
     UI.box(track,barX,y1,barW,h1)
     for _,number in ipairs({e.statsTroops,e.filledTroops})do
-        UI.box(number,28,0,barW-56,h1);number.TextSize=17;number.TextXAlignment=Center;number.Font=Enum.Font.BuilderSansBold;number.TextWrapped=false
+        UI.box(number,28,0,barW-56,h1);number.TextSize=self:text(17);number.TextXAlignment=Center;number.Font=Enum.Font.BuilderSansBold;number.TextWrapped=false
     end
     self.barSoldier.Visible=true;UI.box(self.barSoldier,10,(h1-16)/2,16,16)
     e.filledTroops.Visible=true
     UI.box(self.goldBox,W-pad-goldW,y1,goldW,h1)
-    e.statsGold.Parent=self.goldBox;e.statsGold.TextSize=16;e.statsGold.Font=Enum.Font.BuilderSansBold;e.statsGold.Visible=true
+    e.statsGold.Parent=self.goldBox;e.statsGold.TextSize=self:text(16);e.statsGold.Font=Enum.Font.BuilderSansBold;e.statsGold.Visible=true
     self:group(self.coin,e.statsGold,goldW,h1,16)
     UI.box(self.gain,W-pad-goldW,y1-24,goldW-4,20);self.gainBase=self.gain.Position
     local y2,h2=y1+h1+6,28;local attackW=44
     UI.box(self.attackBox,pad,y2,attackW,h2)
     e.selectedInfo.Parent=self.attackBox;e.selectedInfo.Visible=true
-    UI.box(e.selectedInfo,0,0,attackW,h2);e.selectedInfo.TextSize=16;e.selectedInfo.TextXAlignment=Center;e.selectedInfo.TextColor3=C.ink;self:amountLimit(16)
-    local r=self:presetsIn(pad+attackW+6,y2,W-pad*2-attackW-6,h2,false)
+    UI.box(e.selectedInfo,0,0,attackW,h2);e.selectedInfo.TextSize=self:text(16);e.selectedInfo.TextXAlignment=Center;e.selectedInfo.TextColor3=C.ink;self:amountLimit(self:text(16))
+    local r=self:presetsIn(pad+attackW+6,y2,W-pad*2-attackW-6,h2,false,true)
     UI.box(e.dispatchSlider,r.x+6,y2-4,r.w-6,h2+8)
     UI.box(e.dispatchTrack,10,(h2+8)/2-3,r.w-26,6);e.dispatchKnob.Size=UDim2.fromOffset(16,16)
     local y3=y2+h2+8
     UI.box(self.divider,pad,y3-4,W-pad*2,1);self.divider.BackgroundColor3=Style.colors.line;self.divider.BackgroundTransparency=.4
-    e.dock.compact=false;e.dock.grid=false;e.dock.bar=true;e.dock.phone=false;e.dock.barHeight=48;e.dock.reach=nil;e.dock:layout(pad,y3,W-pad*2,false)
+    e.dock.compact=false;e.dock.grid=false;e.dock.bar=true;e.dock.phone=false;e.dock.barHeight=48;e.dock.reach=nil;e.dock.barText=self:text(13);e.dock:layout(pad,y3,W-pad*2,false)
     local menu=e.pauseButton;menu.Parent=e.controls;UI.box(menu,W+6,H-44,44,44);menu.TextSize=12
-    return {x=x,width=W,height=H}
+    return {x=x,width=sw,height=math.ceil(H*s)}
 end
-function M:presetsIn(x,y,w,h,touch)
+function M:presetsIn(x,y,w,h,touch,pc,only)
     local n=#self.presets;local gap=touch and 1 or 6;local chip=touch and 48 or 46
-    local both=w>=n*chip+(n-1)*gap+(touch and 96 or 80)
+    local both=not only and w>=n*chip+(n-1)*gap+(touch and 96 or 80)
     if not both then chip=math.floor((w-(n-1)*gap)/n)end
     if touch and chip<48 then gap=0;chip=math.floor(w/n)end
     local ch=math.min(h,touch and 48 or 28);local cy=y+math.floor((h-ch)/2)
-    for i,p in ipairs(self.presets)do p.root.Visible=true;UI.box(p.root,x+(i-1)*(chip+gap),cy,chip,ch);p.root.TextSize=chip<38 and 13 or 15 end
+    for i,p in ipairs(self.presets)do p.root.Visible=true;UI.box(p.root,x+(i-1)*(chip+gap),cy,chip,ch);p.root.TextSize=pc and self:text(chip<38 and 13 or 15)or chip<38 and 13 or 15 end
     self.e.dispatchSlider.Visible=both
     local used=n*chip+n*gap
     return {x=x+used,y=y,w=math.max(0,w-used),h=h}
@@ -167,9 +171,9 @@ function M:touchPlates(r)
     UI.box(e.statsTroopsSub,29,py,gw-31,ph)
     self:goldChip(r.gold.x,py,r.gold.w,ph)
 end
-M.PHONE={strip=48,bar=48,face=38,gap=4,scale=.92}
+M.PHONE={strip=48,bar=48,face=38,gap=4,scale=Placement.PHONE_SCALE}
 function M:phoneLayout(w,h)
-    local e=self.e;local P=M.PHONE;self.phone=true;self.wide=false
+    local e=self.e;local P=M.PHONE;self.phone=true;self.wide=false;self.pcScale=1
     for _,o in ipairs(self.decor)do o.Visible=false end
     self:skin()
     local s=P.scale;local pad=8;local W=require(script.Parent.Parent.Core.InterfacePlacement).phoneHudWidth(w)
@@ -191,9 +195,10 @@ function M:phoneLayout(w,h)
     if self.touchGold then self.touchGold.Visible=false end
     if self.growthSurface then self.growthSurface.Visible=false end
     local ih=34;local iy=(P.strip-ih)/2
-    local goldW=88;local shareW=40;local rateW=92;local g=4
-    local barW=rateW+g+math.floor((W-pad*2-rateW-goldW-shareW-g*4)*.55)
-    local sliderX=pad+barW+g+shareW+g;local sliderW=W-pad-goldW-g-sliderX
+    local goldW=88;local shareW=0;local rateW=92;local g=4
+    local presetW=#self.presets*48+(#self.presets-1)
+    local barW=W-pad*2-goldW-presetW-g*2
+    local sliderX=pad+barW+g;local sliderW=W-pad-goldW-g-sliderX
     local trackX=pad+rateW+g;local trackW=barW-rateW-g
     local track=e.troopBar;UI.box(track,trackX,iy,trackW,ih)
     self.badgeZ=self.badgeZ or e.growthBadge.ZIndex;e.growthBadge.ZIndex=6
@@ -205,21 +210,14 @@ function M:phoneLayout(w,h)
     end
     self.barSoldier.Visible=false
     e.filledTroops.Visible=false;e.statsTroops.ZIndex=6;e.statsTroops.TextStrokeColor3=Color3.new(0,0,0);e.statsTroops.TextStrokeTransparency=.35
-    UI.box(self.attackBox,pad+barW+g,sy+iy,shareW,ih);self.attackBox.Visible=true
+    UI.box(self.attackBox,pad+barW+g,sy+iy,shareW,ih);self.attackBox.Visible=false
     e.selectedInfo.Parent=self.attackBox;e.selectedInfo.Visible=true;UI.box(e.selectedInfo,0,0,shareW,ih)
     e.selectedInfo.TextSize=15;e.selectedInfo.TextXAlignment=Center;e.selectedInfo.TextColor3=C.ink;e.selectedInfo.TextScaled=false;self:amountLimit(15)
     e.selectedInfo.LineHeight=.9
-    e.dispatchSlider.Visible=true;UI.box(e.dispatchSlider,sliderX,sy,sliderW,P.strip)
-    local tw=sliderW-24;UI.box(e.dispatchTrack,12,13,tw,6);e.dispatchKnob.Size=UDim2.fromOffset(18,18)
-    if not self.tickLabels then
-        self.tickLabels={}
-        for i,p in ipairs(self.presets)do local l=UI.label(e.dispatchSlider,'Tick'..i,tostring(math.floor(p.value*100)),13,C.muted);l.TextXAlignment=Center;l.TextWrapped=false;l:SetAttribute('LocalizationSkip',true);self.tickLabels[i]=l;table.insert(self.phoneDecor,l)end
-    end
-    for i,p in ipairs(self.presets)do
-        local t=M.STOPS[i+1][2]
-        p.root.Visible=false;self.tickLabels[i].Visible=true;UI.box(self.tickLabels[i],math.floor(12+t*tw-21),24,42,20)
-        UI.box(self.marks[i],math.floor(t*tw)-1,-3,2,12)
-    end
+    for _,m in ipairs(self.marks)do m.Visible=false end
+    for _,l in ipairs(self.tickLabels or {})do l.Visible=false end
+    self:presetsIn(sliderX,sy,sliderW,P.strip,true);e.dispatchSlider.Visible=false
+    for _,p in ipairs(self.presets)do p.root.ZIndex=4 end
     UI.box(self.goldBox,W-pad-goldW,iy,goldW,ih);self.goldBox.Visible=true
     e.statsGold.Parent=self.goldBox;e.statsGold.TextSize=16;e.statsGold.Font=Enum.Font.BuilderSansBold;e.statsGold.Visible=true
     self:group(self.coin,e.statsGold,goldW,ih,16)
@@ -234,8 +232,15 @@ function M:scaleTo(s)
     end
     self.uiScale.Scale=s
 end
+function M:shrink(x,full,w,h,screenH)
+    local s=Placement.TOUCH_SCALE;if s>=1 then return x,w,h end;self:scaleTo(s)
+    local sw,sh=math.floor(w*s),math.ceil(h*s);local sx=x+math.floor((full-sw)/2)
+    UI.box(self.e.controls,sx,screenH-sh-8,w,h)
+    return sx,sw,sh
+end
 function M:leavePhone()
-    if not self.phone then return end;self.phone=false;self:scaleTo(1)
+    self.pcScale=1;self:scaleTo(1)
+    if not self.phone then return end;self.phone=false
     local e=self.e;e.filledTroops.Visible=true;e.statsTroops.ZIndex=3;e.statsTroops.TextStrokeTransparency=1
     for _,o in ipairs(self.phoneDecor)do o.Visible=false end
     for _,m in ipairs(self.marks or {})do m.Visible=false end
@@ -284,7 +289,7 @@ function M:troopChange(troops,cap)
     if not before or troops>=before then return end
     local drop=before-troops;if drop<math.max(1,before*.01)then return end
     local TweenService=game:GetService('TweenService');local track=self.e.troopBar
-    local sent=before*(self.fraction or 0)
+    local sent=before*(self.sendFraction or 0)
     if sent>0 and math.abs(drop-sent)<=before*.05 then
         local f=UI.label(track.Parent,'Departure','−'..UI.troops(drop),15,C.ink);f.Font=Enum.Font.BuilderSansBold;f.TextWrapped=false
         f.TextXAlignment=Enum.TextXAlignment.Center;f.ZIndex=8;f.TextStrokeTransparency=.4;f.TextStrokeColor3=C.bg;f:SetAttribute('LocalizationSkip',true);f:SetAttribute('AllowOverlap',true)
@@ -314,7 +319,7 @@ function M:goldGain(amount)
     Style.pulse(self.goldStroke)
 end
 function M:dispatch(fraction)
-    self.fraction=fraction
+    self.sendFraction=fraction
     self.ratioToken=(self.ratioToken or 0)+1;local token=self.ratioToken
     task.delay(1.5,function()if token==self.ratioToken then require(script.Parent.TelemetryStep).change('ratio','hud','ratioSet',{value=math.floor(fraction*100+.5)})end end)
     if self.wide or self.phone then self.e.selectedInfo.Text=math.floor(fraction*100+.5)..'%'end
@@ -324,10 +329,7 @@ function M:dispatch(fraction)
     end
     for i,p in ipairs(self.presets)do
         local on=math.abs(p.value-fraction)<.005
-        if self.phone then
-            local l=self.tickLabels and self.tickLabels[i]
-            if l then l.TextColor3=on and C.ink or C.muted;l.Font=on and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium end
-        else
+        do
             p.root.BackgroundColor3=on and C.ink or Style.colors.chip;p.root.BackgroundTransparency=on and 0 or .06
             p.root.TextColor3=on and C.bg or C.ink;p.line.Enabled=not on;p.line.Color=Style.colors.line
             Style.round(p.root,6)

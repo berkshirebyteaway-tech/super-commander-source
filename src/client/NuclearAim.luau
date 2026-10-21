@@ -5,6 +5,7 @@ local G=require(script.Parent.Parent.Core.WorldGeometry)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
 local Telemetry=require(script.Parent.TelemetryClient)
 local Sketch=require(script.Parent.RailSketch)
+local Rail=require(script.Parent.RailView)
 local M={};M.__index=M
 function M.new(parent,renderer,callbacks)
     local self=setmetatable({renderer=renderer,callbacks=callbacks,pool={},marks={},generation=0,up=true},M)
@@ -158,11 +159,11 @@ function M:point(x,y)
     return (Vector2.new(p.X,p.Y)-self.overlay.AbsolutePosition)/UI.scale
 end
 function M:tilePoint(t)return self:point(t%self.map.meta.width,math.floor(t/self.map.meta.width))end
-function M:line(a,b,color,thickness,dashed,extend)
+function M:line(a,b,color,thickness,dashed,extend,transparency)
     if not a or not b then return end;local d=b-a;if d.Magnitude>4000 or d.Magnitude<.1 then return end
     self.used+=1;local o=self.pool[self.used]
     if not o then o=UI.make('Frame',self.overlay,{Name='Line'..self.used,BorderSizePixel=0,AnchorPoint=Vector2.new(.5,.5),ZIndex=6});self.pool[self.used]=o end
-    o.Visible=true;o.BackgroundColor3=color;o.BackgroundTransparency=dashed and .55 or .12;o.Position=UDim2.fromOffset((a.X+b.X)/2,(a.Y+b.Y)/2);o.Size=UDim2.fromOffset(d.Magnitude+(extend or 0),thickness or 1);o.Rotation=math.deg(math.atan2(d.Y,d.X))
+    o.Visible=true;o.BackgroundColor3=color;o.BackgroundTransparency=transparency or dashed and .55 or .12;o.Position=UDim2.fromOffset((a.X+b.X)/2,(a.Y+b.Y)/2);o.Size=UDim2.fromOffset(d.Magnitude+(extend or 0),thickness or 1);o.Rotation=math.deg(math.atan2(d.Y,d.X))
 end
 function M:ring(tile,radius,color,dashed,thickness)
     local x,y=tile%self.map.meta.width,math.floor(tile/self.map.meta.width);local prior=self:point(x+radius,y)
@@ -180,10 +181,21 @@ function M:disc(tile,radius,color)
     d.Size=Vector3.new(.04,size,size);d.CFrame=CFrame.new(x,y+.09,z)*CFrame.Angles(0,0,math.pi/2);d.Color=color;d.Transparency=.8
     d.Parent=self.renderer.folder;self.discUsed=true
 end
-function M:railLine(tiles,color,thickness)
-    local pts=Sketch.points(tiles,self.map.meta.width)
+function M:railEnd(tile,structure)
+    if structure then return structure~='Port' end
+    local w=self.map.meta.width;local x,y=tile%w,tile//w;local r=Rail.STATION_REACH
+    for _,u in ipairs(self.state and self.state.units or {})do if u.kind=='City'or u.kind=='Factory'then
+        if math.abs(u.tile%w-x)<=r and math.abs(u.tile//w-y)<=r then return true end
+    end end
+    return false
+end
+function M:railLine(tiles,color,transparency,structure)
+    local world=self.renderer;local span=world.liveW or world.view.w
+    local perTile=self.overlay.AbsoluteSize.X/UI.scale/math.max(span,1);local width=math.clamp(perTile,1,3)
+    local pts=Sketch.trim(Sketch.points(tiles,self.map.meta.width),self:railEnd(tiles[1],structure)and Rail.LOT_RADIUS or 0,self:railEnd(tiles[#tiles])and Rail.LOT_RADIUS or 0)
+    if not pts then return end
     local prior=self:point(pts[1].X,pts[1].Y)
-    for i=2,#pts do local at=self:point(pts[i].X,pts[i].Y);self:line(prior,at,color,thickness,false,thickness);prior=at end
+    for i=2,#pts do local at=self:point(pts[i].X,pts[i].Y);self:line(prior,at,color,width,false,width,transparency);prior=at end
 end
 function M:railHint(kind,r)
     if not(kind=='City'or kind=='Port'or kind=='Factory')or not r.tile then return end
@@ -234,7 +246,7 @@ function M:draw()
             if p.separation then self:mark(p.separation,'◇',UI.colors.ink)end
             self:mark(p.target,self.locked and '⊕'or '+',p.valid and UI.colors.accent or UI.colors.danger)
         else
-            local build=self.action=='SAMLauncher'or self.action=='MissileSilo'
+            local build=self.action=='SAMLauncher'or self.action=='MissileSilo'or self.action=='City'
             for _,u in ipairs(self.state.units or {})do if u.kind=='SAMLauncher'and (build or self.selected and self.selected.id==u.id or self.hovered==u.id)then
                 self:rangeSeen('SAMLauncher')
                 local friendly=u.owner==1;for _,f in ipairs(self.state.factions or {})do if f.id==u.owner then friendly=f.allied or friendly;break end end
@@ -253,8 +265,8 @@ function M:draw()
                 for i=1,math.min(6,#near)do self:ring(near[i][1],15,UI.colors.muted,true,1)end
             end
             local rails,snap=self:previewRails(self.preview)
-            for _,tiles in ipairs(snap or {})do self:railLine(tiles,Color3.fromRGB(88,214,120),1.8)end
-            for _,tiles in ipairs(rails or {})do self:railLine(tiles,UI.colors.accent,1.4)end
+            for _,tiles in ipairs(snap or {})do self:railLine(tiles,Color3.fromRGB(51,217,77),.24)end
+            for _,tiles in ipairs(rails or {})do self:railLine(tiles,Rail.MINE,1-(1-.24)*.6,self.action)end
             local defense=self.action=='DefensePost'
             for _,u in ipairs(self.state.units or {})do
                 if u.kind=='DefensePost'and (defense or self.selected and self.selected.id==u.id or self.hovered==u.id)then

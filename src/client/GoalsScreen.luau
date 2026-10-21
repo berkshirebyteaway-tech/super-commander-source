@@ -7,9 +7,10 @@ local Rules=require(script.Parent.Parent.Core.OutgameRules)
 local Maps=require(script.Parent.Parent.Maps.MapLoader)
 local M={}
 local C=UI.colors
+local NARROW=false
 local GREEN=Color3.fromRGB(150,214,84)
 local BRONZE,SILVER,GOLD=Color3.fromRGB(196,128,72),Color3.fromRGB(176,190,206),Color3.fromRGB(232,184,72)
-local TABS={{'challenges','도전과제','도전','crest'},{'today','오늘과 주간','오늘','daily'},{'season','시즌','시즌','podium'},{'career','경력','경력','medal'}}
+local TABS={{'campaign','캠페인','캠페인','campaign'},{'challenges','도전과제','도전','crest'},{'today','오늘과 주간','오늘','daily'},{'season','시즌','시즌','podium'},{'career','경력','경력','medal'}}
 local SHORT={noNukeWin='핵 없이 승리',comeback='5%에서 역전승',blitz='10분 안에 승리',cityWin='도시 10개 후 승리',landing='수송선 3척 후 승리',
     pvpVictor='사람과 대전 승리',coopVictor='연합전 승리',dominion='영토 75%',rapidGrowth='3분 안에 영토 10%',ally='동료 지원 10회',
     fortress='거점 5개로 10분',airDefense='방공 기지 3개',harbor='항구 3개',fleet='전함 5척',silo='미사일 기지 2개',nuclear='핵 3발 발사',
@@ -24,6 +25,7 @@ local function label(parent,name,text,size,color,x,y,w,h,align)
     if align then l.TextXAlignment=align end;return l
 end
 local function bold(l)l.Font=Enum.Font.BuilderSansBold;return l end
+local function fit(l,max,min)l.TextWrapped=false;l.TextScaled=true;UI.make('UITextSizeConstraint',l,{MaxTextSize=max,MinTextSize=min});return l end
 local function card(parent,name,x,y,w,h,fill)
     local p=UI.panel(parent,name);UI.box(p,x,y,w,h);p.BackgroundColor3=fill or C.panel;p.BackgroundTransparency=.04;return p
 end
@@ -57,7 +59,7 @@ local function crest(parent,x,y,size)
 end
 local function chip(parent,name,text,color,x,y,w,h,textColor)
     local c=UI.make('TextLabel',parent,{Name=name,Text=text,TextSize=13,Font=Enum.Font.BuilderSansBold,TextColor3=textColor or C.bg,BackgroundColor3=color,BorderSizePixel=0,TextXAlignment=Enum.TextXAlignment.Center})
-    UI.corner(c,999);UI.box(c,x,y,w,h or 22);c:SetAttribute('AllowOverlap',true);return c
+    UI.corner(c,999);UI.box(c,x,y,w,h or 22);c:SetAttribute('AllowOverlap',true);fit(c,13,9);UI.make('UIPadding',c,{PaddingLeft=UDim.new(0,6),PaddingRight=UDim.new(0,6)});return c
 end
 local function corners(parent)
     for i,a in ipairs({{0,0},{1,0},{0,1},{1,1}})do
@@ -108,17 +110,19 @@ local function achievementCard(hub,parent,a,x,y,w,h,phone)
     local r=ring(c,'Ring',12,(h-rs)/2-(phone and 0 or 6),rs,done and 1 or ratio,done and GOLD or C.accent,4)
     local ic=Icons.create(r,ACH_ICON[a.id]or 'medal',rs*.5,done and GOLD or C.ink);UI.box(ic,rs*.25,rs*.25,rs*.5,rs*.5)
     local tx=12+rs+12
-    bold(label(c,'Name',a.name,15,C.ink,tx,phone and 6 or 12,w-tx-80,22)).TextTruncate=Enum.TextTruncate.AtEnd
-    local d=label(c,'Detail',a.detail,13,C.muted,tx,phone and 28 or 36,w-tx-12,phone and 20 or 34);d.TextWrapped=true;d.TextYAlignment=Enum.TextYAlignment.Top
+    local tight=not phone and w<260
+    local nm=bold(label(c,'Name',a.name,15,C.ink,tx,phone and 6 or 12,tight and w-tx-12 or w-tx-80,22));nm.TextWrapped=false;nm.TextTruncate=Enum.TextTruncate.AtEnd
+    local d=label(c,'Detail',a.detail,13,C.muted,tx,phone and 28 or 36,w-tx-12,(phone or tight) and 20 or 34);d.TextWrapped=not tight;d.TextYAlignment=Enum.TextYAlignment.Top
+    if tight then d.TextTruncate=Enum.TextTruncate.AtEnd end
     if Claims.pending(p,'a:'..a.id)then
         Claims.dot(c,true);local b=Claims.button(c,'ClaimAchievement','받기',function()Step.step('goals','claim',{item=a.id});Claims.claim(hub,'a:'..a.id)end);UI.box(b,w-92,h-54,80,44);UI.enabled(b,not shop.busy)
     elseif done then
         label(c,'Done',string.format('달성  +%d 코인',a.medals),13,GOLD,tx,h-28,w-tx-12,20)
     else
-        Currency.create(c,'medal',a.medals,w-82,8,72,22)
+        Currency.create(c,'medal',a.medals,w-82,tight and 60 or 8,72,22)
         bar(c,'Progress',tx,h-(phone and 16 or 22),w-tx-70,ratio,GREEN:Lerp(C.accent,.4))
         label(c,'Value',string.format('%d/%d',a.progress,a.target),13,C.ink,w-64,h-(phone and 24 or 30),54,20,Enum.TextXAlignment.Right)
-        if ratio>=.6 then chip(c,'Soon','곧 달성',C.accent,w-96,-11,84,22)end
+        if ratio>=.6 then chip(c,'Soon','곧 달성',C.accent,NARROW and 8 or w-96,-11,84,22)end
     end
     return c
 end
@@ -141,33 +145,35 @@ local function drawChallenges(hub,body,x,w,y,phone)
     local p=hub.account.progress or {};local list=p.achievementList or {}
     local earned,total=0,0;for _,a in ipairs(list)do total+=a.medals;if a.done then earned+=a.medals end end
     local maps=0;for _ in pairs(p.conquest or {})do maps+=1 end
-    local hh=phone and 82 or 132
+    local hh=NARROW and 148 or phone and 82 or 132
     local hero=card(body,'ChallengeHero',x,y,w,hh,Color3.fromRGB(22,28,38));corners(hero)
-    local cs=phone and 56 or 92;crest(hero,phone and 12 or 28,(hh-cs)/2,cs)
+    local cs=phone and 56 or 92;crest(hero,phone and 12 or 28,NARROW and 12 or (hh-cs)/2,cs)
     local tx=(phone and 12 or 28)+cs+(phone and 12 or 20)
-    local bw=phone and 160 or 220
-    bold(label(hero,'Title','도전과제',phone and 20 or 30,C.ink,tx,phone and 10 or 18,phone and w-tx-bw-24 or 360,phone and 28 or 40))
+    local tightHero=not phone and w<1100
+    local bw=NARROW and w-24 or phone and 160 or tightHero and 184 or 220
+    local tw=NARROW and w-tx-12 or phone and w-tx-bw-24 or 360
+    bold(label(hero,'Title','도전과제',phone and 20 or 30,C.ink,tx,phone and 10 or 18,tw,phone and 28 or 40))
     if phone then
-        label(hero,'Summary',string.format('업적 %d/%d  기장 ★%d  정복 %d곳',p.achievementsUnlocked or 0,#list,p.tacticTiers or 0,p.mapsConquered or 0),14,C.muted,tx,42,w-tx-bw-24,24)
+        label(hero,'Summary',string.format('업적 %d/%d  기장 ★%d  정복 %d곳',p.achievementsUnlocked or 0,#list,p.tacticTiers or 0,p.mapsConquered or 0),14,C.muted,tx,42,tw,24)
     else
-        label(hero,'Lead','한 번 깨면 영원히 남아요. 보상은 받기로 바로 들어와요.',14,C.muted,tx,62,380,22)
-        label(hero,'Earned',string.format('받은 보상 %s 코인  /  모두 깨면 %s',commas(earned),commas(total)),13,C.ink,tx,92,380,22)
-        local sx=tx+400;local sw=math.max(120,(w-sx-bw-48)/3)
+        local leadW=tightHero and 250 or 380
+        label(hero,'Lead','한 번 깨면 영원히 남아요. 보상은 받기로 바로 들어와요.',14,C.muted,tx,62,380,22).Visible=not tightHero
+        label(hero,'Earned',string.format('받은 보상 %s 코인  /  모두 깨면 %s',commas(earned),commas(total)),13,C.ink,tx,tightHero and 70 or 92,leadW,tightHero and 40 or 22)
+        local sx=tx+leadW+20;local sw=tightHero and math.max(80,(w-sx-bw-48-24)/3)or math.max(120,(w-sx-bw-48)/3)
         for i,s in ipairs({{'업적',string.format('%d / %d',p.achievementsUnlocked or 0,#list),(p.achievementsUnlocked or 0)/math.max(1,#list)},
             {'전술 기장',string.format('★ %d / %d',p.tacticTiers or 0,p.tacticTierMax or 0),(p.tacticTiers or 0)/math.max(1,p.tacticTierMax or 1)},
             {'지도 정복',string.format('%d곳',p.mapsConquered or 0),(p.mapsConquered or 0)/math.max(1,maps)}})do
             local cx=sx+(i-1)*(sw+12)
-            label(hero,'StatLabel'..i,s[1],13,C.muted,cx,26,sw,20);bold(label(hero,'StatValue'..i,s[2],24,C.ink,cx,48,sw,32))
+            label(hero,'StatLabel'..i,s[1],13,C.muted,cx,26,sw,20);local sv=bold(label(hero,'StatValue'..i,s[2],24,C.ink,cx,48,sw,32))
+            if tightHero then sv.TextWrapped=false;sv.TextScaled=true;UI.make('UITextSizeConstraint',sv,{MaxTextSize=24,MinTextSize=15})end
             bar(hero,'StatBar'..i,cx,94,sw,s[3],GREEN:Lerp(C.accent,.4))
         end
     end
-    local go=UI.button(hero,'CampaignStart','',function()Step.step('goals','campaign',{});hub:startGoal()end,true)
-    UI.box(go,w-bw-(phone and 12 or 24),(hh-(phone and 56 or 76))/2,bw,phone and 56 or 76)
-    local meta=Maps.meta(hub.map)or Maps.catalog[1]
-    bold(label(go,'Action','캠페인 출전',phone and 17 or 20,C.bg,0,phone and 6 or 12,bw,26,Enum.TextXAlignment.Center))
-    local cfg=require(script.Parent.Parent.Core.SoloChallenge).goal(meta,hub.settings.difficulty)
-    label(go,'Rules',string.format('%s  %s  AI %d',meta.label,require(script.Parent.Parent.Core.MatchOptions).difficultyLabels[cfg.difficulty]or '',cfg.nations),13,C.bg,0,phone and 32 or 44,bw,20,Enum.TextXAlignment.Center)
-    UI.enabled(go,hub.settings.difficulty~=nil and hub.account.ready==true and not hub.callbacks.shop().busy and not hub.busy)
+    local go=UI.button(hero,'CampaignStart','',function()Step.step('goals','campaign',{});hub.goalTab='campaign';hub:drawPage()end,true)
+    UI.box(go,w-bw-(phone and 12 or 24),NARROW and hh-68 or (hh-(phone and 56 or 76))/2,bw,phone and 56 or 76)
+    local Campaign=require(script.Parent.Parent.Core.CampaignRules);local cv=p.campaign or {};local nextStage=Campaign.stage(cv.next)or Campaign.stages[1]
+    bold(label(go,'Action','캠페인',phone and 17 or 20,C.bg,0,phone and 6 or 12,bw,26,Enum.TextXAlignment.Center))
+    label(go,'Rules',string.format('%s %s  ★ %d/%d',nextStage.id,nextStage.name,cv.total or 0,Campaign.maxStars),13,C.bg,0,phone and 32 or 44,bw,20,Enum.TextXAlignment.Center).TextTruncate=Enum.TextTruncate.AtEnd
     y+=hh+(phone and 10 or 16)
     if not phone then
         divider(body,'가까운 도전',x,y,w);y+=32
@@ -176,7 +182,7 @@ local function drawChallenges(hub,body,x,w,y,phone)
             local c=card(body,'Near'..i,x+(i-1)*(cw+12),y,cw,108)
             if n.kind=='ach'then local a=n.a
                 local r=ring(c,'Ring',16,24,60,n.ratio,C.accent,4);local ic=Icons.create(r,ACH_ICON[a.id]or 'medal',28,C.ink);UI.box(ic,16,16,28,28)
-                chip(c,'Kind','업적',C.raised,94,10,48,22,C.ink);Currency.create(c,'medal',a.medals,cw-92,10,80,22)
+                chip(c,'Kind','업적',C.raised,94,10,72,22,C.ink);Currency.create(c,'medal',a.medals,cw-92,10,80,22)
                 bold(label(c,'Name',a.name,17,C.ink,94,36,cw-110,24))
                 label(c,'Detail',a.detail,13,C.muted,94,60,cw-110,20).TextTruncate=Enum.TextTruncate.AtEnd
                 bar(c,'Progress',94,88,cw-170,n.ratio,GREEN:Lerp(C.accent,.4));label(c,'Value',string.format('%d/%d',a.progress,a.target),13,C.ink,cw-70,80,58,20,Enum.TextXAlignment.Right)
@@ -195,15 +201,15 @@ local function drawChallenges(hub,body,x,w,y,phone)
     end
     hub.challengeTab=hub.challengeTab or 'ach'
     local subs={{'ach',string.format('업적 %d/%d',p.achievementsUnlocked or 0,#list)},{'tactics',string.format('%s ★%d/%d',phone and '기장'or '전술 기장',p.tacticTiers or 0,p.tacticTierMax or 0)},{'conquest',string.format('%s %d곳',phone and '정복'or '지도 정복',p.mapsConquered or 0)}}
-    local sw=phone and (w*.62)/3 or 132
+    local sw=NARROW and w/3 or phone and (w*.62)/3 or 132
     for i,s in ipairs(subs)do
         local on=hub.challengeTab==s[1]
         local b=UI.button(body,'ChallengeTab_'..s[1],s[2],function()if hub.challengeTab~=s[1]then hub.challengeTab=s[1];Step.step('goals','section',{item=s[1]});hub:drawPage()end end,false)
-        UI.box(b,x+(i-1)*sw,y,sw,48);b.TextSize=14;b.BackgroundColor3=on and C.raised:Lerp(C.ink,.12)or C.panel;b.TextColor3=on and C.ink or C.muted;b.Font=on and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium
+        UI.box(b,x+(i-1)*sw,y,sw,48);b.TextSize=14;fit(b,14,10);b.BackgroundColor3=on and C.raised:Lerp(C.ink,.12)or C.panel;b.TextColor3=on and C.ink or C.muted;b.Font=on and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium
     end
     label(body,'SectionNote',hub.challengeTab=='tactics'and '모두 한 판 기준, 별 하나마다 XP'or '진행 중인 것부터 보여요',13,C.muted,x+sw*3+12,y,w-sw*3-12,48,Enum.TextXAlignment.Right).Visible=not phone
     y+=60
-    local cols=phone and 2 or 5;local gap=phone and 10 or 12;local cw=(w-gap*(cols-1))/cols
+    local cols=NARROW and 1 or phone and 2 or 5;local gap=phone and 10 or 12;local cw=(w-gap*(cols-1))/cols
     if hub.challengeTab=='ach'then
         local order={};for _,a in ipairs(list)do table.insert(order,a)end
         table.sort(order,function(a,b)local pa,pb=Claims.pending(p,'a:'..a.id),Claims.pending(p,'a:'..b.id);if pa~=pb then return pa end
@@ -263,7 +269,8 @@ local function drawToday(hub,body,x,w,y,phone)
         local got=i<=current;local today=i==current
         local d=card(att,'Day'..i,14+(i-1)*(dw+8),phone and 54 or 58,dw,th,today and Color3.fromRGB(56,44,16)or nil)
         if today then edge(d,GOLD,1.5)elseif i==#steps then edge(d,Color3.fromRGB(150,110,220))end
-        label(d,'Day',today and '오늘'or string.format('%d일',i),13,today and C.ink or C.muted,0,6,dw,18,Enum.TextXAlignment.Center)
+        local dl=label(d,'Day',today and '오늘'or string.format('%d일',i),13,today and C.ink or C.muted,0,6,dw,18,Enum.TextXAlignment.Center)
+        if NARROW then dl.TextScaled=true;UI.make('UITextSizeConstraint',dl,{MaxTextSize=13,MinTextSize=9})end
         local ic=Icons.create(d,'coin',phone and 16 or 24,got and not today and C.muted or GOLD);UI.box(ic,(dw-(phone and 16 or 24))/2,phone and 26 or 30,phone and 16 or 24,phone and 16 or 24)
         bold(label(d,'Amount',got and not today and '✓'or tostring(reward),phone and 13 or 15,GOLD,0,phone and 44 or 58,dw,20,Enum.TextXAlignment.Center))
         if today and not phone then label(d,'Got','✓ 받음',13,GREEN,0,80,dw,20,Enum.TextXAlignment.Center)end
@@ -274,7 +281,7 @@ local function drawToday(hub,body,x,w,y,phone)
         local ic=Icons.create(fc,'ranked',36,GOLD);UI.box(ic,20,20,36,36)
         bold(label(fc,'Name','오늘의 첫 승리',20,C.ink,66,16,fw-80,28));label(fc,'Detail','혼자 하기, 공식전, 커스텀 어디서든',13,C.muted,66,44,fw-80,20)
         if done then label(fc,'Done','✓ 오늘은 받았어요',15,GREEN,20,84,fw-40,24)else Currency.create(fc,'xp',r.xp,20,84,110,26);Currency.create(fc,'medal',r.medals,140,84,100,26)end
-        label(fc,'Bonus','오늘 첫 판은 XP 2배',13,GREEN,20,120,fw-190,24)
+        fit(label(fc,'Bonus','오늘 첫 판은 XP 2배',13,GREEN,20,120,fw-190,24),13,10)
         local go=UI.button(fc,'FirstWinStart','출전',function()Step.step('goals','firstWinGo',{});hub:closePage()end,true);UI.box(go,fw-170,112,150,48);go.TextSize=17
     end
     y+=(phone and 132 or 176)+16
@@ -302,17 +309,18 @@ local function drawToday(hub,body,x,w,y,phone)
     label(body,'Reset',string.format('%d시간 %d분 뒤 새 목표',left//3600,(left%3600)//60),13,C.muted,x,y,w,22);y+=34
     local weekly=os.time()<(p.weeklyReset or math.huge)and p.weekly or {}
     divider(body,'이번 주, 셋 중 하나만 채우면 돼요',x,y,w);y+=32
-    local wc=card(body,'Weekly',x,y,w,phone and 196 or 158)
-    bold(label(wc,'Title','주간 보상',17,C.ink,18,12,90,28));Currency.create(wc,'xp',Rules.weeklyXP,110,14,100,24);Currency.create(wc,'medal',Rules.weeklyMedals,218,14,90,24)
+    local wy=NARROW and 26 or 0;local wh=(phone and 196 or 158)+wy
+    local wc=card(body,'Weekly',x,y,w,wh)
+    local wt=bold(label(wc,'Title','주간 보상',17,C.ink,18,12,90,28));wt.TextScaled=true;UI.make('UITextSizeConstraint',wt,{MaxTextSize=17,MinTextSize=11});Currency.create(wc,'xp',Rules.weeklyXP,110,14,100,24);Currency.create(wc,'medal',Rules.weeklyMedals,218,14,90,24)
     local wleft=((p.weeklyReset or 0)-os.time())%604800
-    label(wc,'Reset',wleft>=86400 and string.format('%d일 뒤 초기화',math.ceil(wleft/86400))or string.format('%d시간 뒤 초기화',math.max(1,math.ceil(wleft/3600))),13,C.muted,w-180,12,162,28,Enum.TextXAlignment.Right)
+    label(wc,'Reset',wleft>=86400 and string.format('%d일 뒤 초기화',math.ceil(wleft/86400))or string.format('%d시간 뒤 초기화',math.max(1,math.ceil(wleft/3600))),13,C.muted,NARROW and 18 or w-180,NARROW and 40 or 12,162,NARROW and 22 or 28,NARROW and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right)
     local wk='w:'..Rules.week(os.time())
     local paths=Rules.weeklyPaths;local best,bestR=nil,-1
     for _,m in ipairs(paths)do local r=math.min(weekly[m.id]or 0,m.target)/m.target;if r>bestR then best,bestR=m.id,r end end
     local pw=phone and w-36 or (w-36-2*40)/3
     for i,m in ipairs(paths)do
         local value=math.min(weekly[m.id]or 0,m.target)
-        local px=phone and 18 or 18+(i-1)*(pw+40);local py=phone and 48+(i-1)*48 or 56
+        local px=phone and 18 or 18+(i-1)*(pw+40);local py=(phone and 48+(i-1)*48 or 56)+wy
         local c=card(wc,'Week_'..m.id,px,py,pw,phone and 42 or 80,C.bg)
         if m.id==best and bestR>0 and not weekly.paid then edge(c,C.accent)end
         local icon=({seconds='records',cities='fields',supports='friends'})[m.id]or 'missions'
@@ -323,7 +331,7 @@ local function drawToday(hub,body,x,w,y,phone)
         label(c,'Value',m.id=='seconds'and string.format('%d분 / %d분',math.floor(value/60),math.floor(m.target/60))or string.format('%d / %d',value,m.target),13,C.ink,pw-96,phone and 0 or 48,86,phone and 42 or 24,Enum.TextXAlignment.Right)
         if i<#paths and not phone then label(wc,'Or'..i,'또는',13,C.muted,px+pw,py+28,40,24,Enum.TextXAlignment.Center)end
     end
-    y+=(phone and 196 or 158)+12
+    y+=wh+12
     if Claims.pending(p,wk)then
         local b=Claims.button(body,'ClaimWeekly',string.format('주간 보상 받기  +%d 코인',Rules.weeklyMedals),function()Step.step('goals','claim',{item='weekly'});Claims.claim(hub,wk)end)
         UI.box(b,x,y,w,48);Claims.dot(b,true);UI.enabled(b,not shop.busy);y+=60
@@ -337,13 +345,13 @@ local function drawSeason(hub,body,x,w,y,phone,boardColumn)
     Step.once('seasonView','season','view',{item=Step.code(s.id),value=s.tier,count=s.daysLeft,total=s.tiers})
     local board=seasonBoard(hub)
     local lw=boardColumn and w-boardColumn-16 or w;local y0=y
-    local hh=phone and 108 or 170
+    local hh=NARROW and 136 or phone and 108 or 170
     local hero=card(body,'SeasonHero',x,y,lw,hh,Color3.fromRGB(22,28,38));corners(hero)
     local finish=os.date('!*t',s.finish-1)
     bold(label(hero,'Title',s.name,phone and 19 or 26,C.ink,phone and 14 or 24,phone and 6 or 14,phone and 120 or 160,phone and 28 or 40))
     label(hero,'Ends',phone and string.format('%d일 남음',s.daysLeft)or string.format('%d월 %d일까지, %d일 남음',finish.month,finish.day,s.daysLeft),13,C.muted,phone and 140 or 184,phone and 6 or 14,phone and 120 or 260,phone and 28 or 40)
     label(hero,'Note','이번 시즌에 얻은 XP가 그대로 점수예요',13,C.muted,lw-300,phone and 6 or 14,phone and 0 or 280,phone and 28 or 40,Enum.TextXAlignment.Right).Visible=not phone
-    local bw=(lw-(phone and 28 or 48)-2*12)/3;local by=phone and 38 or 60;local bh=phone and 62 or 94
+    local bw=(lw-(phone and 28 or 48)-2*12)/3;local by=phone and 38 or 60;local bh=NARROW and 88 or phone and 62 or 94
     local rankText,rankSub='—','순위 불러오는 중'
     if board and not board.unavailable then
         if board.myRank then rankText=string.format('%d위',board.myRank);local top=board.rows[1];rankSub=top and string.format('1위 %s점',commas(top.score))or ''
@@ -355,12 +363,14 @@ local function drawSeason(hub,body,x,w,y,phone,boardColumn)
         local c=card(hero,'Big_'..b[1],(phone and 14 or 24)+(i-1)*(bw+12),by,bw,bh,C.bg)
         label(c,'Label',b[2],13,C.muted,14,phone and 4 or 10,bw-28,20)
         local v=bold(label(c,'Value',b[3],phone and 18 or 28,i==3 and GOLD or C.ink,14,phone and 22 or 30,bw-28,phone and 26 or 36))
+        if NARROW then v.TextWrapped=false;v.TextScaled=true;UI.make('UITextSizeConstraint',v,{MaxTextSize=18,MinTextSize=11});v.Size=UDim2.fromOffset(bw-22,24)end
         if i==2 and not phone then
             v.RichText=true;v.Text=string.format('%d승 <font color="#8A94A3">%d패</font>',s.wins,s.losses)
             bar(c,'WinRate',bw-150,bh-24,136,s.wins/math.max(1,s.wins+s.losses),GREEN)
         end
         label(c,'Sub',b[4],13,C.muted,14,bh-(phone and 0 or 28),bw-(i==2 and not phone and 170 or 28),phone and 0 or 22).Visible=not phone or i~=1
-        if phone then c.Sub.Position=UDim2.fromOffset(bw-100,4);c.Sub.Size=UDim2.fromOffset(88,20);c.Sub.TextXAlignment=Enum.TextXAlignment.Right end
+        if NARROW then c.Sub.Visible=true;c.Sub.Position=UDim2.fromOffset(14,52);c.Sub.Size=UDim2.fromOffset(bw-20,32);c.Sub.TextWrapped=true;c.Sub.TextYAlignment=Enum.TextYAlignment.Top
+        elseif phone then c.Sub.Position=UDim2.fromOffset(bw-100,4);c.Sub.Size=UDim2.fromOffset(88,20);c.Sub.TextXAlignment=Enum.TextXAlignment.Right end
     end
     y+=hh+(phone and 10 or 16)
     local steps=s.steps or {}
@@ -374,8 +384,10 @@ local function drawSeason(hub,body,x,w,y,phone,boardColumn)
         local isNext=s.next and s.next.tier==i
         local t=card(sc,'Step'..i,(phone and 12 or 18)+(i-1)*(tw+(phone and 6 or 10)),phone and 38 or 52,tw,th,st.got and Color3.fromRGB(30,44,24)or isNext and Color3.fromRGB(40,34,18)or C.bg)
         if st.got then edge(t,GREEN:Lerp(C.panel,.3))elseif isNext then edge(t,GOLD,1.5)end
-        local is=phone and 18 or 30;local ic=Icons.create(t,'coin',is,(st.got or isNext)and GOLD or C.muted);UI.box(ic,phone and 6 or (tw-is)/2,phone and (th-is)/2 or 12,is,is)
-        if phone then
+        local is=phone and 18 or 30;local ic=Icons.create(t,'coin',is,(st.got or isNext)and GOLD or C.muted);UI.box(ic,NARROW and (tw-is)/2 or phone and 6 or (tw-is)/2,NARROW and 6 or phone and (th-is)/2 or 12,is,is)
+        if NARROW then
+            local a=label(t,'Coins',st.got and '✓'or string.format('%d',st.coins),13,st.got and GREEN or isNext and GOLD or C.muted,0,28,tw,20,Enum.TextXAlignment.Center);a.TextWrapped=false
+        elseif phone then
             label(t,'Coins',st.got and '✓'or string.format('%d',st.coins),13,st.got and GREEN or isNext and GOLD or C.muted,26,0,tw-30,th,Enum.TextXAlignment.Center)
         else
             bold(label(t,'Coins',string.format('%d 코인',st.coins),15,(st.got or isNext)and C.ink or C.muted,0,48,tw,22,Enum.TextXAlignment.Center))
@@ -391,7 +403,7 @@ local function drawSeason(hub,body,x,w,y,phone,boardColumn)
             local r=s.stats and s.stats[m[1]]or {w=0,l=0}
             local c=card(mc,'Mode_'..m[1],18+(i-1)*(mw+12),52,mw,120,C.bg)
             local ic=Icons.create(c,m[3],26,C.accent);UI.box(ic,14,14,26,26);bold(label(c,'Name',m[2],16,C.ink,48,14,mw-60,26))
-            local v=bold(label(c,'Value','',24,C.ink,14,52,mw-110,34));v.RichText=true;v.Text=string.format('%d승 <font color="#8A94A3">%d패</font>',r.w,r.l)
+            local v=fit(bold(label(c,'Value','',24,C.ink,14,52,mw-110,34)),24,14);v.RichText=true;v.Text=string.format('%d승 <font color="#8A94A3">%d패</font>',r.w,r.l)
             label(c,'Rate',string.format('승률 %d%%',percent(r.w,r.l)),13,C.muted,mw-104,58,90,24,Enum.TextXAlignment.Right)
             bar(c,'Bar',14,98,mw-28,r.w/math.max(1,r.w+r.l),GREEN)
         end
@@ -437,21 +449,25 @@ end
 
 local function drawCareer(hub,body,x,w,y,phone)
     local p=hub.account.progress or {};local c=p.career or {};local CR=Rules.career
-    local hh=phone and 120 or 172
+    local hh=NARROW and 154 or phone and 120 or 172
     local hero=card(body,'CareerHero',x,y,w,hh,Color3.fromRGB(22,28,38));corners(hero)
     local ms=phone and 56 or 84;local mi=Icons.create(hero,'medal',ms,GOLD);UI.box(mi,phone and 14 or 40,(hh-ms)/2,ms,ms)
     local tx=(phone and 14 or 40)+ms+(phone and 14 or 32)
     local rw=phone and 0 or 480
     bold(label(hero,'Level',string.format('Lv.%d',p.level or 1),phone and 24 or 36,C.ink,tx,phone and 8 or 20,phone and 90 or 130,phone and 32 or 48))
     local title=(p.titleText and p.titleText~=''and p.titleText~=p.title)and string.format('%s  「%s」',p.title or '',p.titleText)or (p.title or '')
-    bold(label(hero,'Rank',title,phone and 15 or 18,C.ink,tx+(phone and 92 or 140),phone and 8 or 20,w-tx-rw-(phone and 106 or 160),phone and 32 or 48))
-    if not phone then label(hero,'Lead','경력은 시즌과 상관없이 계속 쌓여요. 레벨마다 칭호나 명판을 받아요.',13,C.muted,tx,70,w-tx-rw-40,22)end
+    local ry=NARROW and 22 or 0
+    local rank=bold(label(hero,'Rank',title,phone and 15 or 18,C.ink,NARROW and tx or tx+(phone and 92 or 140),NARROW and 42 or phone and 8 or 20,NARROW and w-tx-14 or w-tx-rw-(phone and 106 or 160),NARROW and 22 or phone and 32 or 48))
+    if NARROW then rank.TextWrapped=false;rank.TextTruncate=Enum.TextTruncate.AtEnd elseif not phone then fit(rank,18,12)end
+    if not phone then fit(label(hero,'Lead','경력은 시즌과 상관없이 계속 쌓여요. 레벨마다 칭호나 명판을 받아요.',13,C.muted,tx,70,w-tx-rw-40,22),13,10)end
     local maxed=(p.nextXP or 0)==0
-    bar(hero,'XP',tx,phone and 52 or 104,w-tx-rw-(phone and 20 or 40),maxed and 1 or (p.currentXP or 0)/math.max(1,p.nextXP or 1),GREEN:Lerp(C.accent,.5),phone and 8 or 10)
-    label(hero,'XPText',maxed and string.format('최고 레벨  %s XP',commas(p.xp or 0))or string.format('%s / %s XP  다음까지 %s XP',commas(p.currentXP or 0),commas(p.nextXP or 0),commas(math.max(0,(p.nextXP or 0)-(p.currentXP or 0)))),13,C.ink,tx,phone and 66 or 122,w-tx-rw-20,22)
+    bar(hero,'XP',tx,(phone and 52 or 104)+ry,w-tx-rw-(phone and 20 or 40),maxed and 1 or (p.currentXP or 0)/math.max(1,p.nextXP or 1),GREEN:Lerp(C.accent,.5),phone and 8 or 10)
+    label(hero,'XPText',maxed and string.format('최고 레벨  %s XP',commas(p.xp or 0))or string.format('%s / %s XP  다음까지 %s XP',commas(p.currentXP or 0),commas(p.nextXP or 0),commas(math.max(0,(p.nextXP or 0)-(p.currentXP or 0)))),13,C.ink,tx,(phone and 66 or 122)+ry,w-tx-rw-20,22)
     local nextMotion;for _,m in ipairs(CR.motions)do if m.level>(p.level or 1)then nextMotion=m;break end end
     local boxes={{'NextRank','다음 계급',p.nextRankName or '최고 계급',p.nextRankLevel and string.format('Lv.%d',p.nextRankLevel)or ''},{'NextMotion','다음 모션',nextMotion and nextMotion.name or '모두 받았어요',nextMotion and string.format('Lv.%d',nextMotion.level)or ''}}
-    if phone then
+    if NARROW then
+        for i,b in ipairs(boxes)do local l=label(hero,b[1],string.format('%s %s %s',b[2],b[3],b[4]),13,C.muted,tx,90+ry+(i-1)*18,w-tx-14,18);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd end
+    elseif phone then
         label(hero,'Next',string.format('다음 계급 %s  다음 모션 %s',boxes[1][3]..' '..boxes[1][4],boxes[2][3]..' '..boxes[2][4]),13,C.muted,tx,90,w-tx-14,22)
     else
         for i,b in ipairs(boxes)do
@@ -467,14 +483,16 @@ local function drawCareer(hub,body,x,w,y,phone)
     for i,r in ipairs(list)do
         local cc=card(body,'Reward_'..r.level,x+(i-1)%cols*(cw+12),y+math.floor((i-1)/cols)*(ch+10),cw,ch)
         if i==1 then edge(cc,GOLD,1.5)end
-        bold(label(cc,'Level',string.format('Lv.%d',r.level),15,i==1 and GOLD or C.ink,14,10,cw-28,22))
-        label(cc,'Kind',r.reward.kind=='plate'and '명판'or '칭호',13,C.muted,14,10,cw-28,22,Enum.TextXAlignment.Right)
+        bold(label(cc,'Level',string.format('Lv.%d',r.level),15,i==1 and GOLD or C.ink,14,10,NARROW and cw-28 or cw-82,22))
+        label(cc,'Kind',r.reward.kind=='plate'and '명판'or '칭호',13,C.muted,cw-64,10,50,22,Enum.TextXAlignment.Right).Visible=not NARROW
         if r.reward.kind=='plate'then
             local col=r.reward.color and Color3.fromRGB(r.reward.color[1],r.reward.color[2],r.reward.color[3])or C.accent
             local pl=UI.make('TextLabel',cc,{Name='Plate',Text=string.format('%s 명판',r.reward.name),TextSize=13,Font=Enum.Font.BuilderSansBold,TextColor3=C.ink,BackgroundColor3=col:Lerp(C.bg,.45),BorderSizePixel=0})
             UI.corner(pl,4);UI.stroke(pl,col,1);UI.box(pl,12,phone and 40 or 56,cw-24,phone and 30 or 32)
+            if phone then pl.TextScaled=true;UI.make('UITextSizeConstraint',pl,{MaxTextSize=13,MinTextSize=9});UI.make('UIPadding',pl,{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)})end
         else
-            bold(label(cc,'Title',string.format('「%s」',r.reward.name),phone and 14 or 18,C.ink,8,phone and 36 or 50,cw-16,phone and 34 or 40,Enum.TextXAlignment.Center)).TextWrapped=true
+            local rt=bold(label(cc,'Title',string.format('「%s」',r.reward.name),phone and 14 or 18,C.ink,8,phone and 36 or 50,cw-16,phone and 34 or 40,Enum.TextXAlignment.Center));rt.TextWrapped=true
+            if phone then rt.TextScaled=true;UI.make('UITextSizeConstraint',rt,{MaxTextSize=14,MinTextSize=10})end
         end
         if r.motion and not phone then label(cc,'Motion',string.format('모션 「%s」',r.motion.name),13,C.accent,8,ch-58,cw-16,20,Enum.TextXAlignment.Center)end
         if i==1 then label(cc,'Next','다음 보상',13,GOLD,8,ch-(phone and 22 or 32),cw-16,20,Enum.TextXAlignment.Center)end
@@ -491,7 +509,14 @@ local function drawCareer(hub,body,x,w,y,phone)
         local box=UI.corner(UI.make('Frame',bc,{Name='IconBox',BackgroundColor3=C.raised,BorderSizePixel=0}),8);local is=phone and 40 or 60;UI.box(box,14,(bh2-is)/2,is,is)
         local ic=Icons.create(box,b[2],is*.55,C.ink);UI.box(ic,is*.225,is*.225,is*.55,is*.55)
         local tx2=14+is+14
-        bold(label(bc,'Name',b[3],phone and 15 or 17,C.ink,tx2,phone and 6 or 30,bw2-tx2-110,24))
+        if not phone and bw2<380 then
+            fit(bold(label(bc,'Name',b[3],17,C.ink,tx2,16,bw2-tx2-12,24)),17,12)
+            fit(label(bc,'Detail',b[4],13,C.muted,tx2,42,bw2-tx2-12,20),13,10)
+            bold(label(bc,'State',b[5],15,b[6],tx2,68,bw2-tx2-12,26))
+            continue
+        end
+        local bn=bold(label(bc,'Name',b[3],phone and 15 or 17,C.ink,tx2,phone and 6 or 30,bw2-tx2-110,24))
+        if NARROW then bn.TextScaled=true;UI.make('UITextSizeConstraint',bn,{MaxTextSize=15,MinTextSize=11})end
         label(bc,'Detail',b[4],13,C.muted,tx2,phone and 30 or 56,bw2-tx2-110,22)
         bold(label(bc,'State',b[5],15,b[6],bw2-110,0,96,bh2,Enum.TextXAlignment.Right))
     end
@@ -505,47 +530,65 @@ function M.draw(hub,body,shop)
     for _,o in ipairs(body:GetChildren())do if o:IsA('GuiObject')then o:Destroy()end end
     local W,H=body.Size.X.Offset,body.Size.Y.Offset
     if W<10 then W,H=body.AbsoluteSize.X/(UI.scale or 1),body.AbsoluteSize.Y/(UI.scale or 1)end
-    hub.goalsDrawn=Vector2.new(W,H)
+    local rawW,rawH=W,H;local pad=body:FindFirstChild('ContentInset')
+    if pad then W-=pad.PaddingLeft.Offset+pad.PaddingRight.Offset;H-=pad.PaddingTop.Offset+pad.PaddingBottom.Offset end
+    hub.goalsDrawn=Vector2.new(body.Size.X.Offset,body.Size.Y.Offset)
     if not hub.goalsResize then hub.goalsResize=body:GetPropertyChangedSignal('Size'):Connect(function()
         if hub.page~='missions'then return end
         local now=Vector2.new(body.Size.X.Offset,body.Size.Y.Offset)
         if hub.goalsDrawn and (now-hub.goalsDrawn).Magnitude>1 and not hub.goalsRedraw then hub.goalsRedraw=true
             task.defer(function()hub.goalsRedraw=nil;if hub.page=='missions'then hub:drawPage()end end)end
     end)end
-    local phone=H<460 or W<760
+    local phone=rawH<460 or rawW<760
+    NARROW=phone and W<560 and H>W
     hub.goalTab=hub.goalTab or 'challenges'
-    if not ({challenges=1,today=1,season=1,career=1})[hub.goalTab]then hub.goalTab='challenges'end
+    if not ({campaign=1,challenges=1,today=1,season=1,career=1})[hub.goalTab]then hub.goalTab='challenges'end
+    local screen=hub.goalTab=='campaign'and 'campaign'or 'goals';if hub.goalScreen~=screen then hub.goalScreen=screen;Step.emit('screen_viewed',{screen=screen,result='shown'})end
     local dots=claimDots(p)
     local s=p.career and p.career.season
-    local subs={challenges=string.format('업적 %d/%d  기장 ★%d',p.achievementsUnlocked or 0,#(p.achievementList or {}),p.tacticTiers or 0),
+    local cv=p.campaign or {}
+    local subs={campaign=string.format('별 %d/%d',cv.total or 0,require(script.Parent.Parent.Core.CampaignRules).maxStars),challenges=string.format('업적 %d/%d  기장 ★%d',p.achievementsUnlocked or 0,#(p.achievementList or {}),p.tacticTiers or 0),
         today=(function()local d=os.time()<(p.dailyReset or math.huge)and p.daily or {};local n=0;for _,m in ipairs(Rules.daily)do if d.paid and d.paid[m.id]then n+=1 end end;return string.format('오늘 %d/%d',n,#Rules.daily)end)(),
         season=s and (hub.seasonBoard and hub.seasonBoard.myRank and string.format('%s %d위  %s점',s.name,hub.seasonBoard.myRank,commas(s.score))or string.format('%s  %s점',s.name,commas(s.score)))or '시즌 없음',
         career=string.format('Lv.%d %s',p.level or 1,p.title or '')}
     local function pick(key)if hub.goalTab~=key then hub.goalTab=key;Step.step('goals','tab',{item=key});hub:drawPage()end end
     local x0,top,cw=0,0,W
-    if phone then
+    if NARROW then
+        local tw=(W-(#TABS-1)*8)/#TABS
+        for i,t in ipairs(TABS)do
+            local on=hub.goalTab==t[1]
+            local b=UI.button(body,'GoalTab_'..t[1],'',function()pick(t[1])end,false);UI.box(b,(i-1)*(tw+8),0,tw,56)
+            b.BackgroundColor3=on and C.raised:Lerp(C.ink,.12)or C.panel
+            local st=b:FindFirstChildOfClass('UIStroke');if st then st.Color=on and C.ink or C.line;st.Transparency=on and .3 or 0 end
+            if on then local mark=UI.make('Frame',b,{Name='Mark',BackgroundColor3=C.ink,BorderSizePixel=0});UI.box(mark,12,53,tw-24,3)end
+            if t[4]=='crest'then crest(b,(tw-24)/2,6,24)else local ic=Icons.create(b,t[4],24,t[4]=='medal'and GOLD or C.accent);UI.box(ic,(tw-24)/2,6,24,24)end
+            local tn=label(b,'Name',t[3],13,on and C.ink or C.muted,2,32,tw-4,18,Enum.TextXAlignment.Center);tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=13,MinTextSize=9})
+            Claims.dot(b,dots[t[1]]==true)
+        end
+        top=66
+    elseif phone then
         local rail=card(body,'GoalRail',0,0,72,H-4);rail.ZIndex=2
         for i,t in ipairs(TABS)do
             local on=hub.goalTab==t[1]
-            local b=UI.button(rail,'GoalTab_'..t[1],'',function()pick(t[1])end,false);UI.box(b,6,6+(i-1)*((H-16)/4),60,(H-16)/4-6)
+            local b=UI.button(rail,'GoalTab_'..t[1],'',function()pick(t[1])end,false);UI.box(b,6,6+(i-1)*((H-16)/#TABS),60,(H-16)/#TABS-6)
             b.BackgroundColor3=on and C.raised:Lerp(C.ink,.12)or C.panel;b.BackgroundTransparency=on and 0 or 1
             local edgeS=b:FindFirstChildOfClass('UIStroke');if edgeS then edgeS.Enabled=false end
-            if on then local mark=UI.make('Frame',b,{Name='Mark',BackgroundColor3=C.ink,BorderSizePixel=0});UI.box(mark,0,8,3,(H-16)/4-22)end
-            local bh=(H-16)/4-6
+            if on then local mark=UI.make('Frame',b,{Name='Mark',BackgroundColor3=C.ink,BorderSizePixel=0});UI.box(mark,0,8,3,(H-16)/#TABS-22)end
+            local bh=(H-16)/#TABS-6
             if t[4]=='crest'then crest(b,16,bh/2-24,28)else local ic=Icons.create(b,t[4],28,t[4]=='medal'and GOLD or C.accent);UI.box(ic,16,bh/2-24,28,28)end
-            label(b,'Name',t[3],13,on and C.ink or C.muted,0,bh/2+8,60,18,Enum.TextXAlignment.Center)
+            local tn=label(b,'Name',t[3],13,on and C.ink or C.muted,2,bh/2+8,56,18,Enum.TextXAlignment.Center);tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=13,MinTextSize=9})
             Claims.dot(b,dots[t[1]]==true)
         end
         x0,cw=84,W-84
     else
-        local tw=(W-3*16)/4
+        local tw=(W-(#TABS-1)*16)/#TABS
         for i,t in ipairs(TABS)do
             local on=hub.goalTab==t[1]
             local b=UI.button(body,'GoalTab_'..t[1],'',function()pick(t[1])end,false);UI.box(b,(i-1)*(tw+16),0,tw,64)
             b.BackgroundColor3=on and C.raised:Lerp(C.ink,.1)or C.panel;local st=b:FindFirstChildOfClass('UIStroke');if st then st.Color=on and C.ink or C.line;st.Transparency=on and .3 or 0 end
             if t[4]=='crest'then crest(b,16,14,36)else local ic=Icons.create(b,t[4],32,t[4]=='medal'and GOLD or C.accent);UI.box(ic,18,16,32,32)end
-            bold(label(b,'Name',t[2],18,C.ink,64,10,tw-90,24))
-            label(b,'Sub',subs[t[1]],13,on and C.ink or C.muted,64,34,tw-90,20).TextTruncate=Enum.TextTruncate.AtEnd
+            local tn=bold(label(b,'Name',t[2],18,C.ink,64,10,tw-74,24));tn.TextWrapped=false;tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=18,MinTextSize=13})
+            local ts=label(b,'Sub',subs[t[1]],13,on and C.ink or C.muted,64,34,tw-74,20);ts.TextWrapped=false;ts.TextTruncate=Enum.TextTruncate.AtEnd
             Claims.dot(b,dots[t[1]]==true)
         end
         top=80
@@ -553,7 +596,8 @@ function M.draw(hub,body,shop)
     local scroll=UI.make('ScrollingFrame',body,{Name='GoalsScroll',BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,ScrollBarImageColor3=C.line,ScrollingDirection=Enum.ScrollingDirection.Y,CanvasSize=UDim2.fromOffset(0,0)})
     UI.box(scroll,x0,top,cw,H-top)
     local inner=cw-10;local y=Claims.banner(hub,scroll,inner,0)
-    if hub.goalTab=='challenges'then y=drawChallenges(hub,scroll,0,inner,y,phone)
+    if hub.goalTab=='campaign'then y=require(script.Parent.CampaignScreen).draw(hub,scroll,0,inner,y,phone)
+    elseif hub.goalTab=='challenges'then y=drawChallenges(hub,scroll,0,inner,y,phone)
     elseif hub.goalTab=='today'then y=drawToday(hub,scroll,0,inner,y,phone)
     elseif hub.goalTab=='season'then y=drawSeason(hub,scroll,0,inner,y,phone,not phone and math.min(440,inner*.33)or nil)
     else y=drawCareer(hub,scroll,0,inner,y,phone)end

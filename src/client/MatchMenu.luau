@@ -97,6 +97,10 @@ function M.settings(ctx)
     toggle('reducedEffects','간소한 이펙트','폭발과 연기를 줄여요',prefs.reducedEffects==true,function()pref('reducedEffects',not prefs.reducedEffects)end)
     toggle('cameraShake','화면 흔들림',nil,prefs.cameraShake~=false,function()pref('cameraShake',prefs.cameraShake==false)end)
     toggle('mapFlashes','지도 번쩍임','핵이나 폭발 때 화면이 밝아져요',prefs.mapFlashes~=false,function()pref('mapFlashes',prefs.mapFlashes==false)end)
+    segmented('HudOpacity','패널 배경',{{1,'100%'},{.75,'75%'},{.5,'50%'},{.25,'25%'}},prefs.hudOpacity or 1,function(v)
+        if v==(prefs.hudOpacity or 1)then return end
+        Step.step('settings','hudOpacity',{value=v*100});pref('hudOpacity',v)
+    end)
     section('소리와 언어')
     local volume=prefs.soundsMuted and 'off'or prefs.sfxVolume or 1
     segmented('SoundVolume','효과음',{{'off','끔'},{.5,'작게'},{1,'보통'},{1.5,'크게'}},volume,function(v)

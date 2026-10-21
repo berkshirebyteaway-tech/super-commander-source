@@ -6,6 +6,8 @@ local L=require(script.Parent.Localization)
 local Avatar=require(script.Parent.AvatarPortrait)
 local Badge=require(script.Parent.BenefitBadge)
 local Glyphs=require(script.Parent.ActionGlyphs)
+local InputMode=require(script.Parent.InputMode)
+local TextService=game:GetService("TextService")
 local M={};M.__index=M
 local amber,lime=Color3.fromRGB(255,82,82),Color3.fromRGB(180,240,90)
 function M.new(playerGui,flags)
@@ -37,22 +39,39 @@ function M:tag(player)
     local status=make("TextLabel",plate,{Name="Status",Size=UDim2.fromOffset(0,20),AutomaticSize=Enum.AutomaticSize.X,BackgroundColor3=amber,BorderSizePixel=0,Font=Enum.Font.BuilderSansBold,TextSize=11,TextColor3=UI.colors.bg,LayoutOrder=3,Visible=false})
     UI.corner(status,2);make("UIPadding",status,{PaddingLeft=UDim.new(0,6),PaddingRight=UDim.new(0,6)})
     local benefit=Badge.create(plate);benefit.root.LayoutOrder=4
-    t={gui=gui,plate=plate,stroke=stroke,bar=bar,flag=flag,code=code,avatar=avatar,avatarRing=avatarRing,text=text,name=name,troops=troops,status=status,benefit=benefit}
+    t={gui=gui,plate=plate,stroke=stroke,bar=bar,flag=flag,code=code,avatar=avatar,avatarRing=avatarRing,text=text,name=name,troops=troops,troopMark=troopMark,status=status,benefit=benefit,padding=plate:FindFirstChildOfClass("UIPadding"),list=plate:FindFirstChildOfClass("UIListLayout")}
     self.tags[player]=t;return t
 end
-local function density(t,compact)
+local function density(t,compact,small)
     t.benefit.root.Visible=not compact and (t.benefit.key or 0)>0
-    t.name.Visible=true;t.name.TextSize=14;t.bar.Visible=not compact
+    t.name.Visible=true;t.bar.Visible=not compact
     t.text.Visible=not compact
     t.plate.Visible=not compact or t.status.Visible
     t.flag.Visible=not compact and t.flagApplied==true;t.avatar.Visible=not compact and not t.flagApplied
-    t.plate.Size=UDim2.fromOffset(0,compact and 24 or 34)
-    t.text.Size=UDim2.fromOffset(0,30)
-    t.troops.Position=UDim2.fromOffset(t.troops:GetAttribute("Indent")or 0,17)
+    local indent=t.troops:GetAttribute("Indent")or 0
+    if small then
+        t.gui.Size=UDim2.fromOffset(200,34)
+        t.plate.Size=UDim2.fromOffset(0,compact and 20 or 24);t.padding.PaddingLeft=UDim.new(0,6);t.padding.PaddingRight=UDim.new(0,6);t.list.Padding=UDim.new(0,5)
+        t.bar.Size=UDim2.fromOffset(3,14);t.flag.Size=UDim2.fromOffset(20,13);t.avatar.Size=UDim2.fromOffset(18,18)
+        t.name.TextSize=12;t.name.Size=UDim2.fromOffset(0,20);t.text.Size=UDim2.fromOffset(0,20)
+        if t.nameText~=t.name.Text then t.nameText=t.name.Text;t.nameWidth=math.ceil(TextService:GetTextSize(t.name.Text,12,t.name.Font,Vector2.new(400,20)).X)end
+        local x=(t.nameWidth or 0)+6
+        t.troops.TextSize=11;t.troops.Position=UDim2.fromOffset(x+indent,4)
+        if t.troopMark then t.troopMark.Size=UDim2.fromOffset(11,11);t.troopMark.Position=UDim2.fromOffset(x,5)end
+        t.status.Size=UDim2.fromOffset(0,16);t.status.TextSize=10
+    else
+        t.gui.Size=UDim2.fromOffset(220,52)
+        t.plate.Size=UDim2.fromOffset(0,compact and 24 or 34);t.padding.PaddingLeft=UDim.new(0,9);t.padding.PaddingRight=UDim.new(0,9);t.list.Padding=UDim.new(0,7)
+        t.bar.Size=UDim2.fromOffset(3,22);t.flag.Size=UDim2.fromOffset(24,16);t.avatar.Size=UDim2.fromOffset(24,24)
+        t.name.TextSize=14;t.name.Size=UDim2.fromOffset(0,17);t.text.Size=UDim2.fromOffset(0,30)
+        t.troops.TextSize=11;t.troops.Position=UDim2.fromOffset(indent,17)
+        if t.troopMark then t.troopMark.Size=UDim2.fromOffset(12,12);t.troopMark.Position=UDim2.fromOffset(0,18)end
+        t.status.Size=UDim2.fromOffset(0,20);t.status.TextSize=11
+    end
 end
 function M:setOwnTerritoryVisible(visible)
     self.ownTerritoryVisible=visible
-    local t=self.tags[Players.LocalPlayer];if t then density(t,visible)end
+    local t=self.tags[Players.LocalPlayer];if t then density(t,visible,InputMode.touch())end
 end
 function M:ring(player)
     local r=self.rings[player]
@@ -105,7 +124,7 @@ function M:update(state,visible,incoming,ownColor)
         t.status.BackgroundColor3=state_=="allied" and lime or state_=="fighting" and UI.colors.ink or amber
         t.stroke.Color=state_=="incoming" and amber or mine and color or UI.colors.line
         t.state=state_
-        density(t,mine and self.ownTerritoryVisible==true)
+        density(t,mine and self.ownTerritoryVisible==true,InputMode.touch())
         local r=self:ring(player);r.part.Parent=self.folder;r.color=color;r.state=state_
         r.fill.BackgroundColor3=color;r.edge.Color=state_=="incoming" and amber or state_=="allied" and lime or mine and UI.colors.ice or color
     end

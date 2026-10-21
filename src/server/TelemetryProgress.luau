@@ -45,6 +45,8 @@ function P.outgame(log,player,before,after,sku)
   for id in pairs(t1)do if not t0[id]then log:flow(player,'progression','titleUnlock',{item=P.code(id),result='granted'})end end
   for id in pairs(p1)do if not p0[id]then log:flow(player,'progression','plateUnlock',{item=P.code(id),result='granted'})end end
  end
+ local st0={};for _,id in ipairs(type(before.sets)=='table'and before.sets or {})do st0[id]=true end;local st1=type(after.sets)=='table'and after.sets or {}
+ for _,id in ipairs(st1)do if not st0[id]then log:flow(player,'progression','setComplete',{item=P.code(id),total=#st1,result='granted'})end end
  local e0=type(before.equipped)=='table'and before.equipped or {};local e1=type(after.equipped)=='table'and after.equipped or {}
  if e1.title~=e0.title then log:flow(player,'progression','titleEquip',{item=P.code(e1.title)or 'rankName',result='ok'})end
  if e1.plate~=e0.plate then log:flow(player,'progression','plateEquip',{item=P.code(e1.plate)or 'none',result='ok'})end

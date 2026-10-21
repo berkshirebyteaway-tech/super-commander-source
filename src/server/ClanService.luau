@@ -14,7 +14,7 @@ local messages={
     ['already-member']='이미 클랜에 있어요. 먼저 클랜을 나가세요.',['prime']='클랜은 커맨더 프라임 보유자만 만들고 가입할 수 있어요.',['not-leader']='클랜장만 할 수 있어요.',
     ['storage-unavailable']='저장에 연결하지 못했어요. 잠시 뒤 다시 시도하세요.',['busy']='잠시 뒤 다시 시도하세요.',['invalid-request']='요청을 확인하세요.',['paused']='클랜 기능을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.',
     ['not-member']='클랜에 가입하면 출석할 수 있어요.',['attended']='오늘 출석은 이미 했어요.',['free-first']='오늘 무료 출석을 먼저 해 주세요.',['extra-done']='오늘 추가 출석을 모두 했어요.',
-    ['sale-closed']='추가 출석은 판매 준비 중이에요.',['war-size']='클랜전은 같은 클랜 2명이 파티로 들어가요.',['war-clan']='클랜전 파티는 같은 클랜원끼리만 들어갈 수 있어요.',
+    ['sale-closed']='추가 출석은 판매 준비 중이에요.',['war-size']='클랜전은 같은 클랜 2~5명이 파티로 들어가요.',['war-clan']='클랜전 파티는 같은 클랜원끼리만 들어갈 수 있어요.',
 }
 messages['banned']='이 클랜에서 내보내져 7일 동안 다시 가입할 수 없어요.'
 local function memoryStore(mem)
@@ -328,9 +328,12 @@ function S:warResult(r)
     return self.warDelivery:record(e)
 end
 function S:applyWarResult(r)
-    local ok1=self:warSide(r.winnerClan,r.matchId,r.season,true,r.winners,r.time,r.loserClan)
-    local ok2=self:warSide(r.loserClan,r.matchId,r.season,false,r.losers,r.time,r.winnerClan)
-    return ok1 and ok2
+    local sides=W.sides(r);local all={};for _,side in ipairs(sides)do table.insert(all,side.clan)end
+    local win=W.winFor(#sides,r.size or W.teamSize);local ok=true
+    for _,side in ipairs(sides)do
+        if not self:warSide(side.clan,r.matchId,r.season,side.won==true,side.players,r.time,W.opponentKey(all,side.clan),win)then ok=false end
+    end
+    return ok
 end
 function S:warBoardWrite(id,season)
     local function current()
@@ -348,9 +351,9 @@ function S:warBoardWrite(id,season)
     end
     return false
 end
-function S:warSide(id,matchId,season,won,players,now,opponent)
+function S:warSide(id,matchId,season,won,players,now,opponent,win)
     local ok,u,award,fresh=self.warArchive:apply('u:'..id,matchId,function(old)
-        return W.apply(old,matchId,season,won,players,now,opponent)
+        return W.apply(old,matchId,season,won,players,now,opponent,win)
     end)
     if not ok then return false end
     if not u and not award then return true end

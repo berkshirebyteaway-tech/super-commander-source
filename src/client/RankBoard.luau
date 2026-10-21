@@ -10,7 +10,7 @@ function M.row(parent,r,x,y,w,h)
     local line=UI.panel(parent,'Row'..tostring(r.rank or 0));line.BackgroundColor3=mine and C.raised or C.panel;line.BackgroundTransparency=mine and 0 or .25;UI.box(line,x,y,w,h)
     local stroke=line:FindFirstChildOfClass('UIStroke');if mine then stroke.Color=C.accent;stroke.Thickness=1.5 end
     local top=r.rank and podium[r.rank]
-    if top then UI.make('Frame',line,{Name='Podium',BackgroundColor3=top,BorderSizePixel=0,Size=UDim2.new(0,3,1,0)})end
+    if top then require(script.Parent.EdgeMask).fit(UI.make('Frame',line,{Name='Podium',BackgroundColor3=top,BorderSizePixel=0,Size=UDim2.new(0,3,1,0)}))end
     local n=skip(UI.label(line,'Rank',r.rank and tostring(r.rank)or '—',r.rank and r.rank<=3 and 20 or 16,top or C.muted));UI.display(n,true)
     n.TextXAlignment=Enum.TextXAlignment.Center;UI.box(n,8,0,36,h)
     local left=50

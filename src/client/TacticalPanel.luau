@@ -41,7 +41,8 @@ function M:statCells()
         Style.round(c,6);Style.line(c,Style.colors.line,1)
         local cap=UI.label(c,'Caption',k[2],13,UI.colors.muted);cap.ZIndex=c.ZIndex+1;cap.TextWrapped=false
         local icon=k[1]~='land'and Hot.create(c,k[3],15,k[1]=='gold'and UI.colors.gold or UI.colors.ink)or nil;if icon then icon.ZIndex=c.ZIndex+1 end
-        local v=UI.label(c,'Value','',15,UI.colors.ink);v.Font=Enum.Font.BuilderSansBold;v.ZIndex=c.ZIndex+1;v.TextWrapped=false;v.TextTruncate=Enum.TextTruncate.AtEnd;v:SetAttribute('LocalizationSkip',true)
+        local v=UI.label(c,'Value','',15,UI.colors.ink);v.Font=Enum.Font.BuilderSansBold;v.ZIndex=c.ZIndex+1;v.TextWrapped=false;v.TextTruncate=Enum.TextTruncate.None;v:SetAttribute('LocalizationSkip',true)
+        v.TextScaled=true;UI.make('UITextSizeConstraint',v,{MaxTextSize=15,MinTextSize=10})
         self.cells[i]={root=c,cap=cap,icon=icon,value=v}
     end
     return self.cells
@@ -196,7 +197,9 @@ function M:layout(w,h)
         local ix=8;local vy=phone and 0 or 22;local vh=phone and sh or 26
         UI.box(c.cap,8,4,cw-12,18)
         if c.icon then UI.box(c.icon,ix,vy+(vh-15)/2,15,15)end
-        UI.box(c.value,c.icon and ix+19 or ix,vy,cw-(c.icon and ix+23 or ix+4),vh);c.value.TextSize=phone and 13 or 15
+        UI.box(c.value,c.icon and ix+19 or ix,vy,cw-(c.icon and ix+23 or ix+4),vh)
+        local max=phone and 13 or 15;local con=c.value:FindFirstChildOfClass('UITextSizeConstraint')
+        if (con:GetAttribute('HudMax')or con.MaxTextSize)~=max then con:SetAttribute('HudMax',nil);con.MaxTextSize=max end
     end
     local ty=compact and top or top+sh+(phone and 4 or 10);local th=(self.rowStep or 48)-4;local by=ty+th+(phone and 4 or 8)
     for i,k in ipairs({'detail','signals','emoji','advanced'})do

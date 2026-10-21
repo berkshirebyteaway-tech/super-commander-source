@@ -10,6 +10,7 @@ local Theme=require(script.Parent.Theme)
 local Requests=require(pack.Core.RequestLifecycle)
 local Teleport=game:GetService('TeleportService')
 local Localization=require(script.Parent.Localization)
+local Pending=require(script.Parent.PressPending)
 local Veil=require(script.Parent.TransitionVeil)
 local Honor=require(script.Parent.CommanderHonor)
 local PageLayout=require(pack.Core.OutgamePresentation)
@@ -29,6 +30,7 @@ function M.new(root,notify,callbacks)
     self.profile=UI.button(f,'Profile','',function()self:openPage('records')end)
     self.avatar=UI.corner(UI.make('ImageLabel',self.profile,{Name='Avatar',Image='rbxthumb://type=AvatarHeadShot&id='..Players.LocalPlayer.UserId..'&w=150&h=150',BackgroundColor3=UI.colors.yellow,BorderSizePixel=0}),14)
     self.level=UI.label(self.profile,'Level','Lv. 1',14);self.medals=UI.label(self.profile,'Medals','코인 0',12,UI.colors.gold)
+    for _,l in ipairs({self.level,self.medals})do l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd end
     self.settingsButton=UI.button(f,'Settings','설정',callbacks.settings);self.help=UI.button(f,'Help','?',callbacks.help)
     self.panel=UI.panel(f,'PlayDesk');self.heading=UI.label(self.panel,'Heading','작전 대기',22)
     self.collapse=UI.button(self.panel,'Collapse','−',function()self.expanded=false;self:layout()end)
@@ -218,10 +220,11 @@ function M:request(action,value,after,handle)
     self.requests=self.requests or Requests.new(12)
     local operation=self.requests:begin(os.clock());if not operation then Veil.hide();return end
     if action=='play'or action=='again'then Veil.show('전장 준비 중…')end
+    local pend=Pending.begin()
     self.busy=true;self:refresh()
     task.delay(12,function()
         if self.requests:expire(operation,os.clock())then
-            self.busy=false;self:refresh();require(script.Parent.TelemetryStep).step('lobby','requestFailed',{item=type(action)=='string'and action or nil,reason='timeout'});self.notify('응답 지연 / 연결 확인 후 다시 시도',true)
+            Pending.finish(pend);self.busy=false;self:refresh();require(script.Parent.TelemetryStep).step('lobby','requestFailed',{item=type(action)=='string'and action or nil,reason='timeout'});self.notify('응답 지연 / 연결 확인 후 다시 시도',true)
         end
     end)
     task.spawn(function()
@@ -229,7 +232,7 @@ function M:request(action,value,after,handle)
         self.lastRequestSent=os.clock()
         local ok,r=pcall(function()return pack.LobbyRequest:InvokeServer(action,value)end)
         if not self.requests:complete(operation)then return end
-        self.busy=false
+        Pending.finish(pend);self.busy=false
         if not ok or not r.ok then Veil.hide()elseif action=='play'or action=='again'then Veil.settle(3)end
         if not ok then require(script.Parent.TelemetryStep).step('lobby','requestFailed',{item=type(action)=='string'and action or nil,reason='network'});self.notify('연결 끊김 / 다시 시도',true);self:refresh();return end
         if r.state then self.data=r.state;self.queueUpdated=os.clock()end
@@ -253,7 +256,7 @@ function M:announce(q)
     if previous=='go'and key~='go'then Veil.hide()end
     if not key or key==previous then return end
     if key=='countdown'and previous~='go'then self.notify(string.format('%d초 뒤 출발 / 빈자리 AI / 최대 %d명',math.ceil(q.remaining or 45),q.max))
-    elseif key=='waiting'and (previous=='countdown'or previous=='full')then self.notify('모두 나감 / 다시 모이면 45초 뒤 출발',true)
+    elseif key=='waiting'and (previous=='countdown'or previous=='full')then self.notify('모두 나감 / 다시 모이면 20초 뒤 출발',true)
     elseif key=='full'then self.notify(string.format('%d명 모집 완료, 곧 출발',q.max))
     elseif key=='go'then self.notify('전장으로 이동해요');Veil.teleport('전장으로 이동 중…')end
 end
@@ -283,11 +286,11 @@ function M:refreshBody()
     self.picture.Visible=isSingle and not q;self.art.Visible=not isSingle and not q
     self.reward.Text=isSingle and (cfg=='single'and '기본' or '자유 설정')or mode=='coop'and '같은 팀'or '지도 랜덤'
     self.mapTitle.Text=q and ('사람 '..q.count..' / '..q.max)or isSingle and (Maps.meta(self.map)or Maps.catalog[1]).label or mode=='coop'and '함께 컴퓨터 이기기'or '실시간 세계 전쟁'
-    self.modeHint.Text=q and (q.count<q.minimum and '참가하면 45초 뒤 출발' or remaining==0 and '전장을 준비하는 중…'or string.format('%d초 뒤 시작 / 현재 인원 출발',remaining or 0))or isSingle and '지도 바꾸기 ›'or mode=='coop'and '1~5명 vs AI 10명'or '진행 중 전장 바로 합류'
+    self.modeHint.Text=q and (q.count<q.minimum and '참가하면 20초 뒤 출발' or remaining==0 and '전장을 준비하는 중…'or string.format('%d초 뒤 시작 / 현재 인원 출발',remaining or 0))or isSingle and '지도 바꾸기 ›'or mode=='coop'and '1~5명 vs AI 10명'or '진행 중 전장 바로 합류'
     self.play.Text=self.loading and '준비 중…'or q and (q.mode=='pvp'and not s.practice and '연습하며 기다리기'or '참가자 모집 중…')or isSingle and '시작하기' or mode=='coop'and '함께 시작'or '플레이'
     if q and q.global then self.mapTitle.Text=string.format('전 서버 모집 / %d / %d명',q.count,q.max)end
     if q and q.phase=='recovering'then self.modeHint.Text='연결 확인 중 / 대기 유지'
-    elseif q and q.needsOpponent then self.modeHint.Text='양 진영 자리 나면 45초 뒤 출발'
+    elseif q and q.needsOpponent then self.modeHint.Text='양 진영 자리 나면 20초 뒤 출발'
     elseif q and q.phase=='next'then self.modeHint.Text='다음 전장 함께 출발'
     elseif connecting then self.modeHint.Text='같은 전장으로 이동 중…';self.play.Text='입장 중…'end
     if party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId and not q then self.play.Text=require(script.Parent.Parent.Core.PartyFormation).isReady(party,Players.LocalPlayer.UserId)and '준비 완료'or '준비'end
@@ -296,7 +299,7 @@ function M:refreshBody()
     UI.enabled(self.cancel,not self.busy and not(q and q.locked))
     self.status.Text=q and (q.count<q.minimum and '15초 뒤 연습하며 대기 가능'or '취소 불이익 없음')or isSingle and (cfg=='single'and '기본 싱글 / 보상 75%'or '자유 설정 / 반복 보상 없음')or mode=='coop'and '승패 모두 기록'or '중간 참가 무료 / 이탈 불이익 없음'
     if party and #party.users>1 and not q then self.status.Text='친구와 함께 XP +10%'end
-    if self.firstLesson then self.status.Text='10분 첫 작전 / 점령과 병력 기초'end
+    if self.firstLesson then self.status.Text='5분 첫 작전 / 점령과 병력 기초'end
     self:loadFriends();local playing=0
     for _,f in ipairs(self.onlineFriends or {})do if f.PlaceId==game.PlaceId and not Players:GetPlayerByUserId(f.VisitorId)then playing+=1 end end
     self.friends.Text=party and #party.users>1 and ('친구 '..#party.users..'/5')or s and #s.invites>0 and '초대 도착'or playing>0 and string.format('친구 %d명 플레이 중',playing)or '친구 +'
@@ -328,8 +331,8 @@ local subPages={joinCode=true,customCode=true,customRules=true,presets=true,maps
 function M:openPage(page)
     local from=self.page
     if not subPages[page]then self.backTo=nil elseif from and from~=page and (from=='custom'or from=='solo')then self.backTo=from end
-    local screen=({solo='single',missions='goals',preferences='settings',joinCode='custom',customCode='custom',customRules='custom',maps='deployment',watch='spectate',motions='motion',confirm='menu'})[page]or page
-    require(script.Parent.TelemetryClient).emit('screen_viewed',{screen=screen,result='shown'})
+    local screen=page=='missions'and self.goalTab=='campaign'and 'campaign'or ({solo='single',missions='goals',preferences='settings',joinCode='custom',customCode='custom',customRules='custom',maps='deployment',watch='spectate',motions='motion',confirm='menu'})[page]or page
+    require(script.Parent.TelemetryClient).emit('screen_viewed',{screen=screen,result='shown'});if page=='missions'then self.goalScreen=screen end
     if page=='solo'then self:refresh()end
     self.page=page;self.overlay.Visible=true;self.pageBody.CanvasPosition=Vector2.zero;self:layout();self:drawPage()
 end
@@ -381,15 +384,16 @@ function M:back()
         local back=self.backTo;self.backTo=nil;self.returnPage=nil;self:openPage(back)
     else self:closePage()end
 end
-function M:closePage()if self.page then require(script.Parent.TelemetryClient).emit('screen_viewed',{screen='lobby',result='shown'})end;self.backTo=nil;Currency.dismiss(true);require(script.Parent.PageWallet).clear(self);if self.page=='wardrobe'then require(script.Parent.CareerWardrobe).flush(self)end;self.page=nil;self.overlay.Visible=false;if self.mapBrowser then self.mapBrowser:destroy();self.mapBrowser=nil end;self:layout()end
+function M:closePage()if self.page then require(script.Parent.TelemetryClient).emit('screen_viewed',{screen='lobby',result='shown'})end;self.backTo=nil;Currency.dismiss(true);require(script.Parent.PageWallet).clear(self);if self.page=='wardrobe'then require(script.Parent.CareerWardrobe).flush(self)end;self.page=nil;self.overlay.Visible=false;if self.mapBrowser then self.mapBrowser:destroy();self.mapBrowser=nil end;require(script.Parent.LiveWatchPage).release(self,false);self:layout()end
 function M:drawPage()
     if not self.page then return end
-    local Probe=require(script.Parent.FrameProbe);Probe.start('Lobby.drawPage');self:drawPageBody();Probe.stop('Lobby.drawPage')
+    local Probe=require(script.Parent.FrameProbe);Probe.start('Lobby.drawPage');self:drawPageBody();Pending.restore();Probe.stop('Lobby.drawPage')
 end
 function M:drawPageBody()
     local scroll=self.pageBody.CanvasPosition
     Currency.dismiss(true);Currency.reduced=(self.account.preferences or {}).reducedEffects==true;require(script.Parent.PageWallet).clear(self)
     if self.mapBrowser then self.mapBrowser:destroy();self.mapBrowser=nil end
+    require(script.Parent.LiveWatchPage).release(self,self.page=='watch')
     for _,o in ipairs(self.pageBody:GetChildren())do o:Destroy()end
     for _,o in ipairs(self.pageTabs:GetChildren())do o:Destroy()end
     local side=PageLayout.inset(self.page)
@@ -402,6 +406,7 @@ function M:drawPageBody()
         require(script.Parent.DeploymentSetup).draw(self,self.pageBody,w-6)
     elseif table.find({'custom','customRules','room','joinCode','customCode'},self.page)then require(script.Parent.CustomDeployment).draw(self,self.pageBody,w-6)
     elseif self.page=='ranked'then require(script.Parent.RankedEntry).draw(self,self.pageBody,w-6)
+    elseif self.page=='commander'then require(script.Parent.CommanderProfile).draw(self,self.pageBody,w-6)
     elseif self.page=='watch'then require(script.Parent.LiveWatchPage).draw(self,self.pageBody,w-6)
     elseif self.page=='maps'then
         self.pageTitle.Text='지도 선택'
@@ -415,10 +420,11 @@ function M:drawPageBody()
         self.pageTitle.Text='친구와 함께';local y=0
         local function row(name,text,fn,primary)local b=UI.button(self.pageBody,name,text,fn,primary);UI.box(b,2,y,w-10,48);y+=56;return b end
         local function face(b,userId,color)
-            local img=UI.make('ImageLabel',b,{Name='Avatar',BackgroundColor3=UI.colors.bg,BorderSizePixel=0,Image='rbxthumb://type=AvatarHeadShot&id='..tostring(userId)..'&w=150&h=150',Position=UDim2.fromOffset(8,7),Size=UDim2.fromOffset(32,32),ZIndex=b.ZIndex+1})
-            UI.corner(img,40);UI.stroke(img,color,2)
-            local dot=UI.make('Frame',b,{Name='Status',BackgroundColor3=color,BorderSizePixel=0,Position=UDim2.fromOffset(30,29),Size=UDim2.fromOffset(10,10),ZIndex=b.ZIndex+2});UI.corner(dot,40);UI.stroke(dot,UI.colors.panel,2)
             local pad=b:FindFirstChildOfClass('UIPadding')or UI.make('UIPadding',b,{});pad.PaddingLeft=UDim.new(0,50);b.TextXAlignment=Enum.TextXAlignment.Left
+            local x,top=8-50,-pad.PaddingTop.Offset
+            local img=UI.make('ImageLabel',b,{Name='Avatar',BackgroundColor3=UI.colors.bg,BorderSizePixel=0,Image='rbxthumb://type=AvatarHeadShot&id='..tostring(userId)..'&w=150&h=150',Position=UDim2.fromOffset(x,top+7),Size=UDim2.fromOffset(32,32),ZIndex=b.ZIndex+1})
+            UI.corner(img,40);UI.stroke(img,color,2)
+            local dot=UI.make('Frame',b,{Name='Status',BackgroundColor3=color,BorderSizePixel=0,Position=UDim2.fromOffset(x+22,top+29),Size=UDim2.fromOffset(10,10),ZIndex=b.ZIndex+2});UI.corner(dot,40);UI.stroke(dot,UI.colors.panel,2)
             return b
         end
         local party=self.data and self.data.party;local queue=self.data and self.data.queue
@@ -464,11 +470,13 @@ function M:drawPageBody()
             if #s.party.users>1 then header(string.format('파티 %d/5',#s.party.users))end
             for _,id in ipairs(s.party.users)do local player=Players:GetPlayerByUserId(id);local st=s.partyStatus and s.partyStatus[tostring(id)]
                 local text=(s.party.leader==id and '★ 'or '')..(player and player.DisplayName or '지휘관')..(s.party.leader==id and ' / 방장'or require(script.Parent.Parent.Core.PartyFormation).isReady(s.party,id)and ' / 준비 완료'or ' / 준비 중')..(st and st~='hq'and st~='ready'and ' / '..status[st]or '')
-                local l=UI.label(self.pageBody,'Member'..id,text,14);UI.box(l,12,y,w-26-(leader and id~=me and 92 or 0),40)
+                local profile=player and id~=me;local reserved=(leader and id~=me and 92 or 0)+(profile and 92 or 0)
+                local l=UI.label(self.pageBody,'Member'..id,text,14);UI.box(l,12,y+(profile and 4 or 0),w-26-reserved,40)
                 if player then local B=require(script.Parent.BenefitBadge);local badge=B.create(self.pageBody,16);B.update(badge,player:GetAttribute('CommanderPermanent')==true,player:GetAttribute('CommanderVIP')==true)
-                    local bw=B.width(badge);if bw>0 then local right=w-14-(leader and id~=me and 92 or 0);UI.box(badge.root,right-bw,y+12,bw,16);l.Size=UDim2.fromOffset(right-bw-18,40)end end
-                if leader and id~=me then local kick=UI.button(self.pageBody,'Kick'..id,'내보내기',function()self:request('kick',id)end);UI.box(kick,w-8-88,y+3,88,34);kick.TextSize=12 end
-                y+=44
+                    local bw=B.width(badge);if bw>0 then local right=w-14-reserved;UI.box(badge.root,right-bw,y+12+(profile and 4 or 0),bw,16);l.Size=UDim2.fromOffset(right-bw-18,40)end end
+                if leader and id~=me then local kick=UI.button(self.pageBody,'Kick'..id,'내보내기',function()self:request('kick',id)end);UI.box(kick,w-8-88,y+(profile and 0 or 3),88,profile and 48 or 34);kick.TextSize=12 end
+                if profile then local view=UI.button(self.pageBody,'Profile'..id,'전적',function()require(script.Parent.CommanderProfile).open(self,player,'party')end);UI.box(view,w-8-88-(leader and 92 or 0),y,88,48)end
+                y+=profile and 56 or 44
             end
             if #s.party.users>1 then row('Ready','준비 상태 바꾸기',function()self:request('ready')end);row('LeaveParty','파티 나가기',function()self:request('leaveParty')end)end
             local sent={};for _,to in ipairs(s.sent or {})do sent[to]=true end
@@ -478,6 +486,10 @@ function M:drawPageBody()
                 local b=row('Invite'..player.userId,player.name..(sent[player.userId]and ' / 초대 보냄'or player.busy and ' / 경기 중'or ' / 파티 초대'),function()self:request('invite',player.userId)end)
                 face(b,player.userId,player.busy and UI.colors.gold or UI.colors.good)
                 if sent[player.userId]or player.busy then UI.enabled(b,false)end
+                local here=Players:GetPlayerByUserId(player.userId)
+                if here then b.Size=UDim2.fromOffset(w-10-96,48)
+                    local view=UI.button(self.pageBody,'Profile'..player.userId,'전적',function()require(script.Parent.CommanderProfile).open(self,here,'server')end);UI.box(view,w-8-88,y-56,88,48)
+                end
             end end
         end
         self.pageBody.CanvasSize=UDim2.fromOffset(0,y)
@@ -543,8 +555,10 @@ function M:layout()
     local pw=math.min(740,w-24)
     local pageHeight=self.page=='ranked'and 650 or self.page=='solo'and (require(script.Parent.Parent.Core.CommandPresentation).lesson(self)and (short and 300 or 340)or 640)or self.page=='joinCode'and 250 or self.page=='motions'and 500 or self.page=='custom'and ((self.customStep or 1)==1 and 360 or (self.customStep or 1)==3 and 480 or 650)or 650
     local lifted=short and w>=600 and self.page~='motions'
-    local ph2=math.min(pageHeight,h-(lifted and (self.page=='missions'and 20 or 52)or self.page=='missions'and short and 76 or 108));self.pageCard.BackgroundTransparency=.04
-    local pageX,pageY=(w-pw)/2,lifted and math.max(8,math.floor((h-44-ph2)/2))or math.max(64,(h-ph2)/2)
+    local bar=q and (self.deployment and self.deployment.barHeight or 48)+8 or 0
+    local bottom=math.max(44,narrow and 64+bar or bar>0 and bar+8 or 0)
+    local ph2=math.min(pageHeight,h-(lifted and (self.page=='missions'and 20 or 8+bottom)or self.page=='missions'and short and 76 or 64+bottom));self.pageCard.BackgroundTransparency=.04
+    local pageX,pageY=(w-pw)/2,lifted and math.max(8,math.floor((h-bottom-ph2)/2))or math.max(64,math.min((h-ph2)/2,h-bottom-ph2))
     local titleX=pageY+8<self.topbarHeight and math.max(18,self.topbarLeft-pageX)or 18
     UI.box(self.pageCard,pageX,pageY,pw,ph2);UI.box(self.pageTitle,titleX,8,pw-titleX-66,42);UI.box(self.pageClose,pw-58,5,48,48)
     local footer=self.page=='solo'or table.find({'custom','customRules','room','joinCode','customCode'},self.page)~=nil

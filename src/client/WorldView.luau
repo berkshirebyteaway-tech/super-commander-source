@@ -91,7 +91,7 @@ end
 function M:follow() self.overview=false;self.targetTile=nil;self.view.w=180;self:clamp() end
 function M:focusAt(tile,preserveZoom) self.overview=false;self.targetTile=tile;if not preserveZoom then self.view.w=180 end;self:clamp() end
 function M:zoom(factor)
-    if self.dropActive then self.dropZoom=math.clamp((self.dropZoom or 1)*factor,.55,4);return end
+    if self.dropActive then self.dropZoom=math.clamp((self.dropZoom or 1)*factor^1.6,.25,2);return end
     self.view.w*=factor;self:clamp()
 end
 function M:impulse(strength)
@@ -169,6 +169,10 @@ function M:markTerritory(t)
         if c then c.raster.dirtyTiles[tile]=true end
     end
     mark(t);mark(t-w);mark(t+w);if t%w>0 then mark(t-1) end;if t%w<w-1 then mark(t+1) end
+    local band,o=self.bandOwners,self.playback.owners
+    if band and(band[o[t]]or band[o[t-1]]or band[o[t+1]]or band[o[t-w]]or band[o[t+w]])then
+        local x=t%w;for k=2,self.bandReach do mark(t-k*w);mark(t+k*w);if x>=k then mark(t-k)end;if x+k<w then mark(t+k)end end
+    end
     if self.glow and self.playback.owners[t]==1 and not self.reducedEffects and self.mapFlashes~=false and (self.glow[t] or self.glowCount<M.glowCap) then
         if not self.glow[t] then self.glowCount+=1 end;self.glow[t]=os.clock()
     end
@@ -269,12 +273,18 @@ function M:applyAffiliation()
 end
 function M:setState(state)
     self.enabled=state and state.phase~="menu"
-    if not self.enabled then return end
+    if not self.enabled or not self.map then return end
     self.lastState=state;if self.altView then self:applyAffiliation()end
     local loadouts=Looks.all(state);local tiers={};local signature=''
     local shares={};for _,f in ipairs(state.factions or {})do shares[f.id]=f.share end
-    for id,l in pairs(loadouts)do local style=Catalog.forSlot(l,'territory');local ph=Art.phase(style,shares[id]or 0,false);tiers[id]=Pattern.spec(style,ph);signature..=tostring(id)..':'..tostring(l.territory)..ph..';'end
-    local glint={};for id,l in pairs(loadouts)do local style=Catalog.forSlot(l,'territory');if (style.tier or 0)>=4 and (shares[id]or 0)>0 then glint[id]=Glints.styleFor(style,Art.phase(style,shares[id],false),shares[id])end end
+    local reach,banded=1,nil
+    for id,l in pairs(loadouts)do
+        local style=Catalog.forSlot(l,'territory');local ph=Art.phase(style,shares[id]or 0,false);local s=Pattern.spec(style,ph);tiers[id]=s
+        if s and s.band then reach=math.max(reach,s.band.h+1);banded=banded or {};banded[id]=true end
+        signature..=tostring(id)..':'..tostring(l.territory)..ph..';'
+    end
+    self.bandReach=reach;self.bandOwners=banded
+    local glint={};for id,l in pairs(loadouts)do local style=Catalog.forSlot(l,'territory');if (style.tier or 0)>=3 and (shares[id]or 0)>0 then glint[id]=Glints.styleFor(style,Art.phase(style,shares[id],false),shares[id])end end
     if M.studio and self.qaGlints then glint=self.qaGlints(state,glint)end
     self.glints=self.glints or Glints.new(self.folder);Glints.setOwners(self.glints,glint)
     local styleChanged=signature~=self.collectionSignature;self.collectionSignature=signature
@@ -377,7 +387,10 @@ function M:stepDragWalk(dt,char,hrp,hum)
 end
 function M:step(dt)
     self.frameCamera=workspace.CurrentCamera;self.frameOrigin=self.parent.AbsolutePosition
-    if not self.enabled or not self.map then self.readability:step(dt);if self.walkTrack and self.walkTrack.IsPlaying then self.walkTrack:Stop(.2)end;return end
+    if not self.enabled or not self.map then self.readability:step(dt);if self.walkTrack and self.walkTrack.IsPlaying then self.walkTrack:Stop(.2)end
+        if not self.enabled then local char=Players.LocalPlayer.Character;local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hum and not hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)then hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)end end
+        return end
     self.visualTime=(self.visualTime or 0)+(self.paused and 0 or dt)
     local batch=self.poseBatch or PoseBatch.new();self.poseBatch=batch
     Probe.start('World.seals')
@@ -479,7 +492,8 @@ function M:bind(callbacks,inputService)
     local function mouse() return inputService:GetMouseLocation()-game:GetService("GuiService"):GetGuiInset() end
     local function drag(p,slop)
         if not press.dragging and (p-press.start).Magnitude>=slop then press.dragging=true;self.dragging=true end
-        if press.dragging then self:dragAvatar(press.last,p);press.last=p;if callbacks.changed then callbacks.changed() end end
+        if press.dragging and self.dropActive then self.dropSteer=p-press.start
+        elseif press.dragging then self:dragAvatar(press.last,p);press.last=p;if callbacks.changed then callbacks.changed() end end
     end
     inputService.InputBegan:Connect(function(input,processed)
         local p=input.UserInputType==Enum.UserInputType.Touch and Vector2.new(input.Position.X,input.Position.Y) or mouse()
@@ -523,7 +537,7 @@ function M:bind(callbacks,inputService)
             touches:endTouch(input);pinching=touches.touchCount>1
             if tracked and wasMultiple then
                 local id,p=touches:remainingTouch()
-                if id and p then local at=Vector2.new(p.x,p.y);press={input=id,start=at,last=at,dragging=true};self.dragging=true end
+                if id and p then local at=Vector2.new(p.x,p.y);press={input=id,start=at,last=at,dragging=true};self.dragging=true;self.dropSteer=nil end
             end
             if tracked and touches.touchCount==0 then press=nil;self.dragging=false end
         end

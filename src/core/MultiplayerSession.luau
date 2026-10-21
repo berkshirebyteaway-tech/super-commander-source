@@ -91,11 +91,11 @@ function M:startBattle()
 end
 function M:checkMatchWinner(tick)
     if tick%10~=0 then return nil end
-    if self.mode=="duel" or self.settings.rankedType=="1v1" then
-        local living={};for id in ipairs(self.roster) do if self.sim.players[id].tiles.size>0 and not self:away(id) then table.insert(living,id) end end
+    if self.mode=="duel" or self.settings.rankedType=="1v1" or self.settings.rankedType=="ffa" then
+        local living={};for id in pairs(self.roster) do if self.sim.players[id].tiles.size>0 and not self:away(id) then table.insert(living,id) end end
         if #living==1 then return living[1],"lastCommander" end
     end
-    if self.settings.rankedType=="2v2" then
+    if self.settings.rankedType=="2v2" or self.settings.rankedType=="clanwars" then
         local alive,team,count={},nil,0
         for id in pairs(self.roster) do local p=self.sim.players[id]
             if p.team and p.tiles.size>0 and not self:away(id) and not alive[p.team] then alive[p.team]=true;count+=1;team=p.team end

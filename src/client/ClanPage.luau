@@ -5,6 +5,7 @@ local Icons=require(script.Parent.OutgameIcons)
 local V=require(script.Parent.ClanVisuals)
 local Telemetry=require(script.Parent.TelemetryClient)
 local Rules=require(game.ReplicatedStorage.FrontierNative.Core.ClanRules)
+local War=require(game.ReplicatedStorage.FrontierNative.Core.ClanWarRules)
 local pack=game.ReplicatedStorage.FrontierNative
 local M={}
 local C=UI.colors
@@ -12,10 +13,10 @@ local skip=V.skip
 local Me=Players.LocalPlayer
 local function step(name,item)pcall(Telemetry.step,'social',name,item and {item=item}or nil)end
 local function ask(lobby,action,a,b,c)
-    if lobby.unitBusy then return end;lobby.unitBusy=true;lobby:drawPage()
+    if lobby.unitBusy then return end;local pend=require(script.Parent.PressPending).begin();lobby.unitBusy=true;lobby:drawPage()
     task.spawn(function()
         local ok,r=pcall(function()return pack:WaitForChild('ClanRequest',5):InvokeServer(action,a,b,c)end)
-        lobby.unitBusy=false
+        lobby.unitBusy=false;require(script.Parent.PressPending).finish(pend)
         local good=ok and type(r)=='table'and r.ok
         if good and r.purchase then
             step('clanExtraPrompt');M.extraProduct=r.purchase
@@ -58,7 +59,7 @@ function M.draw(lobby,body,w)
     end
     local function card(name,height,accent)
         local p=UI.panel(body,name);p.BackgroundColor3=C.raised;p.BackgroundTransparency=.15;UI.box(p,2,y,cw,height)
-        if accent then UI.make('Frame',p,{Name='Strip',BackgroundColor3=accent,BorderSizePixel=0,Size=UDim2.new(0,3,1,0)})end
+        if accent then require(script.Parent.EdgeMask).fit(UI.make('Frame',p,{Name='Strip',BackgroundColor3=accent,BorderSizePixel=0,Size=UDim2.new(0,3,1,0)}))end
         return p
     end
     local function input(parent,name,placeholder,value,x,yy,width,mono)
@@ -95,11 +96,12 @@ function M.draw(lobby,body,w)
             local row=UI.panel(body,'Board_'..r.rank..'_'..r.id);row.BackgroundTransparency=isMine and .05 or .25;UI.box(row,2,y,cw,56)
             if isMine then row:FindFirstChildOfClass('UIStroke').Color=V.color(r.color)end;V.hover(row)
             V.rank(row,r.rank,10,14,28)
-            local e=V.emblem(row,'Emblem',r.tag,r.color,44);UI.box(e,46,6,44,44)
-            local right=compact and 96 or 220;local joinW=joinable and 84 or 0
-            local nm=one(skip(UI.label(row,'Name',r.name,16,C.ink)));UI.box(nm,98,7,cw-98-right-joinW-8,24)
+            local es=compact and 40 or 44;local nx=compact and 88 or 98
+            local e=V.emblem(row,'Emblem',r.tag,r.color,es);UI.box(e,46,(56-es)/2,es,es)
+            local right=compact and 64 or 220;local joinW=joinable and (compact and 72 or 84)or 0
+            local nm=one(skip(UI.label(row,'Name',r.name,16,C.ink)));UI.box(nm,nx,7,cw-nx-right-joinW-8,24)
             local sub=kind=='war'and string.format('[%s]  Lv %d  %d승 %d패',r.tag,r.level,r.wins or 0,r.losses or 0)or string.format('[%s]  Lv %d  %d/%d명',r.tag,r.level,r.count or 0,Rules.maxMembers)
-            local sl=one(skip(UI.label(row,'Sub',sub,12,C.muted)));UI.box(sl,98,30,cw-98-right-joinW-8,20)
+            local sl=one(skip(UI.label(row,'Sub',sub,12,C.muted)));UI.box(sl,nx,30,cw-nx-right-joinW-8,20)
             local valueText=kind=='war'and string.format('%s점',UI.number(r.value))or UI.number(r.value)
             local v=skip(UI.label(row,'Value',valueText,compact and 16 or 20,M.valueColor(r.rank)));v.TextXAlignment=Enum.TextXAlignment.Right;UI.display(v);UI.box(v,cw-right-joinW-10,8,right,26)
             local cap=UI.label(row,'ValueCap',kind=='war'and '클랜전 점수'or '누적 기여',11,C.muted);cap.TextXAlignment=Enum.TextXAlignment.Right;UI.box(cap,cw-right-joinW-10,32,right,16)
@@ -252,28 +254,31 @@ function M.draw(lobby,body,w)
         if lobby.clanLeaveArmed then leave.Text='한 번 더 누르면 클랜을 나가요'end
         leave.TextColor3=C.danger;local ls=leave:FindFirstChildOfClass('UIStroke');if ls then ls.Color=C.danger;ls.Transparency=.4 end;y+=52
     else
-        local bh=compact and 176 or 166
+        local bh=compact and 184 or 166
         local banner=V.banner(body,'ClanPitch',7);UI.box(banner,2,y,cw,bh)
         local es=compact and 72 or 104
         local e=V.emblem(banner,'PitchEmblem','CLAN',7,es);UI.box(e,compact and 12 or 22,compact and 14 or (bh-es)/2,es,es)
         local tx=(compact and 12 or 22)+es+(compact and 12 or 22);local tw=cw-tx-16
-        local t=UI.label(banner,'PitchTitle','클랜',compact and 24 or 30,C.ink);UI.display(t);UI.box(t,tx,compact and 10 or 16,tw,34)
+        local t=UI.label(banner,'PitchTitle','클랜',compact and 24 or 30,C.ink);UI.display(t);UI.box(t,tx,compact and 10 or 12,tw,compact and 34 or 38)
         local s=UI.label(banner,'PitchLine','최대 100명, 매일 출석으로 클랜 레벨 1~100, 매달 클랜전 순위',13,C.muted);UI.box(s,tx,compact and 44 or 52,tw,compact and 36 or 20)
+        if compact then s.TextWrapped=true;s.TextScaled=true;UI.make('UITextSizeConstraint',s,{MaxTextSize=13,MinTextSize=10})end
         local by=compact and 92 or 84
         if v.prime then
-            local okPill=UI.pill(banner,'PrimeOwned','✓ 커맨더 프라임, 클랜을 만들거나 가입할 수 있어요',C.gold);UI.box(okPill,tx,by,math.min(tw,330),24);okPill.TextSize=12
+            local okPill=UI.pill(banner,'PrimeOwned','✓ 커맨더 프라임, 클랜을 만들거나 가입할 수 있어요',C.prime);UI.box(okPill,tx,by,math.min(tw,330),24);okPill.TextSize=12
         else
-            local lock=Icons.create(banner,'lock',14,C.gold);lock.Name='PrimeLock';UI.box(lock,tx,by+5,14,14)
-            local need=UI.label(banner,'PrimeNeed','커맨더 프라임 보유자만 클랜을 만들고 가입할 수 있어요',13,C.gold);UI.box(need,tx+20,by,tw-20,24)
+            local lock=Icons.create(banner,'lock',14,C.prime);lock.Name='PrimeLock';UI.box(lock,tx,by+5,14,14)
+            local need=UI.label(banner,'PrimeNeed','커맨더 프라임 보유자만 클랜을 만들고 가입할 수 있어요',13,C.prime);UI.box(need,tx+20,by,tw-20,24)
             local go=action(banner,'ViewPrime','커맨더 프라임 보기',function()step('clanPrimeView');lobby:openPage('benefits')end,true,tx,by+30,math.min(tw,220),48)
         end
+        local need,go=banner:FindFirstChild('PrimeNeed'),banner:FindFirstChild('ViewPrime')
+        if compact and need and go then need.TextWrapped=true;need.TextScaled=true;UI.make('UITextSizeConstraint',need,{MaxTextSize=12,MinTextSize=10});UI.box(need,tx+20,by,tw-20,32);go.Position=UDim2.fromOffset(tx,by+36)end
         y+=bh+10
         lobby.clanGuestTab=lobby.clanGuestTab or 'find'
         tabs({{'find','클랜 찾기','clan'},{'create','클랜 만들기','reward'},{'war','클랜전 순위','medal'}},lobby.clanGuestTab,function(t)lobby.clanGuestTab=t end)
         local d=lobby.unitDraft or {};lobby.unitDraft=d
         if lobby.clanGuestTab=='find'then
             local join=card('JoinCard',64,C.accent)
-            local code=input(join,'JoinCode','초대 코드 6자리',d.code,14,10,cw-28-130-8,true);code:GetPropertyChangedSignal('Text'):Connect(function()d.code=code.Text end)
+            local code=input(join,'JoinCode','초대 코드 6자리',d.code,14,10,cw-28-130-8,true);if compact then code.TextSize=15 end;code:GetPropertyChangedSignal('Text'):Connect(function()d.code=code.Text end)
             local jb=action(join,'JoinByCode','코드로 가입',function()ask(lobby,'join',code.Text)end,true,cw-14-130,8,130,48)
             if not v.prime then UI.enabled(jb,false)end
             y+=72
@@ -334,7 +339,7 @@ function M.swatches(parent,current,pick,x,y,width,max)
 end
 function M.warCard(lobby,body,v,u,cw,compact,advance,getY,card,text,action)
     local war=v.war
-    local h=compact and 190 or 150
+    local h=compact and 214 or 176
     local p=card('ClanWarCard',h,C.danger)
     local ic=Icons.create(p,'medal',22,C.danger);ic.Name='WarIcon';UI.box(ic,16,14,22,22)
     local head=UI.label(p,'WarHead',(war.n or 0)==0 and '프리시즌 클랜전'or string.format('시즌 %d 클랜전',war.n),18,C.ink);UI.display(head);UI.box(head,46,10,220,28)
@@ -343,12 +348,18 @@ function M.warCard(lobby,body,v,u,cw,compact,advance,getY,card,text,action)
         local rec=skip(UI.label(p,'WarRecord',string.format('%s점  %d승 %d패  %s',UI.number(u.war.points),u.war.wins,u.war.losses,u.war.rank and string.format('%d위',u.war.rank)or '순위 밖'),compact and 16 or 20,C.ink))
         UI.display(rec);rec.TextXAlignment=compact and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right;UI.box(rec,compact and 16 or cw-16-340,compact and 60 or 14,340,28)
     end
-    local rules=string.format('같은 클랜 2명 파티 대 다른 클랜 2명, 원작 규칙. 승리 +%d점, 기여 +%d (각자 개인 기여에도 기록). 패배 %d점, 기여 없음',war.winPoints,war.winContribution,war.lossPoints)
+    local rules=string.format('클랜원 %d~%d명 파티로 같은 인원의 다른 클랜 %d~%d곳과 붙어요. 원작 규칙. 승리 +%d~%d점, 패배 %d점. 이기면 각자 기여 +%d',
+        War.minSize,War.maxSize,War.minClans-1,War.maxClans-1,War.winFor(War.minClans,War.minSize),War.winFor(War.maxClans,War.maxSize),war.lossPoints or War.lossPoints,war.winContribution or War.winContribution)
     local rl=UI.label(p,'WarRules',rules,12,C.muted);rl.TextWrapped=true;UI.box(rl,16,compact and 92 or 60,cw-32,compact and 40 or 36)
+    local party=lobby.data and lobby.data.party;local n=party and type(party.users)=='table'and #party.users or 1
+    local fits=n>=War.minSize and n<=War.maxSize
+    local sizeText=fits and string.format('같이 가는 클랜원 %d명, %d명씩 최대 %d클랜이 붙어요',n-1,n,War.maxClans)or string.format('클랜원을 파티에 초대해 주세요 (%d~%d명)',War.minSize,War.maxSize)
+    local sl=UI.label(p,'WarParty',sizeText,13,fits and C.ink or C.muted);UI.box(sl,16,compact and 136 or 98,cw-32,18)
     local queue=lobby.clanWarQueue
-    local label=not u and '클랜에 가입하면 참가할 수 있어요'or queue and '클랜원 1명과 클랜전 찾기'or '클랜전은 랭크전과 함께 열려요'
-    local b=action(p,'FindClanWar',label,function()if queue and u then step('clanWarQueue');queue(lobby)end end,u~=nil and queue~=nil,16,h-56,cw-32)
-    if not(u and queue)then UI.enabled(b,false)end
+    local label=not u and '클랜에 가입하면 참가할 수 있어요'or not queue and '클랜전은 랭크전과 함께 열려요'or fits and string.format('%d대%d 클랜전 찾기',n,n)or '클랜원과 파티를 맺어 주세요'
+    local can=u~=nil and queue~=nil and fits
+    local b=action(p,'FindClanWar',label,function()if queue and u and fits then step('clanWarQueue','p'..tostring(n));queue(lobby)end end,can,16,h-56,cw-32)
+    if not can then UI.enabled(b,false)end
     advance(h+8)
 end
 return M

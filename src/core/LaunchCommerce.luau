@@ -18,6 +18,7 @@ M.categories={
     {id='commanderTrail',name='내 트레일',planned=13},
     {id='motion',name='모션',planned=17},
     {id='parachute',name='낙하산'},
+    {id='commanderStandard',name='깃발'},
 }
 function M.benefits(permanent,subscribed)
     return {permanent=permanent==true,club=subscribed==true,xpMultiplier=(permanent and 2 or 1)*(subscribed and 2 or 1),

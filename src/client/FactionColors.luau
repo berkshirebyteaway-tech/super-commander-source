@@ -1,5 +1,6 @@
 local Identity=require(script.Parent.Parent.Core.ToyIdentity)
 local Variants=require(script.Parent.Parent.Core.TeamColorVariants)
+local Shades=require(script.Parent.Parent.Core.TeamMateShades)
 local M={};local cache={}
 M.self=Color3.fromRGB(54,226,208)
 M.palette={}
@@ -22,11 +23,11 @@ M.teamPalette={
     Color3.fromRGB(244,114,182),Color3.fromRGB(56,189,248),Color3.fromRGB(214,194,154),
 }
 M.mateColor=Color3.fromRGB(45,212,191)
-local teamOf,teamBase,teamPool,teamKeys,teamMatch,teamMine={},{},{},{},nil,nil
+local teamOf,teamBase,teamPool,teamKeys,teamSeen,teamMatch,teamMine={},{},{},{},{},nil,nil
 function M.setTeams(factions,myTeam,match)
     local changed=false
     local mine=myTeam~=nil and tostring(myTeam)or nil
-    if match~=teamMatch or mine~=teamMine then teamMatch=match;teamMine=mine;teamOf,teamBase,teamPool,teamKeys={},{},{},{};changed=true end
+    if match~=teamMatch or mine~=teamMine then teamMatch=match;teamMine=mine;teamOf,teamBase,teamPool,teamKeys,teamSeen={},{},{},{},{};changed=true end
     local fresh={};local teams={}
     for _,f in ipairs(factions or {})do if (f.team==nil or f.kind=='BOT')and teamOf[f.id]then teamOf[f.id]=nil;teamKeys[f.id]=nil;changed=true end end
     for _,f in ipairs(factions or {})do if f.team~=nil and f.kind~='BOT'and teamKeys[f.id]~=tostring(f.team)..':'..tostring(f.userId or f.matchId or f.id)then
@@ -38,9 +39,17 @@ function M.setTeams(factions,myTeam,match)
         if t==mine then teamBase[t]=M.self;teamPool[t]=1
         else local n=0;for k,_ in pairs(teamBase)do if k~=mine then n+=1 end end;local i=n%#M.teamPalette+1;teamBase[t]=M.teamPalette[i];teamPool[t]=i+1 end
     end
-    table.sort(fresh,function(x,y)return x.id<y.id end)
     for _,f in ipairs(fresh)do local t=tostring(f.team);local key=tostring(f.userId or f.matchId or f.id)
-        teamOf[f.id]=Color3.fromRGB(table.unpack(Variants.get(teamPool[t],key)));teamKeys[f.id]=t..':'..key
+        teamKeys[f.id]=t..':'..key;teamSeen[t]=teamSeen[t]or{};teamSeen[t][key]=true
+    end
+    for t in pairs(teams)do
+        local keys={};for k in pairs(teamSeen[t])do table.insert(keys,k)end;table.sort(keys)
+        local rank={};for i,k in ipairs(keys)do rank[k]=i end
+        local shades=Shades[teamPool[t]]
+        for id,tk in pairs(teamKeys)do local at=string.find(tk,':',1,true);if string.sub(tk,1,at-1)==t then
+            local key=string.sub(tk,at+1);local rgb=shades[rank[key]]or Variants.get(teamPool[t],key)
+            teamOf[id]=Color3.fromRGB(table.unpack(rgb))
+        end end
     end
     return true
 end

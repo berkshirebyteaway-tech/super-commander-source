@@ -5,7 +5,8 @@ local UI=require(script.Parent.Theme)
 local Audio=require(script.Parent.ToyAudio)
 local BrandMark=require(script.Parent.BrandMark)
 local P=require(script.Parent.Parent.Core.PlazaLayout)
-local M={played=false,active=false}
+local me=game:GetService("Players").LocalPlayer
+local M={played=me~=nil and me:GetAttribute("SuperCommanderHop")==true,active=false}
 local DURATION=3.4
 local function smooth(t) return t*t*(3-2*t) end
 local function label(parent,name,text,size,color,mono)

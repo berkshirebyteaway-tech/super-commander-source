@@ -54,11 +54,11 @@ function M.draw(lobby,parent,w)
     if Commands.lesson(lobby)then
         local summary=UI.panel(parent,'SoloSummary');UI.box(summary,2,0,w-4,compact and 88 or 112)
         local image=UI.make('Frame',summary,{Name='Map',BackgroundColor3=UI.colors.ocean,ClipsDescendants=true,BorderSizePixel=0});UI.box(image,8,8,compact and 110 or 152,compact and 72 or 96)
-        local raster=Raster.new(image,128,80);raster:setPreview(Maps.preview('pangaea'));task.defer(function()if image.Parent then raster:fit();raster:draw()end end)
+        local raster=Raster.new(image,128,80);raster:setPreview(Maps.preview('korea'));task.defer(function()if image.Parent then raster:fit();raster:draw()end end)
         image.Destroying:Once(function()if raster.image then raster.image:Destroy()end end)
         local x=compact and 128 or 172
-        local name=UI.label(summary,'Title',(Maps.meta('pangaea')).label,compact and 20 or 24);Theme.display(name);UI.box(name,x,8,w-x-20,32)
-        local rules=UI.label(summary,'Rules','쉬움  AI 2  중립 12',13,UI.colors.muted);rules.TextWrapped=true;UI.box(rules,x,44,w-x-20,36)
+        local name=UI.label(summary,'Title',(Maps.meta('korea')).label,compact and 20 or 24);Theme.display(name);UI.box(name,x,8,w-x-20,32)
+        local rules=UI.label(summary,'Rules','쉬움  AI 2  중립 30',13,UI.colors.muted);rules.TextWrapped=true;UI.box(rules,x,44,w-x-20,36)
         y=(compact and 88 or 112)+12
         row('CustomizeSolo','내 설정으로 플레이',function()lobby.soloCustomized=true;lobby:refresh();lobby:drawPage()end)
         if not short then local note=UI.label(parent,'IntroNote','점령과 병력 첫 실전',13,UI.colors.muted);UI.box(note,8,y,w-16,20);y+=28 end
@@ -79,7 +79,8 @@ function M.draw(lobby,parent,w)
             local h=UI.label(b,'Head',head,compact and 16 or 18,on and color or UI.colors.ink);Theme.display(h);UI.box(h,12,8,tw-24,26)
             local t=UI.label(b,'Sub',sub,13);t.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(t,12,36,tw-24,20)
             if not compact then local e=UI.label(b,'Explain',explain,12,UI.colors.muted);e.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(e,12,60,tw-24,20)end
-            if badge then local pill=UI.pill(b,'Badge',badge,color);pill.TextSize=11;UI.box(pill,tw-64,10,54,20);UI.box(h,12,8,tw-84,26)end
+            if badge then local pill=UI.pill(b,'Badge',badge,color);pill.TextSize=11;UI.box(pill,tw-64,10,54,20);UI.box(h,12,8,tw-84,26)
+                h.TextWrapped=false;h.TextScaled=true;UI.make('UITextSizeConstraint',h,{MaxTextSize=compact and 16 or 18,MinTextSize=12})end
             return b
         end
         local meta=Maps.meta(op.map)
@@ -121,7 +122,8 @@ function M.dailyCard(lobby,parent,w,y,op,compact)
     table.insert(parts,string.format(Localization.text('중립 %d'),s.bots or 0))
     if (s.startingGold or 0)>0 then table.insert(parts,string.format(Localization.text('시작 골드 %s'),s.startingGold>=1000000 and string.format('%dM',s.startingGold//1000000)or tostring(s.startingGold)))end
     table.insert(parts,Localization.text('랜덤 스폰'));table.insert(parts,string.format(Localization.text('%d분'),s.maxTimerValue or 20))
-    local rules=UI.label(card,'Rules',table.concat(parts,', '),12,UI.colors.muted);rules:SetAttribute('LocalizationSkip',true);rules.AutoLocalize=false;rules.TextWrapped=true;rules.TextYAlignment=Enum.TextYAlignment.Top;UI.box(rules,tx,68,tw,ph-58)
+    local rules=UI.label(card,'Rules',table.concat(parts,', '),12,UI.colors.muted);rules:SetAttribute('LocalizationSkip',true);rules.AutoLocalize=false;rules.TextWrapped=true;rules.TextYAlignment=Enum.TextYAlignment.Top
+    UI.box(rules,tx,68,tw,math.max(ph,96)-56)
     local cy=math.max(ph,96)+18;local contentWidth=w-24
     local function line(name,text,color,size)
         local label=UI.label(card,name,text,size or 14,color)

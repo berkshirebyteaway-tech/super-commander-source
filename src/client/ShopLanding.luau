@@ -27,12 +27,12 @@ local function robux(price)
     return (out:gsub('^,',''))
 end
 local offers={
-    club={color=UI.colors.ice,ribbon='월간 구독 30일',tagline='내 커스텀 게임을 누구나 찾게',value='공개 커스텀 게임 만들기',
+    club={color=UI.colors.vip,ribbon='월간 구독 30일',tagline='내 커스텀 게임을 누구나 찾게',value='공개 커스텀 게임 만들기',
         cta='월 R$ %s 구독하기',note='30일마다 자동 갱신, 언제든 해지',owned='구독 중',more='구독 중, 혜택 보기  ›',
         perks={{'custom','누구나 참가 가능'},{'friends','글과 음성 채팅'},{'cheer','이모지와 모션 전부'},{'daily','매일 뽑기권 1장'},{'xp','계정 XP 2배'},{'watch','다른 경기 관전'}}},
-    permanent={color=UI.colors.gold,ribbon='한 번 구매로 영구 소장',tagline='한 번 사면 평생 커맨더',value='뽑기권 4장',
+    permanent={color=UI.colors.prime,ribbon='한 번 구매로 영구 소장',tagline='한 번 사면 평생 커맨더',value='뽑기권 4장 한 번에 지급',
         cta='R$ %s 평생 소장',note='한 번 결제로 계속 유지',owned='보유 중',more='보유 중, 혜택 보기  ›',
-        perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'wardrobe','스킨 프리셋 +2칸'},{'custom','커스텀 설정 12칸'},{'marshal','금색 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
+        perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'wardrobe','스킨 프리셋 +2칸'},{'custom','커스텀 설정 12칸'},{'marshal','프라임 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
 }
 M.offers=offers
 local Tween=game:GetService('TweenService')
@@ -196,7 +196,7 @@ function M.draw(hub,body,w)
     if tab~='boxes'then
         local my=side and hh+10 or y;local mx=side and lw+gap or 0
         local two=not side and W>=520;local cw=two and (W-gap)/2 or mw
-        local ch=side and math.floor((H-my-gap)/2)or slim and math.max(220,bodyH)or 340
+        local ch=side and math.floor((H-my-gap)/2)or slim and math.max(220,bodyH)or 364
         Cards.member(hub,body,shop,billing,'club',mx,my,cw,ch,slim)
         Cards.member(hub,body,shop,billing,'permanent',two and mx+cw+gap or mx,side and my+ch+gap or two and my or my+ch+gap,cw,ch,slim)
         y=math.max(y,side and H or (two and my+ch or my+ch*2+gap))

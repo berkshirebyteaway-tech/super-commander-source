@@ -45,19 +45,21 @@ function M.dockLayout(w,h,touch)
     return {width=width,height=touch and (stacked and 170 or 122) or (stacked and 158 or 112),stacked=stacked,x=touch and w-width-12 or 12}
 end
 function M.portraitHUD(width,expanded)
-    local start=132;local available=width-start-8;local offset=expanded and 100 or 0
-    local menuInside=false;local goldX=width-70
-    local amountWidth=36
-    local folded=expanded and 0 or 20
-    return {height=144+offset+folded,offset=offset,menuInside=menuInside,
-        growth={x=start,y=offset+2,w=goldX-start-6,h=48},
-        gold={x=goldX,y=offset+2,w=62,h=48},
-        troops={x=start,y=offset+54+folded/2,w=available,h=28},
-        amount={x=start,y=offset+88+folded,w=amountWidth,h=48},
-        slider={x=start+amountWidth+4,y=offset+88+folded,w=available-amountWidth-4,h=48},
-        surface=84+folded/2,
-        grid={x=8,y=expanded and offset+2 or 54,w=116,h=102},
-        palette={x=8,y=4,w=expanded and width-16 or 116,h=expanded and 92 or 48}}
+    local offset=expanded and 100 or 0
+    local pad=8;local row=44;local buildW=48
+    local start=pad+buildW+6
+    local goldW=62;local goldX=width-pad-goldW
+    local rateW=88;local rateX=goldX-6-rateW
+    local y1=offset+6;local y2=y1+row+6
+    return {height=y2+48+6,offset=offset,menuInside=false,
+        growth={x=rateX,y=y1,w=rateW,h=48},
+        gold={x=goldX,y=y1,w=goldW,h=row},
+        troops={x=start,y=y1+2,w=rateX-6-start,h=row-4},
+        amount={x=pad,y=y2,w=40,h=48},
+        slider={x=pad+44,y=y2,w=width-pad*2-44,h=48},
+        surface=y2+48+2-offset,
+        grid={x=pad,y=y1,w=0,h=0},
+        palette={x=pad,y=expanded and 4 or y1,w=expanded and width-pad*2 or buildW,h=expanded and 92 or row}}
 end
 function M.placeLabel(x,y,w,h,width,height,blocks)
     local hw,hh=w/2,h/2;local candidates={{x,y},{hw+4,hh+4},{width-hw-4,hh+4},{hw+4,height-hh-4},{width-hw-4,height-hh-4}}

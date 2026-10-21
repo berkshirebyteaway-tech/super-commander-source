@@ -45,12 +45,19 @@ function M:tooltip()
     self.tipBody.TextColor3=reason and UI.colors.danger or UI.colors.muted
     self.tipCost.Text=cost and UI.number(cost)or "—"
     self.tipCost.TextColor3=(short or reason or cost==nil)and UI.colors.muted or UI.colors.gold
-    local w=math.max(180,math.ceil(#self.tipBody.Text*3.2)+24)
-    local parentPos=tip.Parent.AbsolutePosition;local cell=b.root.AbsolutePosition;local scale=UI.scale or 1
+    local L=require(script.Parent.Localization);local TS=game:GetService("TextService")
+    local function tw(label)return TS:GetTextSize(L.text(label.Text),label.TextSize,label.Font,Vector2.new(600,40)).X+2 end
+    local titleW,costW,bodyW=tw(self.tipTitle),tw(self.tipCost),self.tipBody.Text~=""and tw(self.tipBody)or 0
+    local w=math.max(120,math.ceil(math.max(titleW+12+15+costW,bodyW))+20);local h=bodyW>0 and 46 or 28
+    local parent=tip.Parent;local parentPos=parent.AbsolutePosition;local cell=b.root.AbsolutePosition;local ui=UI.scale or 1
+    local scale=parent.Size.X.Offset>0 and parent.AbsoluteSize.X/parent.Size.X.Offset or ui;local k=scale/ui
+    self.tipScale=self.tipScale or UI.make("UIScale",tip,{Name="Unscale"});self.tipScale.Scale=1/k
     local cx=(cell.X-parentPos.X)/scale+b.root.AbsoluteSize.X/scale/2
-    UI.box(tip,math.floor(cx-w/2),math.floor((cell.Y-parentPos.Y)/scale)-84,w,78)
-    UI.box(self.tipTitle,8,6,w-16,20);UI.box(self.tipBody,8,26,w-16,26);UI.box(self.tipCoin,w/2-34,56,14,14);UI.box(self.tipCost,w/2-16,52,60,22)
-    self.tipCost.TextXAlignment=Enum.TextXAlignment.Left
+    UI.box(tip,math.floor(cx-w/(2*k)),math.floor((cell.Y-parentPos.Y)/scale-(h+6)/k),w,h)
+    UI.box(self.tipTitle,10,5,titleW,18);self.tipTitle.TextXAlignment=Enum.TextXAlignment.Left
+    UI.box(self.tipCost,w-10-costW,5,costW,18);UI.box(self.tipCoin,w-10-costW-15,7,13,13)
+    self.tipCost.TextXAlignment=Enum.TextXAlignment.Right
+    self.tipBody.Visible=bodyW>0;UI.box(self.tipBody,10,24,w-20,16);self.tipBody.TextXAlignment=Enum.TextXAlignment.Left
 end
 function M:deny(kind)
     require(script.Parent.TelemetryStep).step('hud','buildDenied',{kind=kind,item=require(script.Parent.TelemetryStep).code(kind)})
@@ -85,6 +92,7 @@ function M:height(width,touch)
     if self.compact then return 48 end
     local _,rows=self:shape(width,touch);return rows==1 and 44 or 92
 end
+function M:barSize()return not self.phone and self.barText or 13 end
 function M:barLayout(x,y,width)
     local list=U.buildable;local phone=self.phone==true;local gap=phone and 4 or 4
     local cell=math.floor((width-(#list-1)*gap)/#list);local h=self.barHeight or 66
@@ -98,7 +106,7 @@ function M:barLayout(x,y,width)
         if index then
             local chosen=kind==self.selected
             UI.box(b.root,start+(index-1)*(cell+gap),chosen and -(small and 4 or 6)or 0,cell,h)
-            b.key.Visible=not phone;UI.box(b.key,6,3,14,15);b.key.TextSize=13;b.key.TextXAlignment=Enum.TextXAlignment.Left
+            b.key.Visible=not phone;UI.box(b.key,6,3,14,15);b.key.TextSize=self:barSize();b.key.TextXAlignment=Enum.TextXAlignment.Left
             local n=tonumber(b.count.Text)
             if phone then
                 b.count.Visible=n~=nil and n>=1;UI.box(b.count,cell-14,-6,20,20);b.count.TextXAlignment=Enum.TextXAlignment.Center
@@ -106,7 +114,7 @@ function M:barLayout(x,y,width)
                 b.count.Visible=b.count.Text~="";UI.box(b.count,cell-26,3,20,15);b.count.TextXAlignment=Enum.TextXAlignment.Right
             end
             UI.box(b.art,math.floor((cell-icon)/2),flat and 2 or small and 6 or 18,icon,icon)
-            UI.box(b.cost,3,h-strip-(flat and 1 or 3),cell-6,strip);b.cost.TextSize=13
+            UI.box(b.cost,3,h-strip-(flat and 1 or 3),cell-6,strip);b.cost.TextSize=self:barSize()
         end
     end
     for kind,b in pairs(self.buttons)do
@@ -137,7 +145,7 @@ function M:paintBar(kind,b,unavailable,chosen)
         if b.countRound then b.countRound.CornerRadius=UDim.new(0,0)end
     end
     local punching=os.clock()<(b.punchUntil or 0)
-    if not punching then b.count.TextSize=13 end
+    if not punching then b.count.TextSize=self:barSize()end
     Icons.tint(b.art,UI.colors.ink)
     if b.art:IsA("ImageLabel")then b.art.ImageTransparency=unavailable and not chosen and .45 or 0 end
     local p=self.progress and self.progress[kind]
@@ -146,7 +154,7 @@ function M:paintBar(kind,b,unavailable,chosen)
     local n=tonumber(b.count.Text)or 0
     if b.lastCount and n>b.lastCount then
         b.punchUntil=os.clock()+.26;b.count.TextSize=18
-        game:GetService("TweenService"):Create(b.count,TweenInfo.new(.24,Enum.EasingStyle.Back),{TextSize=13}):Play()
+        game:GetService("TweenService"):Create(b.count,TweenInfo.new(.24,Enum.EasingStyle.Back),{TextSize=self:barSize()}):Play()
         Style.pulse(b.edge,UI.colors.accent)
     end
     b.lastCount=n
@@ -160,7 +168,8 @@ function M:layout(x,y,width,touch)
     self.armsTab.Visible=false;self.buildTab.TextSize=14
     self.buildTab.BackgroundColor3=UI.colors.raised;self.buildTab.TextColor3=UI.colors.ink
     if self.compact then
-        self.buildTab.Visible=true;self.buildTab.Text='건설과 무기';UI.box(self.frame,x,y,116,48);UI.box(self.buildTab,0,0,116,48)
+        local bw=math.min(116,width);local bh=bw<100 and 44 or 48
+        self.buildTab.Visible=true;self.buildTab.Text=bw<100 and '건설'or '건설과 무기';UI.box(self.frame,x,y,bw,bh);UI.box(self.buildTab,0,0,bw,bh)
         for _,b in pairs(self.buttons)do b.root.Visible=false end
         self.frame:SetAttribute('Compact',true);self.frame:SetAttribute('Category','all');return
     end
@@ -203,7 +212,7 @@ function M:update(state,selected)
         b.count.Text=(U.structures[kind]or kind=="Warship")and tostring(owned[kind]or 0)or ""
         b.root:SetAttribute("Owned",owned[kind]or 0)
         b.cost.TextColor3=unavailable and UI.colors.muted or UI.colors.gold
-        b.cost.TextSize=self.bar and 13 or 11;b.cost.TextTruncate=Enum.TextTruncate.AtEnd
+        b.cost.TextSize=self.bar and self:barSize()or 11;b.cost.TextTruncate=Enum.TextTruncate.AtEnd
         b.root:SetAttribute("Affordable",not unavailable)
         b.root:SetAttribute("Cost",cost)
         b.root:SetAttribute('Requirement',reason);b.root:SetAttribute('Role',Hints.roles[kind])

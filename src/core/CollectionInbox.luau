@@ -13,6 +13,7 @@ function M.inventory(a)
         if id~=Catalog.default and ((a.owned or {})[id]or (p.ownedSlots or {})[slot..':'..id])then local ps=M.primary[slot]or slot;out['skin:'..ps..':'..id]='items:'..ps end
     end end
     for _,item in ipairs(Supply.items)do if a.billing and a.billing.owned and a.billing.owned[item.id]then
+        if item.standard then out['standard:'..item.style]='items:commanderStandard'end
         for slot,id in pairs(item.loadout)do local ps=M.primary[slot]or slot;out['skin:'..ps..':'..id]='items:'..ps end
     end end
     for _,key in ipairs({'titles','plates'})do for _,v in ipairs(p.career and p.career[key]or {})do out[key..':'..v.id]='honors'end end

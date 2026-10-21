@@ -9,7 +9,7 @@ function M.color(index)local c=Rules.colors[Rules.validColor(index)or 1];return 
 function M.skip(o)o.AutoLocalize=false;o:SetAttribute('LocalizationSkip',true);return o end
 function M.textWidth(text,size,font)return TextService:GetTextSize(text,size,font or Enum.Font.BuilderSansBold,Vector2.new(1000,100)).X end
 function M.emblem(parent,name,tag,colorIndex,size)
-    local color=M.color(colorIndex)
+    local color=typeof(colorIndex)=='Color3'and colorIndex or M.color(colorIndex)
     local root=UI.make('Frame',parent,{Name=name,BackgroundTransparency=1,Size=UDim2.fromOffset(size,size)})
     local d=size*.7071
     local outer=UI.make('Frame',root,{Name='Outer',AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(d,d),Rotation=45,BackgroundColor3=color,BorderSizePixel=0})
@@ -27,13 +27,13 @@ end
 function M.banner(parent,name,colorIndex)
     local color=M.color(colorIndex)
     local p=UI.make('Frame',parent,{Name=name,BackgroundColor3=C.panel,BorderSizePixel=0,ClipsDescendants=true});UI.corner(p,3);UI.stroke(p,color:Lerp(C.line,.55),1)
-    local wash=UI.make('Frame',p,{Name='Wash',Size=UDim2.fromScale(1,1),BackgroundColor3=color,BackgroundTransparency=0,BorderSizePixel=0})
+    local wash=UI.make('Frame',p,{Name='Wash',Size=UDim2.fromScale(1,1),BackgroundColor3=color,BackgroundTransparency=0,BorderSizePixel=0});UI.corner(wash,3)
     UI.make('UIGradient',wash,{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.62),NumberSequenceKeypoint.new(.55,.92),NumberSequenceKeypoint.new(1,1)})})
     for i=0,7 do
         local s=UI.make('Frame',p,{Name='Stripe'..i,AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(.55+i*.07,0,.5,0),Size=UDim2.new(0,10,2.4,0),Rotation=28,BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.965,BorderSizePixel=0})
         s.ZIndex=1
     end
-    UI.make('Frame',p,{Name='TopLine',Size=UDim2.new(1,0,0,2),BackgroundColor3=color,BorderSizePixel=0})
+    require(script.Parent.EdgeMask).fit(UI.make('Frame',p,{Name='TopLine',Size=UDim2.new(1,0,0,2),BackgroundColor3=color,BorderSizePixel=0}))
     return p
 end
 function M.bar(parent,name,fraction,color,animateFrom)

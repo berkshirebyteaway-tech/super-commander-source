@@ -3,11 +3,12 @@
 local Formation=if script then require(script.Parent.PartyFormation)else require('./PartyFormation')
 local Format=if script then require(script.Parent.TeamFormat)else require('./TeamFormat')
 local Catalog=if script then require(script.Parent.Parent.Maps.Catalog)else require('../maps/Catalog')
-local M={version=1,emptySeconds=60,waitSeconds=60,fillSeconds=45,fullSeconds=5,leaseSeconds=35,maxTickets=80,maxMatches=8}
+local M={version=1,emptySeconds=60,waitSeconds=60,fillSeconds=20,fillPerHuman=2,fillMaxSeconds=45,fullSeconds=5,leaseSeconds=35,maxTickets=80,maxMatches=8}
+function M.fillFor(n)return math.min(M.fillMaxSeconds,M.fillSeconds+math.max(0,(n or 1)-1)*M.fillPerHuman)end
 M.fillTarget={[10]=10,[20]=20}
 M.rookieGames=3
-M.slots={{kind='ffa'},{kind='teams'},{kind='special'},{kind='ffa'},{kind='teams'},{kind='special'},{kind='ffa'},{kind='teams'}}
-M.recruitment={minimum=4,medium=6,maximum=8,mediumAt=16,largeAt=32,warmSeconds=60,presetSlots={1,2,3,4,5,7,8,1}}
+M.slots={{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='special'},{kind='ffa'},{kind='teams'}}
+M.recruitment={minimum=7,medium=7,maximum=9,mediumAt=16,largeAt=32,warmSeconds=60,presetSlots={1,2,3,4,5,6,7,8,9}}
 M.seatCap=20
 M.maxTimerValue=nil
 M.overtimeMinutes=30
@@ -34,10 +35,20 @@ function M.playerCounts(meta)
     local base=math.max(round5((meta.normalLandTiles or meta.landTiles*4)/1e6*50),5)
     return base,round5(base*.75),round5(base*.5)
 end
-function M.lobbySeats(meta,mode,roll)
+function M.lobbySeats(meta,mode,roll,normal)
     local l,m,small=M.playerCounts(meta);local base=roll<.3 and l or roll<.6 and m or small
     local p=math.min(mode=='teams'and math.ceil(base*1.5)or base,l)
-    return math.min(M.seatCap,math.max(3,math.floor(p*.25)))
+    if not normal then p=math.max(3,math.floor(p*.25))end
+    return math.min(M.seatCap,p)
+end
+M.bigMaps=true
+M.compactEvery=3
+function M.hasNormal(meta)return M.bigMaps and meta.normal~=nil end
+function M.supportsCompact(meta,mode,f)
+    if mode~='teams'or f==nil then return true end
+    local l,_,small=M.playerCounts(meta)
+    local p=math.max(3,math.floor(math.min(math.ceil(small*1.5),l)*.25))
+    return Format.supports(Format.adjust(p,f),f)
 end
 function M.teamSeats(f,meta,seats)
     local need=4
@@ -45,12 +56,12 @@ function M.teamSeats(f,meta,seats)
     return math.min(M.seatCap,math.max(seats,need))
 end
 M.modifierPool={}
-for _,e in ipairs({{'isRandomSpawn',4},{'isCrowded',2},{'isHardNations',1},{'startingGold1M',2},{'startingGold5M',4},{'startingGold25M',3},{'goldMultiplier',6},{'isAlliancesDisabled',1},{'isNukesDisabled',1},{'isSAMsDisabled',1},{'isPeaceTime',1},{'isWaterNukes',4},{'isDoomsdayClock',4}})do
+for _,e in ipairs({{'isRandomSpawn',4},{'isCompact',4},{'isCrowded',2},{'isHardNations',1},{'startingGold1M',2},{'startingGold5M',4},{'startingGold25M',3},{'goldMultiplier',6},{'isAlliancesDisabled',1},{'isNukesDisabled',1},{'isSAMsDisabled',1},{'isPeaceTime',1},{'isWaterNukes',4},{'isDoomsdayClock',4}})do
     for _=1,e[2]do table.insert(M.modifierPool,e[1])end
 end
 M.exclusive={{'startingGold5M','startingGold25M'},{'startingGold5M','startingGold1M'},{'startingGold25M','startingGold1M'},{'isHardNations','startingGold25M'},{'isNukesDisabled','isSAMsDisabled'},{'isNukesDisabled','isWaterNukes'}}
 M.modifierCounts={1,1,1,2,2,2,2,2,3,3}
-M.modifierLabels={isRandomSpawn='랜덤 스폰',isCrowded='만원 전장',isHardNations='어려운 국가',startingGold1M='시작 골드 100만',startingGold5M='시작 골드 500만',startingGold25M='시작 골드 2500만',goldMultiplier='골드 2배',isAlliancesDisabled='동맹 없음',isNukesDisabled='핵 없음',isSAMsDisabled='방공 없음',isPeaceTime='평화 4분',isWaterNukes='물 핵',isDoomsdayClock='종말 시계'}
+M.modifierLabels={isRandomSpawn='랜덤 스폰',isCompact='작은 지도',isCrowded='만원 전장',isHardNations='어려운 국가',startingGold1M='시작 골드 100만',startingGold5M='시작 골드 500만',startingGold25M='시작 골드 2500만',goldMultiplier='골드 2배',isAlliancesDisabled='동맹 없음',isNukesDisabled='핵 없음',isSAMsDisabled='방공 없음',isPeaceTime='평화 4분',isWaterNukes='물 핵',isDoomsdayClock='종말 시계'}
 M.doomsdaySpeeds={'slow','normal','fast','veryfast'}
 local known={};for _,k in ipairs(M.modifierPool)do known[k]=true end
 local function blocked(key,set)
@@ -60,6 +71,7 @@ end
 function M.rollModifiers(meta,mode,f,roll,chance)
     local mods={}
     local excluded={}
+    if not M.hasNormal(meta)or not M.supportsCompact(meta,mode,f)then excluded.isCompact=true end
     if f=='Duos'or f=='Trios'or f=='Quads'then excluded.isRandomSpawn=true end
     if meta.key=='fourislands'and mode=='teams'then excluded.goldMultiplier=true end
     if mode=='teams'then excluded.isHardNations=true end
@@ -117,13 +129,15 @@ function M.next(s,slot,presetSlot)
     for _,c in ipairs(candidates)do if pick<c[2]then meta=c[1];break end;pick-=c[2]end
     local f=mode=='teams'and Format.roll(chance(),chance(),meta.teamCount~=0 and meta.teamCount or nil)or nil
     local mods=kind=='special'and M.rollModifiers(meta,mode,f,roll,chance)or {}
-    local seats=mods.isCrowded and M.seatCap or M.lobbySeats(meta,mode,chance())
+    local normal=M.hasNormal(meta)
+    if normal and (kind=='special'and mods.isCompact or kind~='special'and roll(M.compactEvery)==0 and M.supportsCompact(meta,mode,f))then normal=false end
+    local seats=mods.isCrowded and M.seatCap or M.lobbySeats(meta,mode,chance(),normal)
     local teams,maximum=nil,seats
     if f then f,teams,maximum=Format.resolve(f,M.teamSeats(f,meta,seats))end
     local gold=mods.startingGold25M and 25000000 or mods.startingGold5M and 5000000 or mods.startingGold1M and 1000000 or 0
-    local nationCount=#meta.nations>0 and math.max(1,math.floor(#meta.nations*.25))or 0
+    local nationCount=#meta.nations>0 and (normal and #meta.nations or math.max(1,math.floor(#meta.nations*.25)))or 0
     local settings={difficulty=(mods.isHardNations or f==Format.humansVsNations)and 'Hard'or 'Medium',
-        nations=(mode=='teams'or gold>=25000000 or nationCount==0)and 'disabled'or nationCount,bots=100,startingGold=gold,goldMultiplier=mods.goldMultiplier and 2 or 1,
+        nations=(mode=='teams'or gold>=25000000 or nationCount==0)and 'disabled'or nationCount,bots=normal and 400 or 100,mapSize=normal and 'normal'or nil,startingGold=gold,goldMultiplier=mods.goldMultiplier and 2 or 1,
         customAllianceDuration=5,maxTimerValue=M.maxTimerValue,donateGold=mode=='teams',donateTroops=mode=='teams',
         spawnImmunityDuration=mods.isPeaceTime and 2400 or (f~=Format.humansVsNations and gold>=25000000 and 1500)or (f~=Format.humansVsNations and gold>=5000000 and 450)or 50}
     if mode=='ffa'and kind~='special'then settings.overtime={enabled=true,startMinutes=M.overtimeMinutes}end
@@ -165,7 +179,7 @@ function M.fill(r,users,teams)
     return {ai=#list,teams=list}
 end
 function M.difficulty(_rookies)
-    return 'Medium'
+    return 'Easy'
 end
 function M.canFit(r,users,groups)
     return #users<=r.maximum and (r.mode~='teams'or hvn(r)or Formation.fits(users,groups,r.maximum,countOf(r),packed(r)))

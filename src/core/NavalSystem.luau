@@ -27,13 +27,13 @@ function M:lost(u)
 end
 function M:port(owner,tile,capacity,exclude)
     local c=self.nav:component(tile);local best,d=nil,math.huge
-    for _,u in ipairs(self.w.units) do if u.active and u.owner==owner and u.kind=="Port" and not u.building and not u.deleteAt and c and self.nav:touches(u.tile,c) then
+    for _,u in ipairs(self.s:ofKind("Port")) do if u.active and u.owner==owner and not u.building and not u.deleteAt and c and self.nav:touches(u.tile,c) then
         local dist=self.w:distance2(u.tile,tile)
         if dist<d and (not capacity or #self:docked(u,exclude)<u.level) then best=u;d=dist end
     end end;return best
 end
 function M:docked(port,exclude)
-    local out={};for _,u in ipairs(self.w.units) do if u~=exclude and u.active and u.owner==port.owner and u.kind=="Warship" and u.navalState~="patrolling" and not u.targetTile and self.w:distance2(u.tile,port.tile)<=25 then table.insert(out,u) end end;return out
+    local out={};for _,u in ipairs(self.s:ofKind("Warship")) do if u~=exclude and u.active and u.owner==port.owner and u.navalState~="patrolling" and not u.targetTile and self.w:distance2(u.tile,port.tile)<=25 then table.insert(out,u) end end;return out
 end
 function M:transport(owner,tile,troops,route)
     local w=self.w
@@ -122,18 +122,21 @@ function M:veteran(u,kind)
     if u.veterancy>=3 then u.veterancyProgress=0 end;u.maxHealth=U.maxHealth(u)
 end
 local targetRank={TransportShip=0,Warship=1,TradeShip=2}
+local targetKinds={"TransportShip","Warship","TradeShip"}
 function M:target(u,trades)
     local d=self:record(u);local best,priority,distance=nil,99,math.huge
-    for _,v in ipairs(self.w.units) do
-        local rank=targetRank[v.kind]
-        if not rank or not v.active or v.owner==u.owner or d.sent[v.id] or v.navalState=="docked" then continue end
-        local dist=self.w:distance2(u.tile,v.tile);if dist>16900 or self.w:friendly(u.owner,v.owner) then continue end
+    local width=self.w.map.meta.width;local ux,uy=u.tile%width,math.floor(u.tile/width)
+    for _,kind in ipairs(targetKinds) do for _,v in ipairs(self.s:ofKind(kind)) do
+        local rank=targetRank[kind]
+        if not v.active or v.owner==u.owner or d.sent[v.id] or v.navalState=="docked" then continue end
+        local dx,dy=ux-v.tile%width,uy-math.floor(v.tile/width);local dist=dx*dx+dy*dy
+        if dist>16900 or self.w:friendly(u.owner,v.owner) then continue end
         if rank==2 then
             local targetPort=self.s:unit(v.destinationPort)
             if not trades or self.w.sim.ticks-(v.safeTick or 0)<20 or not self:port(u.owner,u.tile) or self.w:distance2(u.patrolTile,v.tile)>10000 or targetPort and self.w:friendly(u.owner,targetPort.owner) then continue end
         end
         if rank<priority or rank==priority and dist<distance then best=v;priority=rank;distance=dist end
-    end;return best
+    end;if best then break end end;return best
 end
 function M:shoot(u,target)
     local d=self:record(u);u.inCombat=true
@@ -237,7 +240,7 @@ function M:tickPort(u)
     for _=1,u.level do if d.random:chance(U.tradeSpawnRate(d.rejections,count,portLevels)) then d.rejections=0;spawn=true;break else d.rejections+=1 end end
     if not spawn then return end
     local ports={};local c=self.nav:component(u.tile)
-    for _,v in ipairs(self.w.units) do if v.active and not v.building and v.kind=="Port" and v.owner~=u.owner and self.w:canTrade(v.owner,u.owner) and c and self.nav:touches(v.tile,c) then table.insert(ports,v) end end
+    for _,v in ipairs(self.s:ofKind("Port")) do if v.active and not v.building and v.owner~=u.owner and self.w:canTrade(v.owner,u.owner) and c and self.nav:touches(v.tile,c) then table.insert(ports,v) end end
     table.sort(ports,function(a,b)local da,db=self.nav:manhattan(a.tile,u.tile),self.nav:manhattan(b.tile,u.tile);return da<db or da==db and a.id<b.id end)
     local weighted={};for i,v in ipairs(ports) do
         local far=self.nav:manhattan(v.tile,u.tile)>=300;local copies=1+(far and i-1<math.clamp(#ports/3,math.min(4,#ports),#ports) and 1 or 0)+(far and self.w:friendly(v.owner,u.owner) and 1 or 0)

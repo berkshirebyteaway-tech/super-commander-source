@@ -24,7 +24,14 @@ function M:unit(id)
     for i,v in ipairs(units)do if v.id==id and v.active then index[id]=i;return v end end
     if id~=nil and id==id then index[id]=nil end;return nil
 end
-function M:count(owner,kind) local n=0;for _,u in ipairs(self.w.units) do if u.active and (not owner or u.owner==owner) and u.kind==kind then n+=u.level end end;return n end
+function M:ofKind(kind)
+    local list=self.w.units;local m=self.kindMemo
+    if not m or m.list~=list or m.n~=#list then m={list=list,n=#list,kinds={}};self.kindMemo=m end
+    local out=m.kinds[kind]
+    if not out then out={};for _,u in ipairs(list) do if u.kind==kind then table.insert(out,u) end end;m.kinds[kind]=out end
+    return out
+end
+function M:count(owner,kind) local n=0;for _,u in ipairs(self:ofKind(kind)) do if u.active and (not owner or u.owner==owner) then n+=u.level end end;return n end
 function M:create(kind,owner,tile,fields)
     self.w.nextUnit+=1;local u={id=self.w.nextUnit,kind=kind,owner=owner,tile=tile,level=1,active=true,createdTick=self.w.sim.ticks}
     for k,v in pairs(fields or {}) do u[k]=v end;table.insert(self.w.units,u)
@@ -138,6 +145,7 @@ function M:prune()
     end
     self.w.units=live
     self.naval.portLevelMemo=nil
+    self.kindMemo=nil
     for _,d in pairs(self.naval.data)do if d.sent then
         for id in pairs(d.sent)do if not self.unitIndex[id]then d.sent[id]=nil end end
     end end

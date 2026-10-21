@@ -4,6 +4,16 @@ local L=require(script.Parent.Localization)
 local M={}
 M.colors={ffa=Color3.fromRGB(59,130,246),teams=Color3.fromRGB(139,92,246),custom=UI.colors.ice,coop=UI.colors.good}
 M.GAP=5;M.PAD=6;M.SIZE=12
+M.modifierOrder={'startingGold25M','startingGold5M','startingGold1M','goldMultiplier','isNukesDisabled','isWaterNukes','isDoomsdayClock',
+    'isAlliancesDisabled','isSAMsDisabled','isPeaceTime','isHardNations','isCrowded','isCompact','isRandomSpawn'}
+M.modifierShort={startingGold25M='골드 2500만',startingGold5M='골드 500만',startingGold1M='골드 100만',goldMultiplier='골드 2배',
+    isNukesDisabled='핵 없음',isWaterNukes='물 핵',isDoomsdayClock='종말 시계',isAlliancesDisabled='동맹 없음',isSAMsDisabled='방공 없음',
+    isPeaceTime='평화 4분',isHardNations='어려운 국가',isCrowded='만원 전장',isCompact='작은 지도',isRandomSpawn='랜덤 스폰'}
+function M.mainModifier(list)
+    if type(list)~='table'then return nil end
+    for _,k in ipairs(M.modifierOrder)do if table.find(list,k)then return k end end
+    return nil
+end
 function M.tags(f)
     local r=f.rules or {};local out={}
     if f.kind=='custom'then
@@ -11,11 +21,14 @@ function M.tags(f)
         table.insert(out,r.mode=='coop'and {text='협동',color=M.colors.coop,priority=2}or {text='대전',color=M.colors.custom,priority=3})
     else
         table.insert(out,{text='공식',color=UI.colors.muted,priority=3})
-        if r.special then table.insert(out,{text='특수',color=UI.colors.gold,priority=2})end
-        table.insert(out,r.mode=='teams'and {text='팀전',color=M.colors.teams,priority=1}or {text='개인전',color=M.colors.ffa,priority=1})
+        local main=r.special and M.mainModifier(r.modifiers)
+        if r.special then table.insert(out,{text='특수',color=UI.colors.gold,priority=1})end
+        table.insert(out,r.mode=='teams'and {text='팀전',color=M.colors.teams,priority=r.special and 2 or 1}or {text='개인전',color=M.colors.ffa,priority=r.special and 2 or 1})
+        if main then table.insert(out,{text=M.modifierShort[main],color=UI.colors.gold,priority=1.5})end
     end
     local teams=r.mode=='teams'and tonumber(r.teamCount)
-    if teams and teams>=2 then table.insert(out,{text=string.format('%d팀',teams),color=M.colors.teams,priority=4})end
+    if r.mode=='teams'and r.teamFormat=='HumansVsNations'then table.insert(out,{text='사람 대 국가',color=M.colors.teams,priority=2})
+    elseif teams and teams>=2 then table.insert(out,{text=string.format('%d팀',teams),color=M.colors.teams,priority=4})end
     return out
 end
 local function width(text,h)

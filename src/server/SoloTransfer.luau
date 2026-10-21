@@ -38,7 +38,7 @@ function M:depart(p,selection,settings)
     local ok=pcall(function()
         local code,privateId=a.reserve()
         if self.pending[p.UserId]~=op or not a.player(p.UserId)then return end
-        local ticket=assert(Rules.new(p.UserId,privateId,selection.map,settings,selection.intro,a.time(),selection.rewardMode,selection.daily and selection.daily.day),'Invalid solo transfer')
+        local ticket=assert(Rules.new(p.UserId,privateId,selection.map,settings,selection.intro,a.time(),selection.rewardMode,selection.daily and selection.daily.day,selection.campaign),'Invalid solo transfer')
         ticket.goal=selection.goal==true or nil
         if self.telemetry then ticket.telemetry=self.telemetry:prepareTransfer(p,op.key)end
         a.write(op.key,ticket)
