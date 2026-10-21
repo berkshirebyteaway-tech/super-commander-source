@@ -171,8 +171,10 @@ function M:layout(x,y,width,touch)
         local bw=math.min(116,width);local bh=bw<100 and 44 or 48
         self.buildTab.Visible=true;self.buildTab.Text=bw<100 and '건설'or '건설과 무기';UI.box(self.frame,x,y,bw,bh);UI.box(self.buildTab,0,0,bw,bh)
         for _,b in pairs(self.buttons)do b.root.Visible=false end
+        self:readyMark(bw)
         self.frame:SetAttribute('Compact',true);self.frame:SetAttribute('Category','all');return
     end
+    self:readyMark(nil)
     self.frame:SetAttribute('Compact',false)
     local list=U.buildable;local columns,rows,fold=self:shape(width,touch)
     self.buildTab.Visible=fold==1;self.buildTab.Text='접기 ▾';self.buildTab.TextSize=11
@@ -194,6 +196,15 @@ function M:layout(x,y,width,touch)
         end
     end
     self.cell=cell;self.frame:SetAttribute("NoScroll",true);self.frame:SetAttribute("Category","all");self.frame:SetAttribute("CellWidth",cell)
+end
+function M:readyMark(bw)
+    local tab=self.buildTab;local on=bw~=nil and self.ready==true
+    if not self.readyDot then
+        self.readyDot=UI.make('Frame',tab,{Name='ReadyDot',BackgroundColor3=UI.colors.gold,BorderSizePixel=0,Active=false,ZIndex=tab.ZIndex+2})
+        UI.make('UICorner',self.readyDot,{CornerRadius=UDim.new(.5,0)})
+    end
+    self.readyDot.Visible=on;if on then UI.box(self.readyDot,bw-12,5,7,7)end
+    tab:SetAttribute('Ready',on)
 end
 function M:update(state,selected)
     self.state=state
@@ -235,6 +246,11 @@ function M:update(state,selected)
         end
     end
     self.selected=selected
+    local ready=false
+    if state.phase=="playing" and not state.paused then
+        for kind,b in pairs(self.buttons)do if b.root:GetAttribute("Affordable")and not U.disabled(state.settings,kind)then ready=true;break end end
+    end
+    self.ready=ready
     UI.enabled(self.buildTab,state.phase=="playing" and not state.paused);UI.enabled(self.armsTab,state.phase=="playing" and not state.paused)
     if self.width then self:layout(self.x,self.y,self.width,self.touch) end
     if self.hovered then self:tooltip()end

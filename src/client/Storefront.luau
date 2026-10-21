@@ -112,6 +112,7 @@ end
 function S:billingPrice(key,product,kind)
     if not product or not product.available then return nil end
     local id=kind=='subscription'and product.subscriptionId or kind=='pass'and product.passId or product.id
+    if product.sale and not require(script.Parent.ShopCards).saleOn(product.sale)then id=product.sale.wasId end
     local cacheKey='billing:'..kind..':'..tostring(id);local cached=self.prices[cacheKey]
     if (not cached or os.clock()-cached.at>60)and not self.fetching[cacheKey]then
         self.fetching[cacheKey]=true;task.spawn(function()

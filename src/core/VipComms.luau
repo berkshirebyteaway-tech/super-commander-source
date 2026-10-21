@@ -2,6 +2,7 @@ local M={enabled=true}
 M.freeEmojis={'🕊️','🏳️','❤️','🥰','👏','😤','🤡'}
 M.freePhrases={['coordinate.ack']=true,['coordinate.decline']=true}
 M.matchText=true
+M.lobbyText=true
 function M.freeEmoji(e)return table.find(M.freeEmojis,e)~=nil end
 function M.active()
     if not M.enabled then return false end
@@ -11,6 +12,7 @@ end
 function M.allows(kind,value,vip)
     if vip==true or not M.active()then return true end
     if kind=='signal'or kind=='target'then return true end
+    if kind=='lobbyText'then return M.lobbyText==true end
     if kind=='emoji'then return M.freeEmoji(value)end
     if kind=='quickChat'then local key=type(value)=='table'and value.key or value;return M.freePhrases[key]==true end
     return false

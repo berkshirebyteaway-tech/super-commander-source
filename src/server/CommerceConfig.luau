@@ -6,5 +6,7 @@ return {
     passes={arctic=0,copper=0,permanent=2040722780},
     subscriptionId='EXP-2918598815600738793',
     clanProducts={attend={id=3719392105,suggestedRobux=5}},
+    saleProducts={basic=3720704102,epic=3720704658,legendary=3720704875,mythic=3720705065},
+    salePasses={permanent=2045726750},
     developerProducts={basic={id=3718779432,kind='basic',count=1},epic={id=3718779657,kind='epic',count=1},legendary={id=3718779679,kind='legendary',count=1},mythic={id=3718779954,kind='mythic',count=1}},
 }

@@ -12,25 +12,15 @@ local function make(class,parent,props)local o=Instance.new(class);for k,v in pa
 local view=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280,720)
 local narrow=view.X<600
 local short=view.Y<480
-local gui=make("ScreenGui",playerGui,{Name="FrontierLoading",DisplayOrder=50,IgnoreGuiInset=true,ResetOnSpawn=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+local gui=make("ScreenGui",playerGui,{Name="FrontierLoading",DisplayOrder=50,IgnoreGuiInset=true,ScreenInsets=Enum.ScreenInsets.None,ResetOnSpawn=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+pcall(function()gui.ClipToDeviceSafeArea=false end)
+pcall(function()gui.SafeAreaCompatibility=Enum.SafeAreaCompatibility.None end)
 local cover=make("Frame",gui,{Name="Cover",Size=UDim2.fromScale(1,1),BackgroundColor3=bg,BorderSizePixel=0})
-do
-    pcall(function()gui.ClipToDeviceSafeArea=false end)
-    local strips={}
-    for _,side in ipairs({"Left","Right","Top","Bottom"})do strips[side]=make("Frame",cover,{Name="SafeAreaBleed"..side,BackgroundColor3=bg,BorderSizePixel=0})end
-    local function place()
-        local v=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.zero
-        local ok,a=pcall(function()return game:GetService("GuiService"):GetInsetArea(gui.ScreenInsets)end)
-        local l,t,r,b
-        if ok and a and a.Max.X>a.Min.X then l,t,r,b=math.max(0,a.Min.X),math.max(0,a.Min.Y),math.max(0,v.X-a.Max.X),math.max(0,v.Y-a.Max.Y)
-        else local s=gui.AbsoluteSize;local w,h=math.max(0,v.X-s.X),math.max(0,v.Y-s.Y);l,t,r,b=w,h,w,h end
-        strips.Left.Position=UDim2.fromOffset(-l,-t);strips.Left.Size=UDim2.new(0,l,1,t+b)
-        strips.Right.Position=UDim2.new(1,0,0,-t);strips.Right.Size=UDim2.new(0,r,1,t+b)
-        strips.Top.Position=UDim2.fromOffset(0,-t);strips.Top.Size=UDim2.new(1,0,0,t)
-        strips.Bottom.Position=UDim2.fromScale(0,1);strips.Bottom.Size=UDim2.new(1,0,0,b)
-    end
-    place();gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(place);gui:GetPropertyChangedSignal("AbsolutePosition"):Connect(place)
-    if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(place)end
+local function safe()
+    local v=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.zero
+    local ok,a=pcall(function()return game:GetService("GuiService"):GetInsetArea(Enum.ScreenInsets.DeviceSafeInsets)end)
+    if ok and a and a.Max.X>a.Min.X and a.Max.Y>a.Min.Y then return math.max(0,a.Min.X),math.max(0,a.Min.Y),math.max(0,v.X-a.Max.X),math.max(0,v.Y-a.Max.Y)end
+    return 0,0,0,0
 end
 for i=1,23 do make("Frame",cover,{Name="GridV",Position=UDim2.fromScale(i/24,0),Size=UDim2.new(0,1,1,0),BackgroundColor3=line,BackgroundTransparency=.7,BorderSizePixel=0})end
 for i=1,11 do make("Frame",cover,{Name="GridH",Position=UDim2.fromScale(0,i/12),Size=UDim2.new(1,0,0,1),BackgroundColor3=line,BackgroundTransparency=.7,BorderSizePixel=0})end
@@ -105,6 +95,19 @@ local chip=make("TextLabel",tipRow,{Name="Chip",LayoutOrder=1,Text="TIP",TextSiz
 if mono then chip.FontFace=mono end;make("UICorner",chip,{CornerRadius=UDim.new(0,2)})
 local tipText=make("TextLabel",tipRow,{Name="Text",LayoutOrder=2,Text=tips[math.random(1,#tips)],TextSize=narrow and 13 or 14,TextColor3=muted,BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),Font=Enum.Font.BuilderSansMedium})
 make("TextLabel",cover,{Name="Copyright",Text="© OpenFront and Contributors",TextSize=12,TextColor3=muted,BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,1),Position=UDim2.new(.5,0,1,(narrow or short) and -12 or -18),Size=UDim2.new(1,-32,0,16),Font=Enum.Font.BuilderSansMedium,TextXAlignment=Enum.TextXAlignment.Center})
+do
+    local tip,copy=cover:FindFirstChild("Tip"),cover:FindFirstChild("Copyright")
+    local tipY,copyY=tip and tip.Position.Y.Offset or 0,copy and copy.Position.Y.Offset or 0
+    local function fit()
+        local l,t,r,b=safe()
+        column.Position=UDim2.new(.5,math.floor((l-r)/2),.47,math.floor((t-b)/2));column.Size=UDim2.new(1,-32-l-r,0,column.Size.Y.Offset)
+        if tip then tip.Position=UDim2.new(.5,math.floor((l-r)/2),1,tipY-b);tip.Size=UDim2.new(1,-32-l-r,0,tip.Size.Y.Offset)end
+        if copy then copy.Position=UDim2.new(.5,math.floor((l-r)/2),1,copyY-b);copy.Size=UDim2.new(1,-32-l-r,0,copy.Size.Y.Offset)end
+    end
+    fit()
+    if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)end
+    gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+end
 pcall(function()RF:RemoveDefaultLoadingScreen()end)
 local hopped=false
 pcall(function()

@@ -10,6 +10,8 @@ M.defaults={
     ranked=true,
     sales=true,
     commsOpen=false,
+    sale=true,
+    saleEndsAt='',
     spectate=true,
     replays=true,
     bigMaps=true,
@@ -55,11 +57,21 @@ function M.salesOpen()
     local ok,Config=pcall(require,script.Parent.CommerceConfig)
     return ok and Config.purchasesEnabled==true and M.get('sales')==true and not Run:IsStudio()
 end
+function M.saleEndsAt(now)
+    local Sale=require(game.ReplicatedStorage.FrontierNative.Core.LaunchSale)
+    local ok,Config=pcall(require,script.Parent.CommerceConfig);if not ok then return nil end
+    local any=Sale.saleId(Config.salePasses,'permanent')~=nil
+    for kind in pairs(Config.saleProducts or {})do any=any or Sale.saleId(Config.saleProducts,kind)~=nil end
+    local endsAt=Sale.endsAt(M.get('saleEndsAt'))
+    if any and Sale.active(M.get('sale'),endsAt,now or os.time())then return endsAt end
+    return nil
+end
 function M.publish()
     local pack=game.ReplicatedStorage:FindFirstChild('FrontierNative');if not pack then return end
     local function short(t)return utf8.len(t)and utf8.len(t)>80 and t:sub(1,utf8.offset(t,81)-1)or t end
     pack:SetAttribute('LiveNotice',short(M.get('notice')));pack:SetAttribute('LiveNoticeEn',short(M.get('noticeEn')))
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
+    pack:SetAttribute('LaunchSaleEndsAt',M.salesOpen()and M.saleEndsAt()or 0)
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
     require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())
     require(pack.Core.BattlefieldRules).bigMaps=M.get('bigMaps')~=false

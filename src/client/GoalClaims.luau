@@ -32,13 +32,7 @@ function M.button(parent,name,label,fn)
 end
 function M.dot(button,on)
     require(script.Parent.TelemetryStep).change('dot:'..button.Name,'goals','redDot',{item=require(script.Parent.TelemetryStep).code(button.Name),result=on and 'shown'or 'closed'})
-    local d=button:FindFirstChild('ClaimDot')
-    if not on then if d then d.Visible=false end;return end
-    if not d then
-        d=UI.make('Frame',button,{Name='ClaimDot',BackgroundColor3=Color3.fromRGB(255,82,82),BorderSizePixel=0,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-4,0,4),Size=UDim2.fromOffset(10,10),ZIndex=40})
-        UI.corner(d,999);local s=Instance.new('UIStroke');s.Color=Color3.fromRGB(11,15,20);s.Thickness=2;s.Parent=d;d:SetAttribute('AllowOverlap',true)
-    end
-    d.Visible=true
+    require(script.Parent.RedDot).set(button,'ClaimDot',on)
 end
 function M.banner(hub,body,w,y)
     local p=hub.account.progress or {};local list=M.list(p);if #list==0 then return 0 end

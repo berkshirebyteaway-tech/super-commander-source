@@ -56,7 +56,7 @@ function M:update(state,factions)
     if state.phase=='lost'or state.eliminated then self.scope='spectators'
     elseif old and old.phase~='playing'and state.phase=='playing'then self.scope=state.player.team and 'team'or 'all'end
     if state.phase=='menu'then self.frame.Visible=false;self.pings:clear()end
-    local hq=state.phase=='menu';local typing=hq and VipLock.allows('text')
+    local hq=state.phase=='menu';local typing=hq and VipLock.allows('lobbyText')
     if self.hqChat~=hq or self.hqTyping~=typing then self.hqChat=hq;self.hqTyping=typing;pcall(function()
         local w=Chat.ChatWindowConfiguration;w.HorizontalAlignment=Enum.HorizontalAlignment.Right;w.VerticalAlignment=Enum.VerticalAlignment.Center
         w.Enabled=hq;Chat.ChatInputBarConfiguration.Enabled=typing;game:GetService('StarterGui'):SetCoreGuiEnabled(Enum.CoreGuiType.Chat,hq)
@@ -131,7 +131,7 @@ function M:show(p)
         if type(p.key)=='string'and phrase[p.key]then content=L.text(phrase[p.key]);entry.text=content end
         local target;for _,f in pairs(self.factions or {})do if f.matchId==p.subject then target=f;break end end
         if p.kind=='emoji'or p.key=='coordinate.ack'or p.key=='coordinate.decline'then
-            if p.kind=='emoji'and sender and self.onEmoji then self.onEmoji(sender.id,sender.labelTile,p.text)end
+            if p.kind=='emoji'and sender and self.onEmoji then self.onEmoji(sender.id,sender.labelTile,p.text,p.from)end
             if sender and sender.id~=1 and (p.kind~='emoji'or scope=='player')then self.notify(name..'  '..content,false,sender.labelTile)end
         elseif sender and sender.id~=1 then
             self.pings:add(sender.userId,p,p.tile or target and target.labelTile)

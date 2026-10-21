@@ -5,7 +5,7 @@ local M={}
 local gui,cover,ring,caption,spin,token
 local function build()
     if gui and gui.Parent then return end
-    gui=Instance.new('ScreenGui');gui.Name='TransitionVeil';gui.IgnoreGuiInset=true;gui.ResetOnSpawn=false;gui.DisplayOrder=45;gui.Enabled=false;gui.AutoLocalize=false
+    gui=Instance.new('ScreenGui');gui.Name='TransitionVeil';gui.IgnoreGuiInset=true;gui.ScreenInsets=Enum.ScreenInsets.None;gui.ResetOnSpawn=false;gui.DisplayOrder=45;gui.Enabled=false;gui.AutoLocalize=false
     gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;require(script.Parent.FullBleed).watch(gui)
     cover=UI.make('TextButton',gui,{Name='Cover',Text='',AutoButtonColor=false,Size=UDim2.fromScale(1,1),BackgroundColor3=UI.colors.bg,BackgroundTransparency=.2,BorderSizePixel=0,Active=true,Selectable=false})
     ring=UI.make('ImageLabel',cover,{Name='Spinner',AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(.5,0,.5,-14),Size=UDim2.fromOffset(40,40),BackgroundTransparency=1})

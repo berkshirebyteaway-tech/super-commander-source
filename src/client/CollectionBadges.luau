@@ -2,21 +2,23 @@ local Rules=require(script.Parent.Parent.Core.CollectionInbox)
 local UI=require(script.Parent.ToyUI)
 local M={}
 function M.place(button)
+    if not button then return end
     local b=button:FindFirstChild('CollectionBadge');if not b then return end
-    local status=b:GetAttribute('CollectionStatus');local dot=status=='action'
-    local thumb=button:GetAttribute('ThumbTab')
-    if thumb then local tw=button.Size.X.Offset
-        b.AnchorPoint=Vector2.new(0,0);b.TextSize=9;b.Size=UDim2.fromOffset(dot and 7 or 24,dot and 7 or 13)
-        b.Position=UDim2.new(0,math.floor(tw/2)+(dot and 9 or 4),0,-(button:FindFirstChildOfClass('UIPadding')and button:FindFirstChildOfClass('UIPadding').PaddingTop.Offset or 0)+(dot and 3 or 1))
-    else b.AnchorPoint=Vector2.new(1,0);b.TextSize=11;b.Size=UDim2.fromOffset(dot and 7 or 30,dot and 7 or 14);local pad=button:FindFirstChildOfClass('UIPadding');b.Position=UDim2.new(1,(dot and -3 or 4)+(pad and pad.PaddingRight.Offset or 0),0,(dot and 2 or -1)-(pad and pad.PaddingTop.Offset or 0))end
+    local pad=button:FindFirstChildOfClass('UIPadding')
+    if button:GetAttribute('ThumbTab')then local tw=button.Size.X.Offset
+        b.AnchorPoint=Vector2.new(0,0);b.TextSize=9;b.Size=UDim2.fromOffset(24,13)
+        b.Position=UDim2.new(0,math.floor(tw/2)+4,0,-(pad and pad.PaddingTop.Offset or 0)+1)
+    else b.AnchorPoint=Vector2.new(1,0);b.TextSize=11;b.Size=UDim2.fromOffset(30,14);b.Position=UDim2.new(1,4+(pad and pad.PaddingRight.Offset or 0),0,-1-(pad and pad.PaddingTop.Offset or 0))end
 end
 function M.badge(button,status)
+    require(script.Parent.RedDot).set(button,'CollectionDot',status=='action')
+    if status=='action'then status=nil end
     local b=button:FindFirstChild('CollectionBadge')
     if not b and not status then return end
     if not b then b=UI.label(button,'CollectionBadge','',13,UI.colors.bg);b.ZIndex=40;b.TextXAlignment=Enum.TextXAlignment.Center;b.Font=Enum.Font.BuilderSansBold;UI.corner(b,999)end
     if b:GetAttribute('CollectionStatus')==status then return end;b:SetAttribute('CollectionStatus',status)
     b.Visible=status~=nil
-    if status then b.Text=status=='action'and ''or 'NEW';b.BackgroundTransparency=0;b.BackgroundColor3=status=='action'and UI.colors.danger or UI.colors.gold;M.place(button)end
+    if status then b.Text='NEW';b.BackgroundTransparency=0;b.BackgroundColor3=UI.colors.gold;M.place(button)end
 end
 local function snapshot(lobby)
     local account=lobby.account or {};local cached=lobby.collectionSnapshot

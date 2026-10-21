@@ -20,7 +20,7 @@ function M.new(entries)
     local function general(c)
         if c.Name=='RBXGeneral'and c:IsA('TextChannel')then c.ShouldDeliverCallback=function(message,to)
             local from=message.TextSource;local e=from and entries[from.UserId]
-            return e~=nil and Routing.allowed(e,entries[to.UserId],'lobby')and Vip.allows('text',nil,M.vip(self,e))
+            return e~=nil and Routing.allowed(e,entries[to.UserId],'lobby')and Vip.allows('lobbyText',nil,M.vip(self,e))
         end
         elseif c.Name:match('^RBXWhisper')and c:IsA('TextChannel')then c.ShouldDeliverCallback=function()return false end end
     end
@@ -70,7 +70,7 @@ function M:sync(e)
         local ok,err=pcall(function()
             local room=e.room
             local general=self.folder:FindFirstChild('RBXGeneral');local source=general and general:FindFirstChild(tostring(e.player.UserId))
-            if source and source:IsA('TextSource')then source.CanSend=Vip.allows('text',nil,self:vip(e))end
+            if source and source:IsA('TextSource')then source.CanSend=Vip.allows(e.room==nil and 'lobbyText'or 'text',nil,self:vip(e))end
             if not room then
                 e.player:SetAttribute('CommanderGlobalChat',nil);e.player:SetAttribute('CommanderTeamChat',nil);e.player:SetAttribute('CommanderSpectatorChat',nil)
                 for _,r in pairs(self.channels)do local source=r.channel:FindFirstChild(tostring(e.player.UserId));if source then source:Destroy()end end

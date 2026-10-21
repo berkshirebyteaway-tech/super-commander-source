@@ -334,7 +334,7 @@ function M:openPage(page)
     local screen=page=='missions'and self.goalTab=='campaign'and 'campaign'or ({solo='single',missions='goals',preferences='settings',joinCode='custom',customCode='custom',customRules='custom',maps='deployment',watch='spectate',motions='motion',confirm='menu'})[page]or page
     require(script.Parent.TelemetryClient).emit('screen_viewed',{screen=screen,result='shown'});if page=='missions'then self.goalScreen=screen end
     if page=='solo'then self:refresh()end
-    self.page=page;self.overlay.Visible=true;self.pageBody.CanvasPosition=Vector2.zero;self:layout();self:drawPage()
+    self.page=page;self.overlay.Visible=true;self.pageBody.CanvasPosition=Vector2.zero;self.goalsScrollTab=nil;self:layout();self:drawPage()
 end
 function M:invite(target)
     task.spawn(function()
@@ -394,6 +394,7 @@ function M:drawPageBody()
     Currency.dismiss(true);Currency.reduced=(self.account.preferences or {}).reducedEffects==true;require(script.Parent.PageWallet).clear(self)
     if self.mapBrowser then self.mapBrowser:destroy();self.mapBrowser=nil end
     require(script.Parent.LiveWatchPage).release(self,self.page=='watch')
+    if self.page=='missions'then require(script.Parent.GoalsScreen).keep(self,self.pageBody)end
     for _,o in ipairs(self.pageBody:GetChildren())do o:Destroy()end
     for _,o in ipairs(self.pageTabs:GetChildren())do o:Destroy()end
     local side=PageLayout.inset(self.page)

@@ -2,6 +2,7 @@ local UI=require(script.Parent.ToyUI)
 local Icons=require(script.Parent.OutgameIcons)
 local Currency=require(script.Parent.CurrencyChip)
 local Claims=require(script.Parent.GoalClaims)
+local RedDot=require(script.Parent.RedDot)
 local Step=require(script.Parent.TelemetryStep)
 local Rules=require(script.Parent.Parent.Core.OutgameRules)
 local Maps=require(script.Parent.Parent.Maps.MapLoader)
@@ -525,6 +526,10 @@ local function drawCareer(hub,body,x,w,y,phone)
     return y
 end
 
+function M.keep(hub,body)
+    local s=body:FindFirstChild('GoalsScroll')
+    if s and s:IsA('ScrollingFrame')and hub.goalsScrollTab then hub.goalsKeep={tab=hub.goalsScrollTab,pos=s.CanvasPosition}end
+end
 function M.draw(hub,body,shop)
     local p=hub.account.progress or {}
     for _,o in ipairs(body:GetChildren())do if o:IsA('GuiObject')then o:Destroy()end end
@@ -561,7 +566,7 @@ function M.draw(hub,body,shop)
             b.BackgroundColor3=on and C.raised:Lerp(C.ink,.12)or C.panel
             local st=b:FindFirstChildOfClass('UIStroke');if st then st.Color=on and C.ink or C.line;st.Transparency=on and .3 or 0 end
             if on then local mark=UI.make('Frame',b,{Name='Mark',BackgroundColor3=C.ink,BorderSizePixel=0});UI.box(mark,12,53,tw-24,3)end
-            if t[4]=='crest'then crest(b,(tw-24)/2,6,24)else local ic=Icons.create(b,t[4],24,t[4]=='medal'and GOLD or C.accent);UI.box(ic,(tw-24)/2,6,24,24)end
+            local ic;if t[4]=='crest'then ic=crest(b,(tw-24)/2,6,24)else ic=Icons.create(b,t[4],24,t[4]=='medal'and GOLD or C.accent);UI.box(ic,(tw-24)/2,6,24,24)end;RedDot.onIcon(b,ic)
             local tn=label(b,'Name',t[3],13,on and C.ink or C.muted,2,32,tw-4,18,Enum.TextXAlignment.Center);tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=13,MinTextSize=9})
             Claims.dot(b,dots[t[1]]==true)
         end
@@ -575,7 +580,7 @@ function M.draw(hub,body,shop)
             local edgeS=b:FindFirstChildOfClass('UIStroke');if edgeS then edgeS.Enabled=false end
             if on then local mark=UI.make('Frame',b,{Name='Mark',BackgroundColor3=C.ink,BorderSizePixel=0});UI.box(mark,0,8,3,(H-16)/#TABS-22)end
             local bh=(H-16)/#TABS-6
-            if t[4]=='crest'then crest(b,16,bh/2-24,28)else local ic=Icons.create(b,t[4],28,t[4]=='medal'and GOLD or C.accent);UI.box(ic,16,bh/2-24,28,28)end
+            local ic;if t[4]=='crest'then ic=crest(b,16,bh/2-24,28)else ic=Icons.create(b,t[4],28,t[4]=='medal'and GOLD or C.accent);UI.box(ic,16,bh/2-24,28,28)end;RedDot.onIcon(b,ic)
             local tn=label(b,'Name',t[3],13,on and C.ink or C.muted,2,bh/2+8,56,18,Enum.TextXAlignment.Center);tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=13,MinTextSize=9})
             Claims.dot(b,dots[t[1]]==true)
         end
@@ -586,7 +591,7 @@ function M.draw(hub,body,shop)
             local on=hub.goalTab==t[1]
             local b=UI.button(body,'GoalTab_'..t[1],'',function()pick(t[1])end,false);UI.box(b,(i-1)*(tw+16),0,tw,64)
             b.BackgroundColor3=on and C.raised:Lerp(C.ink,.1)or C.panel;local st=b:FindFirstChildOfClass('UIStroke');if st then st.Color=on and C.ink or C.line;st.Transparency=on and .3 or 0 end
-            if t[4]=='crest'then crest(b,16,14,36)else local ic=Icons.create(b,t[4],32,t[4]=='medal'and GOLD or C.accent);UI.box(ic,18,16,32,32)end
+            local ic;if t[4]=='crest'then ic=crest(b,16,14,36)else ic=Icons.create(b,t[4],32,t[4]=='medal'and GOLD or C.accent);UI.box(ic,18,16,32,32)end;RedDot.onIcon(b,ic)
             local tn=bold(label(b,'Name',t[2],18,C.ink,64,10,tw-74,24));tn.TextWrapped=false;tn.TextScaled=true;UI.make('UITextSizeConstraint',tn,{MaxTextSize=18,MinTextSize=13})
             local ts=label(b,'Sub',subs[t[1]],13,on and C.ink or C.muted,64,34,tw-74,20);ts.TextWrapped=false;ts.TextTruncate=Enum.TextTruncate.AtEnd
             Claims.dot(b,dots[t[1]]==true)
@@ -602,6 +607,8 @@ function M.draw(hub,body,shop)
     elseif hub.goalTab=='season'then y=drawSeason(hub,scroll,0,inner,y,phone,not phone and math.min(440,inner*.33)or nil)
     else y=drawCareer(hub,scroll,0,inner,y,phone)end
     scroll.CanvasSize=UDim2.fromOffset(0,y+12)
+    local keep=hub.goalsKeep;hub.goalsKeep=nil;hub.goalsScrollTab=hub.goalTab
+    if hub.campaignScrollTop then hub.campaignScrollTop=nil elseif keep and keep.tab==hub.goalTab then scroll.CanvasPosition=keep.pos end
     Step.once('goalsView:'..hub.goalTab,'goals','view',{item=hub.goalTab})
 end
 return M

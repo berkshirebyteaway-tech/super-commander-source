@@ -8,6 +8,7 @@ local Model=require(Core.BattlefieldModel)
 local Config=require(script.Parent.MultiplayerConfig)
 local Storage=require(script.Parent.BattlefieldStore)
 local M={};M.__index=M
+M.arrivalSeconds=75
 function M.new()
     local localQueue=Lobby.new()
     local self=setmetatable({localQueue=localQueue,membership=localQueue.membership,active={},locations={},reserving={},arrivals={},attempts={},sending={},retryAt={},deferredCancels={},cancelling={},joining={},live=Config.globalPvpEnabled and not Run:IsStudio()},M)
@@ -427,7 +428,8 @@ function M:poll()
         local users={};local expected=0
         for id in pairs(m.members)do expected+=1;if Players:GetPlayerByUserId(tonumber(id))then table.insert(users,tonumber(id))end end
         table.sort(users)
-        if #users>=(m.kind=='custom'and m.rules.minimum or 1)and (#users==expected or os.clock()-a.since>=35)then
+        local late=os.clock()-a.since>=M.arrivalSeconds or os.time()>=m.expires-10
+        if #users>=(m.kind=='custom'and m.rules.minimum or 1)and (#users==expected or late)then
             local started,result=self:update({kind='start',match=mid,users=users})
             if started and result.matches[mid]and result.matches[mid].phase=='running'then
                 users={};for id in pairs(result.matches[mid].members)do table.insert(users,tonumber(id))end;table.sort(users)
@@ -438,11 +440,11 @@ function M:poll()
                 if self.telemetry then for _,id in ipairs(users)do self.telemetry:flowUser(id,'queue','matchStart',{result=created and 'accepted'or 'failed',count=#users,value=os.clock()-a.since})end end
                 if not created then self:update({kind='abort',match=mid});for _,id in ipairs(users)do self:notify(id,'전장을 준비하지 못했어요. 다시 참가해 주세요.')end end
                 self.arrivals[mid]=nil
-            elseif os.clock()-a.since>=35 then
+            elseif late then
                 self:update({kind='abort',match=mid});self.arrivals[mid]=nil
                 for id in pairs(a.users)do self.callbacks.arrival(id,false);if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='capacity',count=#users})end;self:notify(id,m.rules.ranked=='ffa'and '접속한 지휘관이 4명보다 적어 출격을 취소했어요. 다시 참가해 주세요.'or '접속한 인원으로는 양쪽 진영을 채우지 못해 출격을 취소했어요. 다시 참가해 주세요.')end
             end
-        elseif os.clock()-a.since>=35 then
+        elseif late then
             self:update({kind='abort',match=mid});self.arrivals[mid]=nil
             for id in pairs(a.users)do self.callbacks.arrival(id,false)end
             for _,id in ipairs(users)do if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='disconnected',count=#users})end;self:notify(id,'출발 인원이 접속하지 못했어요. 불이익 없이 로비에서 다시 참가할 수 있어요.')end

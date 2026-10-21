@@ -6,18 +6,22 @@ local Colors=require(script.Parent.FactionColors)
 local Flags=require(script.Parent.Flags)
 local Honor=require(script.Parent.CommanderHonor)
 local M={}
+local function set(o,k,v)if o[k]~=v then o[k]=v end end
+local function face(profile)
+    local flagged=profile.Flag.Visible;local avatar=profile.Avatar
+    set(avatar,'Visible',not flagged and avatar.Image~='')
+    local bare=not flagged and not profile.NPC.Visible and not (avatar.Visible and avatar.IsLoaded)
+    set(profile.Head,'Visible',bare);set(profile.Shoulders,'Visible',bare)
+end
 function M.color(id,ownColor,kind) return Colors.get(id,kind,ownColor)end
 function M.new(parent,name)
     local root=UI.make("Frame",parent,{Name=name,Size=UDim2.fromOffset(142,44),AnchorPoint=Vector2.new(.5,.5),BackgroundTransparency=1})
     local portrait=UI.make("Frame",root,{Name="Profile",Position=UDim2.fromOffset(0,6),Size=UDim2.fromOffset(28,28),BorderSizePixel=0});UI.corner(portrait,99);UI.stroke(portrait,UI.colors.ink,1)
-    local head=UI.make("Frame",portrait,{Name="Head",Position=UDim2.fromOffset(10,5),Size=UDim2.fromOffset(8,9),BackgroundColor3=UI.colors.ink,BorderSizePixel=0});UI.corner(head,8)
-    local body=UI.make("Frame",portrait,{Name="Shoulders",Position=UDim2.fromOffset(6,15),Size=UDim2.fromOffset(16,8),BackgroundColor3=UI.colors.ink,BorderSizePixel=0});UI.corner(body,6)
+    local head=UI.make("Frame",portrait,{Name="Head",Position=UDim2.fromScale(10/28,5/28),Size=UDim2.fromScale(8/28,9/28),BackgroundColor3=UI.colors.ink,BorderSizePixel=0});UI.corner(head,8)
+    local body=UI.make("Frame",portrait,{Name="Shoulders",Position=UDim2.fromScale(6/28,15/28),Size=UDim2.fromScale(16/28,8/28),BackgroundColor3=UI.colors.ink,BorderSizePixel=0});UI.corner(body,6)
     local npc=Icons.create(portrait,"npc",28);npc.Name="NPC";npc.ZIndex=2
     local avatar=UI.make("ImageLabel",portrait,{Name="Avatar",Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=3,Visible=false});UI.corner(avatar,99)
-    avatar:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-        avatar.Visible=avatar.Image~=""
-        head.Visible=not (avatar.Visible and avatar.IsLoaded) and not npc.Visible;body.Visible=head.Visible
-    end)
+    avatar:GetPropertyChangedSignal("IsLoaded"):Connect(function() face(portrait) end)
     local title=UI.label(root,"Title","",14);title:SetAttribute('LocalizationSkip',true);UI.box(title,34,0,108,20);title.Font=Enum.Font.BuilderSansBold;title.TextTruncate=Enum.TextTruncate.AtEnd;title.TextWrapped=false;title.TextStrokeTransparency=0
     local troops=UI.label(root,"Troops","",14);UI.box(troops,34,22,108,20);troops.TextStrokeTransparency=0;troops.TextWrapped=false
     UI.make("Frame",portrait,{Name="Flag",AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(.66,.44),BackgroundTransparency=1,ZIndex=4,Visible=false})
@@ -65,10 +69,10 @@ function M.update(root,f,ownColor,pixels,viewport)
         profile.NPC.Visible=userId==0 and not flagged and profile.NPC:GetAttribute("Available")==true
         profile.Head.Visible=not profile.NPC.Visible and not flagged;profile.Shoulders.Visible=profile.Head.Visible
         Avatar.request(userId,function(url)
-            if profile.Parent and profile:GetAttribute("UserId")==userId then profile.Avatar.Image=url;profile.Avatar.Visible=profile.Flag.Visible==false end
+            if profile.Parent and profile:GetAttribute("UserId")==userId then profile.Avatar.Image=url;face(profile) end
         end)
     end
-    profile.Avatar.Visible=not flagged and profile.Avatar.Image~=""
+    face(profile)
     local honor=Honor.of(f);local ring=profile:FindFirstChildOfClass("UIStroke")
     if ring then ring.Color=honor and honor.plate and Honor.edge(honor.plate)or UI.colors.ink;ring.Thickness=honor and honor.plate and 2 or 1 end
     root.Title.Text=(f.userId and f.name or L.text(f.name))..(f.allied and L.text(" (동맹)")or "")
@@ -83,7 +87,6 @@ local function glyphs(text)
     return w
 end
 M.textWidth=glyphs
-local function set(o,k,v)if o[k]~=v then o[k]=v end end
 local widths,cached={},0
 local function nameWidth(name,font)
     local key=font..'|'..name;local w=widths[key]
@@ -182,10 +185,10 @@ function M.plate(root,f,ownColor,font,viewport,faded)
         profile.NPC.Visible=userId==0 and not flagged and profile.NPC:GetAttribute('Available')==true
         profile.Head.Visible=not profile.NPC.Visible and not flagged;profile.Shoulders.Visible=profile.Head.Visible
         Avatar.request(userId,function(url)
-            if profile.Parent and profile:GetAttribute('UserId')==userId then profile.Avatar.Image=url;profile.Avatar.Visible=profile.Flag.Visible==false end
+            if profile.Parent and profile:GetAttribute('UserId')==userId then profile.Avatar.Image=url;face(profile) end
         end)
     end
-    set(profile.Avatar,'Visible',not flagged and profile.Avatar.Image~='')
+    face(profile)
     local honor=Honor.of(f);local ring=profile:FindFirstChildOfClass('UIStroke')
     if ring then set(ring,'Color',honor and honor.plate and Honor.edge(honor.plate)or UI.colors.ink);set(ring,'Thickness',honor and honor.plate and 2 or 1)end
 end

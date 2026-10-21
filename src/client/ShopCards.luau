@@ -15,8 +15,23 @@ function M.oddsLine(kind)
     return Launch.rarityNames[Launch.tickets[kind].rarity]..' 100%'
 end
 M.refund=math.floor(Launch.medalDrawCost*.2)
+local Sale=require(script.Parent.Parent.Core.LaunchSale)
+local function now()local ok,t=pcall(function()return workspace:GetServerTimeNow()end);return ok and t or os.time()end
+function M.saleOn(sale)return type(sale)=='table'and Sale.active(true,sale.endsAt,now())end
+function M.saleEnds(billing)
+    if not billing then return nil end
+    for _,kind in ipairs(M.kinds)do local p=billing.products and billing.products[kind];if p and M.saleOn(p.sale)then return p.sale.endsAt end end
+    if billing.permanent and M.saleOn(billing.permanent.sale)then return billing.permanent.sale.endsAt end
+    return nil
+end
+function M.saleTagWidth(slim)return slim and 44 or 52 end
+function M.saleTag(p,x,y,slim)
+    local w,h=M.saleTagWidth(slim),slim and 20 or 24
+    local t=K.round(UI.make('TextLabel',p,{Name='SaleTag',Text=string.format('-%d%%',Sale.percent),Font=K.heavy,TextSize=slim and 13 or 15,TextColor3=UI.colors.bg,BackgroundColor3=UI.colors.gold,BorderSizePixel=0,ZIndex=4}),6)
+    UI.box(t,x,y,w,h);return t
+end
 local function price(shop,kind,product,ptype,fallback)return K.robuxText(shop:billingPrice(kind,product,ptype),fallback)end
-local function robuxButton(p,name,before,amount,fn,x,y,w,h,style,enabled)
+local function robuxButton(p,name,before,amount,fn,x,y,w,h,style,enabled,sale)
     local b=UI.button(p,name,'',fn,style=='teal');UI.box(b,x,y,w,h);K.round(b,8);b.ClipsDescendants=true
     local fill=style=='gold'and UI.colors.gold or type(style)=='table'and style.fill or nil
     local color=(fill or style=='teal')and UI.colors.bg or typeof(style)=='Color3'and style~=UI.colors.line and style or UI.colors.ink
@@ -25,9 +40,11 @@ local function robuxButton(p,name,before,amount,fn,x,y,w,h,style,enabled)
     if enabled==false then b.BackgroundColor3=UI.colors.panel;b.BackgroundTransparency=0;color=UI.colors.muted;local e=b:FindFirstChildOfClass('UIStroke');if e then e.Color=UI.colors.line;e.Thickness=1 end;local g=b:FindFirstChildOfClass('UIGradient');if g then g:Destroy()end end
     local size=h>=50 and 17 or 15
     local words=(before~=''and before..' 'or '');local tw=K.width(words,size,K.heavy);local aw=K.width(amount or '',size,K.heavy);local total=tw+(amount and size+4+aw or 0)
+    local pw=sale and amount and M.saleTagWidth(true)or 0;if pw>0 then total+=8+pw end
     local x0=(w-total)/2
     if words~=''then K.text(b,'Words',words,x0,0,tw+2,h,size,color,LEFT,K.heavy)end
     if amount then K.robux(b,size,color,x0+tw,(h-size)/2);K.text(b,'Amount',amount,x0+tw+size+4,0,aw+4,h,size,color,LEFT,K.heavy)end
+    if pw>0 then M.saleTag(b,x0+tw+size+4+aw+8,(h-20)/2,true)end
     UI.enabled(b,enabled~=false);b.TextTransparency=0;return b
 end
 M.robuxButton=robuxButton
@@ -43,7 +60,8 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
     K.chip(card,'Promise',M.promise[kind],color,pad,slim and 8 or 12,slim and 22 or 24,false,13)
     local odds=UI.button(card,'Odds_'..kind,slim and '확률'or '확률 ›',function()step('oddsItems',{item=kind});hub.supplyOdds=kind;hub:openPage('supply')end)
     UI.box(odds,w-(slim and 44 or 58),slim and 0 or 6,slim and 40 or 56,48);odds.TextSize=13;odds.TextXAlignment=Enum.TextXAlignment.Right;K.link(odds,UI.colors.ink:Lerp(UI.colors.muted,.3));odds.ZIndex=3
-    local nameY=math.min(slim and math.floor(h*.36)or math.floor(h*.44),h-(slim and 170 or 244))
+    local tight=slim and math.floor(h*.36)>h-170
+    local nameY=tight and h-134 or math.min(slim and math.floor(h*.36)or math.floor(h*.44),h-(slim and 170 or 244))
     local view=require(script.Parent.CollectionPreview).create(card,nil,{crate=kind,name='CrateView',direction=Vector3.new(-.42,.5,-1).Unit});UI.box(view,pad,slim and 26 or 40,w-pad*2,nameY-(slim and 26 or 40));view.ZIndex=1
     local pool=K.round(UI.make('Frame',card,{Name='Spotlight',BackgroundColor3=color,BackgroundTransparency=.88,BorderSizePixel=0,ZIndex=0}),99);UI.box(pool,w*.22,nameY-(slim and 14 or 24),w*.56,slim and 10 or 16)
     K.text(card,'Name',M.titles[kind],4,nameY,w-8,slim and 20 or 26,slim and 15 or 19,UI.colors.ink,CENTER,K.heavy)
@@ -51,6 +69,7 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
     if not slim then K.text(card,'Odds',M.oddsLine(kind),4,ry,w-8,18,13,UI.colors.muted,CENTER);ry+=28 end
     local product=billing.products and billing.products[kind];local canBuy=not billing.testingAvailable and product~=nil and product.available==true and billing.paidRandomAllowed==true
     local amount=price(shop,kind,product,'product',Launch.tickets[kind].suggestedRobux)
+    local onSale=M.saleOn(product and product.sale)
     local row=K.round(UI.make('Frame',card,{Name='Tickets',BackgroundColor3=UI.colors.bg,BackgroundTransparency=.3,BorderSizePixel=0}),6);UI.box(row,pad,ry,w-pad*2,slim and 28 or 34);UI.stroke(row,UI.colors.line,1)
     local rw,rh=w-pad*2,slim and 28 or 34
     K.ticket(row,color,8,rh/2-6,18,12)
@@ -64,6 +83,9 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
         chip.BackgroundColor3=UI.colors.raised;local e=chip:FindFirstChildOfClass('UIStroke');if e then e.Color=UI.colors.line end
         local cx=(chipW-K.width('+',13)-17-K.width(amount or '',13,K.heavy))/2
         K.text(chip,'Plus','+',cx,0,12,rh-8,13,UI.colors.ink);K.robux(chip,13,UI.colors.ink,cx+12,(rh-8-13)/2);K.text(chip,'Amount',amount or '',cx+28,0,chipW,rh-8,13,UI.colors.ink,LEFT,K.heavy)
+        if onSale then local e2=chip:FindFirstChildOfClass('UIStroke');if e2 then e2.Color=UI.colors.gold end;chip.Amount.TextColor3=UI.colors.gold
+            if kind=='basic'or count>0 or billing.testingAvailable then local t=M.saleTag(card,pad+rw-4-36,ry-9,true);t.Size=UDim2.fromOffset(36,16);t.TextSize=11 end
+        end
         UI.enabled(chip,canBuy and not busy);if not(canBuy and not busy)then chip.BackgroundTransparency=.6 end
     end
     ry+=rh+(slim and 6 or 12)
@@ -84,26 +106,29 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
     end
     if kind=='basic'then
         local medals=hub.account.progress and hub.account.progress.medals or 0
-        local coin=UI.button(card,'MedalOpen','',function()step('crateOpen',{item='basic',value=Launch.medalDrawCost});shop:drawSupply('basic','medals')end);UI.box(coin,pad,by,w-pad*2,bh);K.round(coin,8)
         local words=slim and UI.commas(Launch.medalDrawCost)or string.format('%s으로 열기',UI.commas(Launch.medalDrawCost));local tw=K.width(words,slim and 14 or 15,K.heavy)
-        UI.box(Icons.create(coin,'coin',18,UI.colors.gold),(w-pad*2-tw-24)/2,(bh-18)/2,18,18);K.text(coin,'Words',words,(w-pad*2-tw-24)/2+24,0,tw+4,bh,slim and 14 or 15,UI.colors.ink,LEFT,K.heavy)
+        local coinW=tight and math.max(tw+24+16,math.floor((w-pad*2-8)*.4))or w-pad*2
+        local coin=UI.button(card,'MedalOpen','',function()step('crateOpen',{item='basic',value=Launch.medalDrawCost});shop:drawSupply('basic','medals')end);UI.box(coin,w-pad-coinW,by,coinW,bh);K.round(coin,8)
+        UI.box(Icons.create(coin,'coin',18,UI.colors.gold),(coinW-tw-24)/2,(bh-18)/2,18,18);K.text(coin,'Words',words,(coinW-tw-24)/2+24,0,tw+4,bh,slim and 14 or 15,UI.colors.ink,LEFT,K.heavy)
         UI.enabled(coin,not busy and medals>=Launch.medalDrawCost);coin.TextTransparency=0
         if medals<Launch.medalDrawCost then coin.Words.TextColor3=UI.colors.muted;coin.BackgroundColor3=UI.colors.panel end
-        local free=FreeDraw.ready(billing);local ph=slim and 48 or 50;local py=by-ph-8
+        local free=FreeDraw.ready(billing);local ph=tight and bh or slim and 48 or 50;local py=tight and by or by-ph-8
+        local ow=tight and w-pad*2-8-coinW or w-pad*2;local ts=tight and 14 or slim and 15 or 17
         local label=free and '오늘 무료로 열기'or '뽑기권 1장으로 열기'
+        if tight then label=free and '무료 열기'or '뽑기권 열기';if K.width(label,ts,K.heavy)>ow-12 then label=free and '무료'or '열기'end end
         local open=UI.button(card,free and 'FreeOpen'or 'Open',label,function()step('crateOpen',{item=free and 'basicFree'or 'basicTicket'});shop:drawSupply('basic',free and 'free'or 'ticket')end,true)
-        UI.box(open,pad,py,w-pad*2,ph);K.round(open,8);open.TextSize=slim and 15 or 17;open.Font=K.heavy
+        UI.box(open,pad,py,ow,ph);K.round(open,8);open.TextSize=ts;open.Font=K.heavy
         local can=free or count>0 and billing.paidRandomAllowed==true
         if can then UI.make('UIGradient',open,{Rotation=90,Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(205,215,214))})
         else open.BackgroundColor3=UI.colors.panel;open.TextColor3=UI.colors.muted;local e=open:FindFirstChildOfClass('UIStroke');if e then e.Color=UI.colors.line end end
         UI.enabled(open,can and not busy)
-        if free then FreeDraw.dot(open,true,w-pad*2-8,6,12)end
+        if free then FreeDraw.dot(open,true)end
     elseif count>0 then
         local b=UI.button(card,'Open','열기',function()step('crateOpen',{item=kind});shop:drawSupply(kind,'ticket')end);UI.box(b,pad,by,w-pad*2,bh);K.round(b,8);b.TextSize=slim and 15 or 17;b.Font=K.heavy
         b.BackgroundColor3=UI.colors.bg;b.BackgroundTransparency=.3;local e=b:FindFirstChildOfClass('UIStroke');if e then e.Color=color;e.Thickness=1.5 end
         UI.enabled(b,not busy and billing.paidRandomAllowed==true)
     else
-        robuxButton(card,'Buy','',amount,function()step('crateBuy',{item=kind});shop:purchaseBilling(kind,'shopBox')end,pad,by,w-pad*2,bh,UI.colors.line,canBuy and not busy)
+        robuxButton(card,'Buy','',amount,function()step('crateBuy',{item=kind});shop:purchaseBilling(kind,'shopBox')end,pad,by,w-pad*2,bh,UI.colors.line,canBuy and not busy,onSale)
     end
     return card
 end
@@ -111,7 +136,7 @@ local welcome=Launch.permanent.welcome
 local welcomeCount=welcome.epic+welcome.legendary+welcome.mythic
 M.members={
     club={name=Launch.club.name,color=UI.colors.vip,icon='vip',period='30일',cta='구독하기',owned='이용 중',ptype='subscription',fallback=Launch.club.suggestedRobux,
-        tiles={{'custom','커스텀 게임','공개 방 만들기','공개 방'},{'friends','채팅 켜기','글과 음성 채팅, 이모지 전체','글, 음성, 이모지'}},
+        tiles={{'custom','커스텀 게임','공개 방 만들기','공개 방'},{'friends','채팅 켜기','경기 채팅, 음성, 이모지 전체','글, 음성, 이모지'}},
         rest={string.format('매일 뽑기권 %d장, XP 2배, 지휘 모션, 경기 관전',Launch.clubDailyTickets)}},
     permanent={name=Launch.permanent.name,color=UI.colors.prime,icon='marshal',period='영구',cta='구매하기',owned='보유 중',ptype='pass',fallback=Launch.permanent.suggestedRobux,
         tiles={{'clan','클랜 만들기와 가입','프라임만 클랜을 만들고 들어가요','클랜은 프라임 전용이에요',emblem=true}},tickets=true,
@@ -163,6 +188,11 @@ function M.member(hub,parent,shop,billing,sku,x,y,w,h,slim)
     K.robux(card,13,UI.colors.ink,tx,pad+(slim and 24 or 32));local aw=K.width(amount,14,K.heavy)
     K.text(card,'Price',amount,tx+17,pad+(slim and 20 or 28),aw+4,22,14,UI.colors.ink,LEFT,K.heavy)
     K.text(card,'Period','/ '..o.period,tx+17+aw+6,pad+(slim and 20 or 28),80,22,13,UI.colors.muted)
+    local onSale=M.saleOn(billing[sku]and billing[sku].sale)
+    if not(billing.benefits and billing.benefits[sku])and onSale then
+        local was=UI.commas(o.fallback);local sx=tx+17+aw+6+K.width('/ '..o.period,13)+10
+        if sx+K.width(was,13)<=w-pad-90 then local l=K.text(card,'WasPrice','<s>'..was..'</s>',sx,pad+(slim and 20 or 28),K.width(was,13)+6,22,13,UI.colors.muted);l.RichText=true end
+    end
     local ty=pad+is+(slim and 8 or 16);local n=#o.tiles;local tg=8;local tw=(w-pad*2-(n-1)*tg)/n;local th=o.tickets and (slim and 70 or 88)or slim and 82 or (n==1 and 100 or 104)
     for i,t in ipairs(o.tiles)do
         local tile=K.round(UI.make('Frame',card,{Name='Perk_'..t[1],BackgroundColor3=n==1 and color:Lerp(UI.colors.panel,.86)or UI.colors.raised,BackgroundTransparency=.1,BorderSizePixel=0}),8)
@@ -207,12 +237,12 @@ function M.member(hub,parent,shop,billing,sku,x,y,w,h,slim)
         s.BackgroundColor3=UI.colors.bg;s.BackgroundTransparency=.3;s.TextColor3=color;s.TextSize=slim and 15 or 17;s.Font=K.heavy
         local e=s:FindFirstChildOfClass('UIStroke');if e then e.Color=color:Lerp(UI.colors.line,.5)end
     else
-        robuxButton(card,'Buy',o.cta,amount,function()step('offer_'..sku,{sku=sku,result='selected'});shop:purchaseBilling(sku,'shopMember')end,pad,by,w-pad*2,bh,sku=='club'and color or {fill=color},live and not shop.busy)
+        robuxButton(card,'Buy',o.cta,amount,function()step('offer_'..sku,{sku=sku,result='selected'});shop:purchaseBilling(sku,'shopMember')end,pad,by,w-pad*2,bh,sku=='club'and color or {fill=color},live and not shop.busy,onSale)
     end
     return card
 end
 M.perkList={
-    club={{'custom','공개 커스텀 게임','내가 만든 방을 누구나 찾아 들어와요'},{'friends','글과 음성 채팅','로비와 경기에서 대화할 수 있어요'},
+    club={{'custom','공개 커스텀 게임','내가 만든 방을 누구나 찾아 들어와요'},{'friends','경기 채팅과 음성','로비 글 채팅은 누구나 무료예요'},
         {'cheer','이모지와 모션 전부','빠른 이모지와 지휘 모션을 다 써요'},{'daily',string.format('매일 뽑기권 %d장',Launch.clubDailyTickets),'구독 중 접속한 날마다 받아요'},
         {'xp','계정 XP 2배','프라임도 있으면 4배예요'},{'watch','다른 경기 관전','진행 중인 경기를 지켜볼 수 있어요'}},
     permanent={{'clan','클랜 만들기와 가입','프라임만 클랜을 만들고 들어가요'},
@@ -256,7 +286,7 @@ function M.perks(hub,root,shop,billing,sku)
     else
         local live=billing[sku]and billing[sku].available==true and shop:billingPrice(sku,billing[sku],o.ptype)~=nil
         local amount=K.robuxText(shop:billingPrice(sku,billing[sku],o.ptype),o.fallback)
-        local b=robuxButton(p,'Buy',o.cta,amount,function()step('offer_'..sku,{sku=sku,result='selected'});shade:Destroy();shop:purchaseBilling(sku,'shopMember')end,16,by,w-32,bh,sku=='club'and color or {fill=color},live and not shop.busy)
+        local b=robuxButton(p,'Buy',o.cta,amount,function()step('offer_'..sku,{sku=sku,result='selected'});shade:Destroy();shop:purchaseBilling(sku,'shopMember')end,16,by,w-32,bh,sku=='club'and color or {fill=color},live and not shop.busy,M.saleOn(billing[sku]and billing[sku].sale))
         if b then b.ZIndex=52;for _,d in ipairs(b:GetDescendants())do if d:IsA('GuiObject')then d.ZIndex=53 end end end
     end
     K.text(p,'Note',owned and (sku=='club'and '구독 기간 동안 적용 중'or '영구 적용 중')or M.perkNote[sku],16,by+bh+4,w-32,20,13,UI.colors.muted,Enum.TextXAlignment.Center).ZIndex=52

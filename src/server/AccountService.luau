@@ -19,6 +19,7 @@ local SeasonBoard=require(script.Parent.SeasonBoard)
 local Daily=require(pack.Core.DailyOperation)
 local Benefits=require(pack.Core.BenefitRewards)
 local Billing=require(script.Parent.LaunchBilling)
+local Sale=require(pack.Core.LaunchSale)
 local Guards=require(pack.Core.AbuseGuards)
 local S={};S.__index=S
 local messages={
@@ -67,7 +68,8 @@ function S.new(onChanged)
         pcall(function()self.analytics:emit(p,'purchase_prompt_result',{sku='permanent',stage='prompt',result=purchased and 'accepted'or 'cancelled'});self.analytics:flow(p,'commerce','promptClosed',{sku='permanent',result=purchased and 'accepted'or 'cancelled'})end)
         if not purchased or self.localMode then return end
         for id in pairs(Config.passes) do
-            if Policy.passId(Config,game.GameId,id,game.CreatorId,game.CreatorType.Name)==passId then
+            local regular=Policy.passId(Config,game.GameId,id,game.CreatorId,game.CreatorType.Name)
+            if regular and (regular==passId or Sale.saleId(Config.salePasses,id)==passId)then
                 task.spawn(function()
                     local confirmed,tries=Ownership.confirmPurchase(function()
                         local a=self.accounts[p];if not a or a.departed or p.Parent~=Players then return false end
@@ -97,14 +99,19 @@ function S:refreshOwnership(player,a)
         else
             local passId=Policy.passId(Config,game.GameId,id,game.CreatorId,game.CreatorType.Name)
             if passId then
-                local verified,owned
-                for attempt=1,3 do
-                    if not Session.current(self,player,a,Players)or a.ownershipGeneration~=generation then return false end
-                    verified,owned=pcall(function() return Market:UserOwnsGamePassAsync(player.UserId,passId) end)
-                    if verified then break end
-                    if attempt<3 then task.wait(attempt) end
+                local ids={passId};local sale=Sale.saleId(Config.salePasses,id);if sale then table.insert(ids,sale)end
+                local allKnown,owned=true,false
+                for _,checkId in ipairs(ids)do
+                    local verified,got
+                    for attempt=1,3 do
+                        if not Session.current(self,player,a,Players)or a.ownershipGeneration~=generation then return false end
+                        verified,got=pcall(function() return Market:UserOwnsGamePassAsync(player.UserId,checkId) end)
+                        if verified then break end
+                        if attempt<3 then task.wait(attempt) end
+                    end
+                    if not verified then allKnown=false elseif got==true then owned=true;break end
                 end
-                results[id]={ok=verified,owned=owned}
+                results[id]={ok=owned or allKnown,owned=owned}
             else results[id]={ok=true,owned=false}end
         end
     end

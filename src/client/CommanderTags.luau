@@ -9,6 +9,7 @@ local Glyphs=require(script.Parent.ActionGlyphs)
 local InputMode=require(script.Parent.InputMode)
 local TextService=game:GetService("TextService")
 local M={};M.__index=M
+M.RING=3.5
 local amber,lime=Color3.fromRGB(255,82,82),Color3.fromRGB(180,240,90)
 function M.new(playerGui,flags)
     local self=setmetatable({gui=playerGui,flags=flags,tags={},rings={},folder=nil,clock=0},M)
@@ -76,8 +77,8 @@ end
 function M:ring(player)
     local r=self.rings[player]
     if r and r.part.Parent then return r end
-    local part=make("Part",self.folder,{Name="Ring_"..player.UserId,Anchored=true,CanCollide=false,CanTouch=false,CanQuery=false,CastShadow=false,Transparency=1,Size=Vector3.new(8,.05,8)})
-    local surface=make("SurfaceGui",part,{Face=Enum.NormalId.Top,CanvasSize=Vector2.new(200,200),LightInfluence=0,AlwaysOnTop=true})
+    local part=make("Part",self.folder,{Name="Ring_"..player.UserId,Anchored=true,CanCollide=false,CanTouch=false,CanQuery=false,CastShadow=false,Transparency=1,Size=Vector3.new(M.RING,.05,M.RING)})
+    local surface=make("SurfaceGui",part,{Face=Enum.NormalId.Top,CanvasSize=Vector2.new(100,100),LightInfluence=0,AlwaysOnTop=true})
     local fill=make("Frame",surface,{Name="Fill",AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(.86,.86),BackgroundTransparency=.82,BorderSizePixel=0})
     make("UICorner",fill,{CornerRadius=UDim.new(.5,0)})
     local edge=make("UIStroke",fill,{Thickness=7,Transparency=.15})
@@ -131,6 +132,22 @@ function M:update(state,visible,incoming,ownColor)
     for player,t in pairs(self.tags)do if player.Parent~=Players then t.gui:Destroy();self.tags[player]=nil end end
     for player,r in pairs(self.rings)do if player.Parent~=Players then r.part:Destroy();self.rings[player]=nil end end
 end
+M.EMOJI_SECONDS=2
+function M:emoji(player,text,reduced)
+    local t=player and self.tags[player];local c=player and player.Character;local root=c and c:FindFirstChild("HumanoidRootPart")
+    if self.bubbles and self.bubbles[player]then self.bubbles[player]:Destroy();self.bubbles[player]=nil end
+    if not t or not t.gui.Enabled or not root or type(text)~="string"then return false end
+    local b=make("BillboardGui",self.gui,{Name="CommanderEmoji_"..player.UserId,Adornee=root,Size=UDim2.fromOffset(36,32),SizeOffset=Vector2.new(0,.9),
+        StudsOffsetWorldSpace=t.gui.StudsOffsetWorldSpace,AlwaysOnTop=true,LightInfluence=0,MaxDistance=t.gui.MaxDistance,ResetOnSpawn=false})
+    local card=make("Frame",b,{Name="Card",Size=UDim2.fromScale(1,1),BackgroundColor3=UI.colors.bg,BackgroundTransparency=.12,BorderSizePixel=0});UI.corner(card,3);UI.stroke(card,UI.colors.line,1)
+    local label=make("TextLabel",card,{Name="Emoji",Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Text=text,TextSize=20,Font=Enum.Font.BuilderSans,AutoLocalize=false})
+    label:SetAttribute("LocalizationSkip",true)
+    local scale=make("UIScale",card,{Scale=reduced and 1 or .6})
+    if not reduced then game:GetService("TweenService"):Create(scale,TweenInfo.new(.2,Enum.EasingStyle.Back),{Scale=1}):Play()end
+    self.bubbles=self.bubbles or {};self.bubbles[player]=b
+    task.delay(M.EMOJI_SECONDS,function()if self.bubbles[player]==b then self.bubbles[player]=nil end;b:Destroy()end)
+    return true
+end
 function M:showing(player)
     local t=self.tags[player];local c=player.Character;local root=c and c:FindFirstChild("HumanoidRootPart")
     if not t or not t.gui.Enabled or not root then return false end
@@ -144,7 +161,7 @@ function M:step(dt,reduced)
         if r.part.Parent and root then
             local growth=c:GetAttribute("ToyfrontGrowth")or 1;local t=self.tags[player]
             if r.growth~=growth or r.tag~=t then
-                r.growth=growth;r.tag=t;local size=7*growth;r.part.Size=Vector3.new(size,.05,size)
+                r.growth=growth;r.tag=t;local size=M.RING*growth;r.part.Size=Vector3.new(size,.05,size)
                 if t then t.gui.StudsOffsetWorldSpace=Vector3.new(0,3.2*growth+1.2,0) end
             end
             local at=root.Position

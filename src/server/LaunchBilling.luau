@@ -11,17 +11,24 @@ local Policy=require(Core.CommercePolicy)
 local Config=require(script.Parent.CommerceConfig)
 local DrawConfirmation=require(script.Parent.SupplyDrawConfirmation)
 local Live=require(script.Parent.LiveConfig)
+local Sale=require(Core.LaunchSale)
 local Schema=require(Core.TelemetrySchema)
 local Testing=require(Core.SupplyTesting)
 local Session=require(script.Parent.AccountSession)
 local M={};M.__index=M
+local function productFor(id)
+    if type(id)~='number'or id<=0 then return nil end
+    for kind,entry in pairs(Config.developerProducts)do if entry.id>0 and entry.id==id or Sale.saleId(Config.saleProducts,kind)==id then return kind,entry end end
+    return nil
+end
+M.productFor=productFor
 local errors={['paid-random-restricted']='이 계정에서는 유료 뽑기를 이용할 수 없어요.',['collection-not-ready']='스킨 컬렉션 준비 중',['insufficient-tickets']='뽑기권이 부족해요.',['insufficient-medals']='코인이 부족해요.',['subscription-required']='공개 모집은 VIP 클럽 혜택이에요.',['preset-locked']='설정 보관함은 커맨더 프라임 혜택이에요.',['busy']='잠시 뒤 다시 시도하세요.',['free-draw-used']='오늘 무료 뽑기는 이미 받았어요.'}
 function M.new(accounts)
     local self=setmetatable({accounts=accounts,celebrations=require(script.Parent.SupplyCelebration)},M)
     Market.ProcessReceipt=function(receipt)local decision=self:receipt(receipt);pcall(self.logReceipt,self,receipt,decision);return decision end
     pcall(function()Market.PromptSubscriptionPurchaseFinished:Connect(function(player,id,bought)if id==Config.subscriptionId then accounts.analytics:emit(player,'purchase_prompt_result',{sku='club',stage='prompt',result=bought and 'accepted'or 'cancelled'});accounts.analytics:flow(player,'commerce','promptClosed',{sku='club',result=bought and 'accepted'or 'cancelled'})end end)end)
     pcall(function()Market.PromptProductPurchaseFinished:Connect(function(userId,id,bought)local player=Players:GetPlayerByUserId(userId);if not player then return end
-        local kind='other';for k,entry in pairs(Config.developerProducts)do if entry.id==id then kind=k end end
+        local kind=productFor(id)or 'other'
         if kind=='other'and Config.clanProducts and Config.clanProducts.attend and Config.clanProducts.attend.id==id then kind='clanAttend'end
         accounts.analytics:flow(player,'commerce','promptClosed',{sku=Schema.enum('sku',kind,'other'),result=bought and 'accepted'or 'cancelled'})end)end)
     Players.UserSubscriptionStatusChanged:Connect(function(player,id)
@@ -88,7 +95,7 @@ end
 function M:logReceipt(receipt,decision)
     if type(receipt)~='table'then return end
     local player=type(receipt.PlayerId)=='number'and Players:GetPlayerByUserId(receipt.PlayerId);if not player then return end
-    local kind='other';for k,entry in pairs(Config.developerProducts)do if entry.id>0 and entry.id==receipt.ProductId then kind=k end end
+    local kind=productFor(receipt.ProductId)or 'other'
     if kind=='other'and self.accounts.clans and self.accounts.clans.product then local ok,info=pcall(self.accounts.clans.product,self.accounts.clans);if ok and info and info.id>0 and info.id==receipt.ProductId then kind='clanAttend'end end
     local a=self.accounts.accounts[player]
     self.accounts.analytics:flow(player,'commerce','receipt',{item=kind,sku=Schema.enum('sku',kind,'other'),value=decision==Enum.ProductPurchaseDecision.PurchaseGranted and tonumber(receipt.CurrencySpent)or nil,result=decision==Enum.ProductPurchaseDecision.PurchaseGranted and 'granted'or 'pending',
@@ -97,8 +104,7 @@ end
 function M:receipt(receipt)
     if type(receipt)~='table'or type(receipt.PurchaseId)~='string'or #receipt.PurchaseId>100 or type(receipt.PlayerId)~='number'then return Enum.ProductPurchaseDecision.NotProcessedYet end
     local clans=self.accounts.clans;if clans then local decision=clans:receipt(receipt,Players:GetPlayerByUserId(receipt.PlayerId));if decision then return decision end end
-    local product
-    for _,entry in pairs(Config.developerProducts)do if entry.id>0 and entry.id==receipt.ProductId then product=entry;break end end
+    local _,product=productFor(receipt.ProductId)
     if not product or game.GameId~=Config.universeId or not Policy.validCreator(Config,game.CreatorId,game.CreatorType.Name)then return Enum.ProductPurchaseDecision.NotProcessedYet end
     local player,a;local deadline=os.clock()+20
     repeat
@@ -123,13 +129,19 @@ function M:snapshot(a)
     local c=a.profile.commerce;local b=self:benefits(a);local paid=self:paidAllowed(a)
     local products={}
     local valid=not self.accounts.localMode and Config.purchasesEnabled and Live.salesOpen()and game.GameId==Config.universeId and Policy.validCreator(Config,game.CreatorId,game.CreatorType.Name)
+    local saleEnds=Live.saleEndsAt(os.time())
     for kind,product in pairs(Config.developerProducts)do
         local odds,why=Supply.odds(kind)
-        products[kind]={id=product.id,kind=kind,name=Rules.tickets[kind].name,odds=odds,reason=why,available=valid and paid and odds~=nil and product.id>0}
+        local saleId=saleEnds and Sale.saleId(Config.saleProducts,kind)
+        products[kind]={id=saleId or product.id,kind=kind,name=Rules.tickets[kind].name,odds=odds,reason=why,available=valid and paid and odds~=nil and product.id>0,
+            sale=saleId and {percent=Sale.percent,endsAt=saleEnds,wasId=product.id}or nil}
     end
+    local passId=Policy.passId(Config,game.GameId,'permanent',game.CreatorId,game.CreatorType.Name)
+    local salePass=passId and saleEnds and Sale.saleId(Config.salePasses,'permanent')
     local all=Supply.pool('basic')~=nil
     return {benefits=b,testingAvailable=Testing.enabled(game:GetService('RunService'):IsStudio(),self.accounts.localMode),testTickets=table.clone(c.studioTickets or {}),serials=table.clone(c.serials),paidRandomAllowed=paid==true,policyKnown=a.randomPolicy and a.randomPolicy.known==true or false,collectionReady=all,catalogVersion=Catalog.version,nextDraw=c.drawSequence+1,freeDrawAt=Supply.freeDrawAt(c),tickets=table.clone(c.tickets),fragments=table.clone(c.fragments),owned=table.clone(c.owned),history=table.clone(c.history),presets=table.clone(c.presets),dailyClaimed=c.dailyClub==math.floor(os.time()/86400),medalDrawCost=Rules.medalDrawCost,
-        products=products,salesOpen=valid==true,permanent={welcomePending=b.permanent and not c.permanentWelcome,passId=Policy.passId(Config,game.GameId,'permanent',game.CreatorId,game.CreatorType.Name)or 0,available=valid and paid and all and not b.permanent and Policy.passId(Config,game.GameId,'permanent',game.CreatorId,game.CreatorType.Name)~=nil},
+        products=products,salesOpen=valid==true,permanent={welcomePending=b.permanent and not c.permanentWelcome,passId=salePass or passId or 0,available=valid and paid and all and not b.permanent and passId~=nil,
+            sale=salePass and {percent=Sale.percent,endsAt=saleEnds,wasId=passId}or nil},
         club={subscriptionId=Config.subscriptionId,available=valid and paid and all and not b.club and a.randomPolicy.subscription==true and Config.subscriptionId:match('^EXP%-%w+$')~=nil,
             daysLeft=b.club and a.clubStatus and a.clubStatus.period and Rules.clubDaysLeft(a.clubStatus.period.endsAt,os.time())or nil,
             renewing=b.club and a.clubStatus and a.clubStatus.period and a.clubStatus.period.renewing or nil}}

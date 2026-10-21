@@ -101,12 +101,23 @@ function M:show(ctx)
         self.unitIcon.BackgroundColor3=FactionColors.get(u.owner or 0,f and f.kind,ctx.ownColor)
         if self.unitKind~=u.kind then self.unitKind=u.kind;if b then Glyph.draw(self.unitGlyph,u.kind,C.bg)else self.unitGlyph:ClearAllChildren()end end
         self.unitName.Text=b and b.name or mobile[u.kind]or u.kind
-        self.unitRole.Text=b and b.role or (u.troops and u.troops>0 and string.format("병력 %s",UI.troops(u.troops)))or ""
+        self.unitRole.Text=u.kind=="City"and not u.building and L.text("병력 상한 +")..UI.troops((u.level or 1)*250000)or b and b.role or (u.troops and u.troops>0 and string.format("병력 %s",UI.troops(u.troops)))or ""
         self.unitState.Text=u.building and "건설 중" or u.kind=="MissileSilo" and string.format("준비 %d/%d",u.readyMissiles or 0,u.level or 1)or b and "Lv."..(u.level or 1)or ""
         self.unitState.TextColor3=u.building and C.gold or C.accent
-        local nw=width(self.unitName,self.unitName.Text);self.unitNeed=x0+30+nw+6+width(self.unitRole,self.unitRole.Text)+8+width(self.unitState,self.unitState.Text)+12
+        local nw=width(self.unitName,self.unitName.Text);self.unitNeed=x0+30+nw+6+width(self.unitRole,self.unitRole.Text)+math.max(84,8+width(self.unitState,self.unitState.Text)+12)
         UI.box(self.unitIcon,x0,y,22,22);UI.box(self.unitName,x0+30,y,nw,22);UI.box(self.unitRole,x0+30+nw+6,y+1,math.max(0,w-x0-30-nw-6-84),20);UI.box(self.unitState,w-12-76,y+3,76,16)
         y+=27;UI.box(self.unitRule,x0,y,w-x0-12,1);y+=5
+        if f and f.id==1 then
+            for _,o in ipairs({self.unitRule,self.swatch,self.name,self.pill,self.sub,self.team,self.teamDot,self.capacity,self.troops,self.timers,self.dot,self.status,self.rule})do o.Visible=false end
+            if self.goldMark then self.goldMark.Visible=false end;if self.troopMark then self.troopMark.Visible=false end
+            for _,r in ipairs(self.rows)do r.key.Visible=false;r.value.Visible=false end
+            for _,item in pairs(self.icons)do item.frame.Visible=false end
+            self.edge.BackgroundColor3=C.accent
+            local fit=math.clamp(math.ceil(self.unitNeed),140,w)
+            if fit<w-4 and not ctx.fitted then local c=table.clone(ctx);c.width=fit;c.fitted=true;return self:show(c)end
+            frame.Size=UDim2.fromOffset(w,34);frame.Visible=true;self.width=w;self.height=34
+            return true
+        end
     end
     y-=1
     local rel,relColor,filled

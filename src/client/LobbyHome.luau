@@ -7,6 +7,7 @@ local Maps=require(script.Parent.Parent.Maps.MapLoader)
 local Party=require(script.Parent.Parent.Core.PartyFormation)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
 local Icons=require(script.Parent.OutgameIcons)
+local RedDot=require(script.Parent.RedDot)
 local Badge=require(script.Parent.BenefitBadge)
 local BrandMark=require(script.Parent.BrandMark)
 local Daily=require(script.Parent.Parent.Core.DailyOperation)
@@ -316,9 +317,11 @@ function M:layout(w,h)
         end end
     UI.box(self.tabLine,xs[tabs]+ws[tabs]/2-14,narrow and 43 or 40,28,3)
     for _,key in ipairs({'wardrobe','shop'})do local b=l.navButtons[key];if b and b:GetAttribute('ThumbTab')~=(narrow or nil)then b:SetAttribute('ThumbTab',narrow or nil)end;require(script.Parent.CollectionBadges).place(b)end
-    do local b=l.navButtons.shop;local tw=ws[table.find(order,'shop')];local word=TextService:GetTextSize(b.Text,b.TextSize,b.Font,Vector2.new(400,44)).X
-        local left=narrow and 0 or (self.tabPads.shop and self.tabPads.shop.PaddingLeft.Offset or 0)
-        if narrow then FreeDraw.dot(b,FreeDraw.ready(l.account.billing),tw/2+12,-14)else FreeDraw.dot(b,FreeDraw.ready(l.account.billing),(tw-left)/2+word/2+5,12)end end
+    for i,key in ipairs(order)do local b=l.navButtons[key];local tw,th=ws[i],narrow and 48 or 44;local icon,pad=self.tabIcons[key],self.tabPads[key]
+        if narrow and icon and icon.Visible and Icons.available(icon)then RedDot.onIcon(b,icon)
+        else local word=TextService:GetTextSize(b.Text,b.TextSize,b.Font,Vector2.new(400,th));local pl=pad and pad.PaddingLeft.Offset or 0;local pt=pad and pad.PaddingTop.Offset or 0
+            RedDot.anchor(b,pl+(tw-pl-word.X)/2,pt+(th-pt-word.Y)/2,word.X)end end
+    FreeDraw.dot(l.navButtons.shop,FreeDraw.ready(l.account.billing))
     local cw=narrow and w-24 or short and 232 or 300
     local sh=narrow and 68 or short and 60 or 76;local selH=short and 40 or narrow and 44 or 48
     local sx=narrow and 12 or short and 12 or 24

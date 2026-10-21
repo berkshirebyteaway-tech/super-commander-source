@@ -29,7 +29,7 @@ end
 local offers={
     club={color=UI.colors.vip,ribbon='월간 구독 30일',tagline='내 커스텀 게임을 누구나 찾게',value='공개 커스텀 게임 만들기',
         cta='월 R$ %s 구독하기',note='30일마다 자동 갱신, 언제든 해지',owned='구독 중',more='구독 중, 혜택 보기  ›',
-        perks={{'custom','누구나 참가 가능'},{'friends','글과 음성 채팅'},{'cheer','이모지와 모션 전부'},{'daily','매일 뽑기권 1장'},{'xp','계정 XP 2배'},{'watch','다른 경기 관전'}}},
+        perks={{'custom','누구나 참가 가능'},{'friends','경기 채팅과 음성'},{'cheer','이모지와 모션 전부'},{'daily','매일 뽑기권 1장'},{'xp','계정 XP 2배'},{'watch','다른 경기 관전'}}},
     permanent={color=UI.colors.prime,ribbon='한 번 구매로 영구 소장',tagline='한 번 사면 평생 커맨더',value='뽑기권 4장 한 번에 지급',
         cta='R$ %s 평생 소장',note='한 번 결제로 계속 유지',owned='보유 중',more='보유 중, 혜택 보기  ›',
         perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'wardrobe','스킨 프리셋 +2칸'},{'custom','커스텀 설정 12칸'},{'marshal','프라임 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
@@ -176,7 +176,21 @@ function M.draw(hub,body,w)
     if tab~='boxes'then local r=UI.button(body,'Restore','구매 복원',function()require(script.Parent.TelemetryStep).step('shop','restore',{});shop:run(function()shop:request('restore')end)end)
         UI.box(r,W-128,y+(hh-48)/2,112,48);r.TextSize=13;r.TextXAlignment=Enum.TextXAlignment.Right;K.link(r,UI.colors.muted);UI.enabled(r,not shop.busy)end
     y+=hh+(slim and 6 or 10)
-    local bodyH=H-y
+    local saleEnds=Cards.saleEnds(billing)
+    if saleEnds then
+        require(script.Parent.TelemetryStep).once('saleBanner','shop','saleBanner',{result='shown'})
+        local Sale=require(script.Parent.Parent.Core.LaunchSale);local bh=slim and 30 or 40
+        local banner=K.round(UI.make('Frame',body,{Name='SaleBanner',BackgroundColor3=UI.colors.gold:Lerp(UI.colors.panel,.82),BorderSizePixel=0}),8);UI.box(banner,0,y,W,bh)
+        UI.stroke(banner,UI.colors.gold:Lerp(UI.colors.line,.35),1)
+        K.text(banner,'Title',Sale.title(),12,0,W-170,bh,slim and 14 or 16,UI.colors.gold,Enum.TextXAlignment.Left,K.heavy)
+        local left=K.text(banner,'Left','',W-162,0,150,bh,slim and 13 or 15,UI.colors.ink,Enum.TextXAlignment.Right,K.heavy)
+        local function now()local ok,t=pcall(function()return workspace:GetServerTimeNow()end);return ok and t or os.time()end
+        local function tick()local t=now();if t>=saleEnds then return false end;left.Text=string.format('%s 남음',Sale.left(saleEnds-t));return true end
+        tick()
+        task.spawn(function()while banner.Parent do task.wait(1);if not banner.Parent then break end;if not tick()then hub:drawPage();break end end end)
+        y+=bh+(slim and 6 or 10)
+    end
+    local bodyH=H-y;local top=y
     if tab~='members'then
         local cols=lw>=560 and 4 or 2;local cg=slim and 8 or 12;local cw=(lw-cg*(cols-1))/cols
         local rule=string.format('이미 가진 외형이 나오면 보상으로 바꿔 줘요. 코인이나 무료로 열었다면 코인 %d을 돌려받아요. 뽑기권으로 열었다면 그 상자 조각 1개를 받고, 5개면 뽑기권 1장이 돼요.',Cards.refund)
@@ -194,7 +208,7 @@ function M.draw(hub,body,w)
         y=math.max(y,yy)
     end
     if tab~='boxes'then
-        local my=side and hh+10 or y;local mx=side and lw+gap or 0
+        local my=side and top or y;local mx=side and lw+gap or 0
         local two=not side and W>=520;local cw=two and (W-gap)/2 or mw
         local ch=side and math.floor((H-my-gap)/2)or slim and math.max(220,bodyH)or 364
         Cards.member(hub,body,shop,billing,'club',mx,my,cw,ch,slim)

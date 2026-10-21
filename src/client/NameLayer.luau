@@ -12,6 +12,8 @@ function M.font(size,pixelsPerTile)
     return nameSize*nameScale*pixelsPerTile
 end
 function M.visible(font,viewportHeight)return font*.75>=M.CULL*viewportHeight end
+M.KEEP=.8
+function M.kept(font,viewportHeight)return font*.75>=M.CULL*M.KEEP*viewportHeight end
 function M.new(layer)
     return setmetatable({layer=layer,plates={},dress={},shown={},spare={},motion={},leaving={}},M)
 end
@@ -79,12 +81,17 @@ function M:update(args)
     local shown,previous=self.spareShown or {},self.shown;table.clear(shown)
     local motion,leaving=self.motion,self.leaving;local culled={}
     local bounds=args.bounds or {left=0,top=0,right=viewport.X,bottom=viewport.Y}
-    for _,f in ipairs(args.factions)do
+    local order=self.order or {};self.order=order;table.clear(order)
+    for pass=1,3 do for _,f in ipairs(args.factions)do
+        local first=f.id==args.selected or f.combatState~=nil
+        if pass==1 and first or pass==2 and not first and previous[f.id] or pass==3 and not first and not previous[f.id]then table.insert(order,f)end
+    end end
+    for _,f in ipairs(order)do
         if f.id==1 or not f.labelTile or (f.tiles or 0)<=0 or f.eliminated then continue end
         local x,y,size,m=M.follow(motion,f.id,f.labelTile,f.labelSize,args.mapWidth,now,reduced)
         local raw=M.font(size,ppt)
         local priority=f.id==args.selected or f.combatState~=nil
-        if not M.visible(raw,viewport.Y)and not priority then culled[f.id]=true;continue end
+        if not (if previous[f.id]then M.kept(raw,viewport.Y)else M.visible(raw,viewport.Y))and not priority then culled[f.id]=true;continue end
         local pos=args.projectXY(x,y)
         if pos.X<bounds.left-40 or pos.Y<bounds.top-20 or pos.X>bounds.right+40 or pos.Y>bounds.bottom+20 then continue end
         local plate=self:plate(f.id)
@@ -116,7 +123,7 @@ function M:update(args)
         if d.scale==nil or math.abs(d.scale-scale)>.002 then d.scale=scale;scaler(plate).Scale=scale end
         if alpha<1 or d.fading then fadeText(plate,alpha,faded and .55 or 0,f.kind=='BOT');d.fading=alpha<1
         elseif dressed then d.fading=nil end
-        local pw,ph=plate.Size.X.Offset*scale,plate.Size.Y.Offset*scale;local placed,fallback,chosen=nil,nil,0
+        local pw,ph=plate.Size.X.Offset*raw/font,plate.Size.Y.Offset*raw/font;local placed,fallback,chosen=nil,nil,0
         local held=m.shift or 0
         for i=1,#M.SHIFTS+1 do
             local shift=if i==1 then 0 elseif i==2 then held else M.SHIFTS[i-1]

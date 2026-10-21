@@ -31,6 +31,11 @@ local function build(home)
     home.bParty=UI.button(f,'PartyBox','',function()l:openPage('friends')end);home.bParty.BackgroundColor3=UI.colors.panel;home.bParty.BackgroundTransparency=.12
     home.bPartyFace=UI.make('ImageLabel',home.bParty,{Name='Avatar',BackgroundColor3=UI.colors.bg,BorderSizePixel=0});UI.corner(home.bPartyFace,40)
     home.bPartyText=UI.label(home.bParty,'Count','',13,UI.colors.ink);home.bPartyText.TextXAlignment=Enum.TextXAlignment.Center;home.bPartyText.TextWrapped=false
+    home.bSolo=UI.button(f,'SoloBox','',function()require(script.Parent.TelemetryStep).step('lobby','homeTile',{item='solo'});l.deployment.callbacks.solo()end)
+    home.bSolo.BackgroundColor3=UI.colors.panel;home.bSolo.BackgroundTransparency=.12
+    do local st=home.bSolo:FindFirstChildOfClass('UIStroke');if st then st.Color=UI.colors.accent;st.Transparency=.35 end end
+    home.bSoloIcon=Icons.create(home.bSolo,'solo',28,UI.colors.accent);home.bSoloIcon.Name='Icon'
+    home.bSoloText=UI.label(home.bSolo,'Name','혼자 하기',13,UI.colors.ink);home.bSoloText.TextXAlignment=Enum.TextXAlignment.Center;home.bSoloText.TextWrapped=false
     local c={};home.bCamp=c
     c.frame=UI.button(f,'CampaignBadge','',function()local st=home.bCampStage;if not st then return end
         require(script.Parent.TelemetryStep).step('lobby','homeTile',{item='campaign'})
@@ -48,6 +53,10 @@ local function bar(p,x,y,w,h)
     UI.box(p.icon,12,(h-14)/2,14,14);local kw=math.min(90,math.ceil(textWidth(p.kicker.Text,13,p.kicker.Font))+12)
     UI.box(p.kicker,32,0,kw,h);UI.box(p.title,32+kw,0,w-kw-40,h);p.kicker.TextSize=13;p.title.TextSize=13
     p.kicker.TextXAlignment=Enum.TextXAlignment.Left;p.title.TextXAlignment=Enum.TextXAlignment.Left
+end
+local function soloBox(home,x,y,w,h,iconSize,iconY,textH)
+    home.bSolo.Visible=true;UI.box(home.bSolo,x,y,w,h);UI.box(home.bSoloIcon,(w-iconSize)/2,iconY,iconSize,iconSize);UI.box(home.bSoloText,0,h-textH,w,20)
+    home.bSoloText.TextSize=textWidth(home.bSoloText.Text,13,home.bSoloText.Font)>w-6 and 11 or 13
 end
 local function dailyParts(home)
     home.dailySub.Visible=false;home.dailyReward.Visible=false;home.dailyKicker.Font=Enum.Font.BuilderSansBold
@@ -81,7 +90,8 @@ function M.layout(home,w,h,short,q,lift,portrait)
     UI.box(home.sub,16,short and 34 or 46,colW-pw-8-32,short and 18 or 20);home.sub.TextSize=13
     home.mark.Visible=false
     if home.pulse then home.pulse:Pause();if home.glow then home.glow.Transparency=1 end end
-    home.bParty.Visible=true;UI.box(home.bParty,x,dy,pw,dh)
+    home.bParty.Visible=true;UI.box(home.bParty,x-8-pw,dy,pw,dh)
+    soloBox(home,x,dy,pw,dh,short and 28 or 36,short and 6 or 10,short and 22 or 26)
     local fs=short and 28 or 36;UI.box(home.bPartyFace,(pw-fs)/2,short and 6 or 10,fs,fs);UI.box(home.bPartyText,0,dh-(short and 22 or 26),pw,20)
     local party=l.data and l.data.party;local users=party and party.users or {Players.LocalPlayer.UserId}
     local face='rbxthumb://type=AvatarHeadShot&id='..tostring(users[1])..'&w=150&h=150';if home.bPartyFace.Image~=face then home.bPartyFace.Image=face end
@@ -166,9 +176,11 @@ function M.portrait(home,w,h,q,lift)
     home.toggleSpot=ex>=tilesRight+8 and Vector2.new(ex,ty+5)or Vector2.new(w-pad-eye,ty+th+6)
     local dh,pw=58,64;local credit=l.copyright.Visible and 20 or 0;local dy=h-56-lift-8-credit-dh
     if credit>0 then UI.box(l.copyright,pad,dy+dh+3,math.min(220,colW),18);l.copyright.TextSize=12;l.copyright.TextXAlignment=Enum.TextXAlignment.Left end
-    home.start.Visible=true;UI.box(home.start,x+pw+8,dy,colW-pw-8,dh)
-    UI.box(home.title,16,6,colW-pw-8-32,28);home.title.TextSize=24
-    UI.box(home.sub,16,34,colW-pw-8-32,18);home.sub.TextSize=13
+    local sx=pw+8
+    home.start.Visible=true;UI.box(home.start,x+sx+pw+8,dy,colW-sx-pw-8,dh)
+    UI.box(home.title,16,6,colW-sx-pw-8-32,28);home.title.TextSize=24
+    UI.box(home.sub,16,34,colW-sx-pw-8-32,18);home.sub.TextSize=13
+    soloBox(home,x+sx,dy,pw,dh,28,6,22)
     home.mark.Visible=false
     if home.pulse then home.pulse:Pause();if home.glow then home.glow.Transparency=1 end end
     home.bParty.Visible=true;UI.box(home.bParty,x,dy,pw,dh)
@@ -216,7 +228,7 @@ function M.hide(home)
     require(script.Parent.LobbyJump).set(nil);home.toggleSpot=nil
     if not home.bTiles then return end
     do local V=require(script.Parent.VipLock);if V.spot then V.spot=nil;if V.wanted~=nil then V.hqPill(V.wanted)end end end
-    for _,t in pairs(home.bTiles)do t.button.Visible=false end;home.bParty.Visible=false;home.mark.Visible=true
+    for _,t in pairs(home.bTiles)do t.button.Visible=false end;home.bParty.Visible=false;home.bSolo.Visible=false;home.mark.Visible=true
     home.bCamp.frame.Visible=false
     local fp=home.fieldPreview;if fp.more.Parent~=fp.frame then fp.more.Parent=fp.frame end
     if home.pulse and not home.reduced then home.pulse:Play()end

@@ -68,7 +68,7 @@ function M.draw(hub,body,w,y)
     text(hero,'PreviewLabel','미리보기',16,heroH-35,w*.36,22,11,UI.colors.muted);y+=heroH+12
     if kind=='basic'and require(script.Parent.FreeDraw).ready(billing)then
         local b=UI.button(body,'FreeDraw','오늘 무료 기본 뽑기',function()shop:drawSupply('basic','free')end,true);UI.box(b,0,y,w,44);UI.enabled(b,not shop.busy)
-        b.BackgroundColor3=UI.colors.gold;b.TextColor3=UI.colors.bg;require(script.Parent.FreeDraw).dot(b,true,w-14,6,12);y+=54
+        b.BackgroundColor3=UI.colors.gold;b.TextColor3=UI.colors.bg;require(script.Parent.FreeDraw).dot(b,true);y+=54
     end
     if kind=='basic'then
         local b=UI.button(body,'MedalDraw',string.format('%d 코인으로 기본 뽑기',billing.medalDrawCost),function()shop:drawSupply('basic','medals')end);UI.box(b,0,y,w,44);UI.enabled(b,(hub.account.progress.medals or 0)>=billing.medalDrawCost and not shop.busy);y+=54

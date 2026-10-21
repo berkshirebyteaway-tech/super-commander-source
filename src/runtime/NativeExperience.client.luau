@@ -215,7 +215,8 @@ local inbox=DiplomacyInbox.new(gamePanel,send,function(id)armsUI.tactical:open(i
 armsUI.eventLog=require(pack.Client.EventLog).new(gamePanel,{focus=function(tile)armsUI.focusTile(tile)end})
 armsUI.eventLog.onToggle=function()if layout then layout()end end
 armsUI.chat=require(pack.Client.MatchComms).new(gamePanel,notify,function(tile)renderer:focusAt(tile,true)end,function(tile)return renderer:signalPoint(tile)end)
-armsUI.chat.onEmoji=function(id,tile,text)if tile then armsUI.bubbles=armsUI.bubbles or require(pack.Client.EmojiBubbles).new(renderer,effects.folder);armsUI.bubbles:show(id,tile,text,effects.reduced==true)end end
+armsUI.chat.onEmoji=function(id,tile,text,userId)if tile then armsUI.bubbles=armsUI.bubbles or require(pack.Client.EmojiBubbles).new(renderer,effects.folder);armsUI.bubbles:show(id,tile,text,effects.reduced==true)end
+    if userId then commanders:emoji(game.Players:GetPlayerByUserId(userId),text,effects.reduced==true)end end
 armsUI.drop=require(pack.Client.SpawnDropView).new(gamePanel,renderer,armsUI.input.touch)
 armsUI.quick=require(pack.Client.QuickComms).new(gamePanel,{send=send,model=armsUI.chat,account=function()return shop and shop.account end,save=function(list,done)
     if not shop or shop.busy or not shop.account.ready then notify('설정을 저장할 수 없어요.',true);done(false);return end
@@ -1046,9 +1047,9 @@ armsUI.drawMarkers=function()
         if not wanted then continue end
         local m=unitMarkers[u.id]
         if not m then
-            local f=UI.panel(markerLayer,"Unit"..u.id);f.Size=UDim2.fromOffset(140,44);f.AnchorPoint=Vector2.new(.5,1);UI.stroke(f,C.gold)
-            local text=label(f,"Name","",14,C.gold);box(text,6,2,128,32);text.TextXAlignment=Enum.TextXAlignment.Center;text.TextTruncate=Enum.TextTruncate.AtEnd;text.TextWrapped=false
-            local track=make("Frame",f,{Name="ProgressTrack",Position=UDim2.fromOffset(8,36),Size=UDim2.fromOffset(124,4),BackgroundColor3=C.line,BorderSizePixel=0})
+            local f=UI.panel(markerLayer,"Unit"..u.id);f.Size=UDim2.fromOffset(80,26);f.AnchorPoint=Vector2.new(.5,1);UI.stroke(f,C.gold)
+            local text=label(f,"Name","",13,C.gold);text.Position=UDim2.fromOffset(8,0);text.Size=UDim2.new(1,-16,0,20);text.TextXAlignment=Enum.TextXAlignment.Center;text.TextTruncate=Enum.TextTruncate.None;text.TextWrapped=false
+            local track=make("Frame",f,{Name="ProgressTrack",Position=UDim2.new(0,8,0,19),Size=UDim2.new(1,-16,0,3),BackgroundColor3=C.line,BorderSizePixel=0})
             local fill=make("Frame",track,{Name="Progress",Size=UDim2.fromScale(1,1),BackgroundColor3=C.gold,BorderSizePixel=0})
             m={root=f,text=text,track=track,fill=fill};unitMarkers[u.id]=m
         end
@@ -1060,6 +1061,9 @@ armsUI.drawMarkers=function()
         elseif u.building then m.text.Text..=" 건설";m.fill.BackgroundColor3=C.gold;m.fill.Size=UDim2.fromScale(math.clamp(1-(u.remaining or 0)/math.max(1,u.duration or 1),0,1),1) end
         if not u.building and not u.deleteAt and u.readyMissiles~=nil then m.text.Text=(u.kind=='MissileSilo'and '사일로'or '방공')..' '..u.readyMissiles..'/'..u.level;m.track.Visible=true;m.fill.BackgroundColor3=C.accent;m.fill.Size=UDim2.fromScale(u.readyMissiles/math.max(1,u.level),1)end
         if u.health and u.maxHealth then m.track.Visible=true;m.fill.BackgroundColor3=u.health<u.maxHealth and C.danger or C.accent;m.fill.Size=UDim2.fromScale(math.clamp(u.health/math.max(1,u.maxHealth),0,1),1)end
+        if not m.track.Visible and not(selectedUnit~=nil and selectedUnit.id==u.id)then m.root.Visible=false;continue end
+        local tw=game:GetService("TextService"):GetTextSize(m.text.Text,13,m.text.Font,Vector2.new(400,40)).X
+        m.root.Size=UDim2.fromOffset(math.max(64,math.ceil(tw)+20),m.track.Visible and 26 or 22)
     end
 end
 refreshSheet=function()

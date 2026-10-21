@@ -10,10 +10,14 @@ function M.start(gui,cover,roster)
     local scale=Instance.new('UIScale');scale.Parent=host
     local function fit()
         local s=gui:GetAttribute('UIScale');s=type(s)=='number'and s>0 and s or 1
-        local inset=GuiService:GetGuiInset()
-        scale.Scale=s;host.Position=UDim2.fromOffset(inset.X,inset.Y);host.Size=UDim2.new(1/s,-inset.X/s,1/s,-inset.Y/s)
+        local v=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or card.AbsoluteSize
+        local ok,a=pcall(function()return GuiService:GetInsetArea(Enum.ScreenInsets.CoreUISafeInsets)end)
+        local l,t,r,b
+        if ok and a and a.Max.X>a.Min.X and a.Max.Y>a.Min.Y then l,t,r,b=a.Min.X,a.Min.Y,v.X-a.Max.X,v.Y-a.Max.Y
+        else local inset=GuiService:GetGuiInset();l,t,r,b=inset.X,inset.Y,0,0 end
+        scale.Scale=s;host.Position=UDim2.fromOffset(l,t);host.Size=UDim2.new(1/s,-(l+r)/s,1/s,-(t+b)/s)
     end
-    fit();gui:GetAttributeChangedSignal('UIScale'):Connect(fit);host.Parent=card
+    fit();gui:GetAttributeChangedSignal('UIScale'):Connect(fit);card:GetPropertyChangedSignal('AbsoluteSize'):Connect(fit);host.Parent=card
     local base={}
     for _,name in ipairs({'Column','Tip','Copyright'})do local o=card:FindFirstChild(name);if o then base[o]={o.Position,o.Size,o.Visible}end end
     local hosted=true
