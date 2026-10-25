@@ -8,7 +8,6 @@ local Display=require(script.Parent.Parent.Core.MapPresentation)
 local NukeFx=require(script.Parent.NukeFx)
 local NukeSkins=require(script.Parent.NukeSkins)
 local Units=require(script.Parent.Parent.Core.UnitRules)
-local L=require(script.Parent.Localization)
 local Tween=game:GetService("TweenService")
 local UIS=game:GetService("UserInputService")
 local M={};M.__index=M
@@ -20,7 +19,10 @@ end
 local mint=Color3.fromRGB(54,226,208)
 local cream=Color3.fromRGB(191,239,255)
 local coral=UI.colors.danger
-local messages={detonate={"◇","폭발 확인"},intercept={"⊗","요격 성공"},intercepted={"⊗","로켓 요격당함"},complete={"✓","건설 완료"},upgraded={"↑","업그레이드 완료"},allied={"↔","동맹 연결!"},allianceEnded={"↔","동맹 종료"},eliminated={"◇","세력 붕괴"},milestone={"★","영토 확장!"},tiles={"★","영토 확장!"},conquest={"⚑","정복!"},betrayal={"⚠","배신!"},assault={"⚠","대공세!"},rankUp={"▲","순위 상승!"},firstCity={"★","첫 도시!"},start={"▶","작전 개시"},landing={"⚑","해안 도착!"},shipReady={"⚓","군함 출항!"},support={"↔","보급품 전달"}}
+local messages={intercepted={"⊗","로켓 요격당함"},allianceEnded={"↔","동맹 종료"},conquest={"⚑","함락",nameFirst=true},betrayal={"⚠","배신",nameFirst=true,detail="30초 방어 약화"},assault={"⚠","대공세"}}
+local V2=require(script.Parent.Hud20).ENABLED
+local BAND={betrayal={kit='shieldBroken'},assault={icon='Sword'},intercepted={icon='AtomBomb'}}
+local K,X
 function M.new(parent,world,effects)
     local self=setmetatable({world=world,effects=effects,tracker=Tracker.new(),last={},fronts={},cursor=0,captureCount=0,queue={},feedUntil=0,stamps={}},M)
     local feed=UI.panel(parent,"ToyMoment");feed.ZIndex=12;feed.Visible=false;self.feed=feed
@@ -28,7 +30,8 @@ function M.new(parent,world,effects)
     self.title=UI.label(feed,"Title","",14,UI.colors.ink);self.title.Font=Enum.Font.BuilderSansBold
     self.detail=UI.label(feed,"Detail","",14,UI.colors.muted);self.detail.TextTruncate=Enum.TextTruncate.AtEnd;self.detail.TextWrapped=false
     self.scale=UI.make("UIScale",feed,{Scale=1})
-    self.confetti=UI.make("Frame",parent,{Name="ResultConfetti",Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ZIndex=19,Visible=false,ClipsDescendants=true})
+    self.focus=UI.make("TextButton",feed,{Name="Focus",Text="",BackgroundTransparency=1,AutoButtonColor=false,Size=UDim2.fromScale(1,1),ZIndex=feed.ZIndex+3,Visible=false,Active=false})
+    self.focus.Activated:Connect(function()if self.focusTile and self.onFocus then self.onFocus(self.focusTile)end end)
     self.nukes=NukeFx.new(effects.folder,world)
     world.feedback=self
     return self
@@ -52,9 +55,11 @@ function M:colors(owner,target)
     local c=Catalog.get(self.style).territory
     return {Badge.color(owner,Color3.fromRGB(table.unpack(c))),target and Badge.color(target) or cream,cream}
 end
-function M:moment(kind,name)
+function M:moment(kind,name,tile,weak)
     local spec=messages[kind];if not spec then return end
+    if V2 then return self:moment20(kind,name,tile)end
     if Display.enqueue(self.queue,kind,name,os.clock())and(Display.noticePriority[kind]or 0)>(self.feedPriority or 0)then self.feedUntil=0 end
+    for _,e in ipairs(self.queue)do if e.kind==kind then e.tile=tile end end
 end
 function M:connection(a,b,kind,tint)
     local source=self.factions and self.factions[a];local target=self.factions and self.factions[b]
@@ -64,20 +69,13 @@ end
 function M:reset()
     self.floatEpoch=(self.floatEpoch or 0)+1;self.floats=0
     self.effects:clear();Audio.reset();table.clear(self.last);table.clear(self.queue)
-    self.fronts={};self.captureCount=0;self.captureTile=nil;self.rank=nil;self.gained=0;self.gainTile=nil;self.feed.Visible=false;self.feedUntil=0;self.feedPriority=0;self.combo=0;self.lastPop=nil
-    self.confetti:ClearAllChildren();self.confetti.Visible=false;self.celebrateUntil=nil
+    self.fronts={};self.captureCount=0;self.captureTile=nil;self.rank=nil;self.feed.Visible=false;self.feedUntil=0;self.feedPriority=0;self.combo=0;self.lastPop=nil
     self.world.cameraImpulse=nil
+    if self.band then self.band.kind=nil;self.band.till=0;self.band.shown=false;if X then X.setBand(false)end end
 end
 function M:outcome(won)
     self.feed:SetAttribute("Outcome",won and "victory" or "defeat")
     if won then self.effects:pose(game.Players.LocalPlayer.Character,"victory") end
-    if self.effects.reduced or not won then return end
-    self.confetti:ClearAllChildren();self.confetti.Visible=true;self.celebrateUntil=os.clock()+2.1
-    local r=Random.new(763);local count=UIS.TouchEnabled and 14 or 26
-    for i=1,count do
-        local p=UI.make("Frame",self.confetti,{Name="PaperBrick",AnchorPoint=Vector2.new(.5,.5),Size=UDim2.fromOffset(r:NextInteger(5,9),r:NextInteger(9,15)),Position=UDim2.fromScale(i%2==0 and -.02 or 1.02,.62),Rotation=r:NextNumber(-25,25),BorderSizePixel=0,BackgroundColor3=({mint,cream,coral})[i%3+1]});UI.corner(p,2)
-        Tween:Create(p,TweenInfo.new(r:NextNumber(1.3,1.9),Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=UDim2.fromScale(r:NextNumber(.05,.95),r:NextNumber(.02,.4)),Rotation=r:NextNumber(-240,240),BackgroundTransparency=1}):Play()
-    end
 end
 function M:concerns(owner,tile)
     if owner==1 then return true end
@@ -94,13 +92,13 @@ function M:emit(e)
     if kind=="complete" or kind=="upgraded" then
         Audio.play(kind=="upgraded"and "upgrade"or "complete")
         if e.first then self:moment("firstCity","병력 상한이 늘었어요") else self:moment(kind,e.name) end
-        if visible then self.effects:bricks(pos,self:colors(1),6,1.5,true,1);self.effects:ring(pos,e.first and UI.colors.gold or cream,3,1,"build");self.effects:stamp(pos,e.first and "첫 도시!" or kind=="complete" and "✓ 건설 완료" or "↑ 레벨 업",e.first and UI.colors.gold or cream) end
+        if visible then self.effects:bricks(pos,self:colors(1),6,1.5,true,1);self.effects:ring(pos,e.first and UI.colors.gold or cream,3,1,"build") end
     elseif kind=="rocketWarning" then
         Audio.play(kind);self:buzz("explosion")
         if self:allow("warningCamera",3) then self.world:impulse(.13) end
     elseif kind=="incoming" then
         if e.threat=="assault" then
-            cue("assault","rocketWarning");self:moment("assault",(e.name and e.name.." " or "").."병력 "..UI.troops(e.troops or 0));self:buzz("explosion")
+            cue("assault","rocketWarning");self:moment("assault",V2 and (e.name or "") or (e.name and e.name.." " or "").."병력 "..UI.troops(e.troops or 0));self:buzz("explosion")
             if self:allow("warningCamera",2) then self.world:impulse(.2) end
         elseif e.threat~="minor" then
             Audio.play(kind)
@@ -157,8 +155,11 @@ function M:emit(e)
         if e.owner==1 then
             local f=self.factions and self.factions[e.target];local tile=f and f.labelTile;local at=tile and self:position(tile)
             if self.onGold then self.onGold(e.gold)end
-            cue("conquest","complete",.75,1);self:moment("conquest",f and f.name or '')
-            if at and self:visible(tile)then
+            cue("conquest","complete",.75,1)
+            if V2 then
+                if at and self:visible(tile)then self.effects:ring(at,UI.colors.gold,4,1)end
+            else self:moment("conquest",f and f.name or '')end
+            if not V2 and at and self:visible(tile)then
                 self.effects:stamp(at,"⚑",UI.colors.gold);self.effects:ring(at,UI.colors.gold,4,1)
                 self.effects:bricks(at,{UI.colors.gold,cream,mint},8,2.2)
             end
@@ -172,28 +173,30 @@ function M:emit(e)
         if visible and (e.troops or 0)>0 then self:float(pos,'↑ '..UI.troops(e.troops),cream,'troops')end
     elseif kind=="tiles" then
     elseif kind=="betrayal" then
-        cue("betrayal","allianceEnded",1,.8);self:moment(kind,(e.name or "").." 동맹을 깼어요");self:connection(1,e.owner,"allianceEnded",coral);self:buzz("collision")
-        local f=self.factions and self.factions[e.owner];local at=f and f.labelTile and self:position(f.labelTile)
-        if at and self:visible(f.labelTile)then self.effects:stamp(at,"⚠ 배신!",coral);self.effects:ring(at,coral,4,1);self.effects:flash(at,coral)end
+        local f=self.factions and self.factions[e.owner]
+        local weak=f and f.traitorUntil and self.tick and (f.traitorUntil-self.tick)/10
+        cue("betrayal","allianceEnded",1,.8);self:moment(kind,e.name or "",f and f.labelTile,weak and weak>0 and weak or 30);self:connection(1,e.owner,"allianceEnded",coral);self:buzz("collision")
+        local at=f and f.labelTile and self:position(f.labelTile)
+        if at and self:visible(f.labelTile)then self.effects:ring(at,coral,4,1);self.effects:flash(at,coral)end
         if self:allow("warningCamera",2) then self.world:impulse(.14) end
     elseif kind=="eliminated" then
         local f=self.factions and self.factions[e.owner]
         if f and (f.allied or f.teammate)then self:moment(kind,e.name)end
         local mine=f and (f.allied or f.teammate)
-        if visible then self.effects:bricks(pos,self:colors(e.owner),12,2.4);self.effects:ring(pos,mine and coral or cream,3.2);if mine then self.effects:stamp(pos,"붕괴",coral)end end
+        if visible then self.effects:bricks(pos,self:colors(e.owner),12,2.4);self.effects:ring(pos,mine and coral or cream,3.2)end
     elseif kind=="support" then
         if e.target==1 and e.resource=="gold" and self.onGold then self.onGold(e.amount)end
         if e.owner==1 or e.target==1 then Audio.play("allied");self:moment(kind,(e.resource=="gold" and "골드 "..UI.number(e.amount) or "병력 "..UI.troops(e.amount)));self:connection(e.owner,e.target,kind,mint) end
     else
         Audio.play(kind);self:moment(kind,e.name)
         if kind=='allied'or kind=='allianceEnded'then self:connection(1,e.owner==1 and e.target or e.owner,kind,tint)end
-        if visible and (kind=="allied" or kind=="start") then self.effects:ring(pos,tint,3);self.effects:stamp(pos,kind=="allied" and "↔ 동맹" or "작전 개시",tint) end
+        if visible and (kind=="allied" or kind=="start") then self.effects:ring(pos,tint,3) end
     end
 end
 function M:update(s,factions)
     if self.version~=s.version then self:reset();self.version=s.version end
     self.active=s.phase~="menu" and s.phase~="spawn";self.paused=s.paused or s.phase~="playing"
-    self.style=s.style;self.cosmetics=s.cosmetics
+    self.style=s.style;self.cosmetics=s.cosmetics;self.tick=s.tick
     self.loadouts=require(script.Parent.CosmeticLoadouts).all(s)
     self.effects.roomId=s.roomId
     self.fronts=s.battlefronts or {};self.effects.folder:SetAttribute("FrontierCount",#self.fronts)
@@ -215,13 +218,14 @@ function M:capture(s,owners,revision)
     for _,c in ipairs(s.captured or {}) do
         if owners[c[1]]==1 and c[2]~=1 then self.lost[c[1]]=true end
         if c[2]==1 and owners[c[1]]~=1 then
-            self.captureCount+=1;self.gained=(self.gained or 0)+1
-            if self:visible(c[1]) then self.captureTile=c[1];self.gainTile=c[1] end
+            self.captureCount+=1
+            if self:visible(c[1]) then self.captureTile=c[1] end
         end
     end
 end
 function M:layout(w,h,obscured,board)
     self.obscured=obscured
+    if V2 then return self:layout20(w,h)end
     local phone=h<500;local width=phone and math.min(330,w-360)or math.min(520,w-24)
     local x=phone and 300 or math.floor((w-width)/2);local y=phone and 50 or 72
     if phone and width<220 then width=math.min(330,w-24);x=math.floor((w-width)/2)end
@@ -260,21 +264,24 @@ function M:paintNotice(kind)
 end
 function M:step(dt)
     local started=os.clock();local now=started
-    if self.celebrateUntil and (now>self.celebrateUntil or self.effects.reduced) then self.confetti:ClearAllChildren();self.confetti.Visible=false;self.celebrateUntil=nil end
-    if not self.active then self.feed.Visible=false;return end
-    if self.feedUntil<=now and #self.queue>0 then
+    if not self.active then self.feed.Visible=false;if self.band and X then X.setBand(false)end;return end
+    if V2 then self:step20(now)
+    elseif self.feedUntil<=now and #self.queue>0 then
         local e=table.remove(self.queue,1)
         if now-e.at<8 then
             local spec=messages[e.kind];self.symbol.Text=spec[1];self.title.Text=spec[2]
             local tone=goldKinds[e.kind]and UI.colors.gold or dangerKinds[e.kind]and coral or nil
-            self.symbol.TextColor3=tone or mint;self.title.TextColor3=tone or UI.colors.ink;self.detail.Text=e.count>1 and string.format("%s 외 %d건",e.name or "지도를 눌러 작전을 시작하세요",e.count-1)or e.name or "지도를 눌러 작전을 시작하세요"
+            self.symbol.TextColor3=tone or mint;self.title.TextColor3=tone or UI.colors.ink
             self.feedUntil=now+(dangerKinds[e.kind]and 3.2 or 1.6+.8);self.feedPriority=e.priority;self.feed:SetAttribute('NoticePriority',e.priority)
             self:paintNotice(e.kind)
-            self.detail.Text=e.count>1 and string.format('외 %d건',e.count-1)or ''
-            self.title.Text=self.title.Text..(e.name and e.name~=''and ' '..e.name or '')
+            self.detail.Text=e.count>1 and string.format('외 %d건',e.count-1)or spec.detail or ''
+            local name=e.name and e.name~=''and e.name or nil
+            self.title.Text=name and(spec.nameFirst and name..' '..spec[2]or spec[2]..' '..name)or spec[2]
+            self.focusTile=e.tile;self.focus.Visible=e.tile~=nil;self.focus.Active=e.tile~=nil
+            if e.tile then self.title.Text=self.title.Text..'  ›'end
         end
     end
-    self.feed.Visible=not self.obscured and now<self.feedUntil
+    if not V2 then self.feed.Visible=not self.obscured and now<self.feedUntil end
     if self.paused then return end
     if self.captureCount>=3 and self:allow("capturePop",UIS.TouchEnabled and .6 or .45) then
         self.combo=(self.lastPop and now-self.lastPop<=1.6) and self.combo+1 or 1;self.lastPop=now
@@ -283,18 +290,13 @@ function M:step(dt)
             self.effects:bricks(pos,self:colors(1),2,.8)
             Audio.play("pop",.8,1+math.min(self.combo,12)*.05)
             if self.combo==6 or self.combo==12 or self.combo%24==0 then
-                local label=self.combo>=24 and "대륙 장악" or self.combo>=12 and "연속 점령" or "전선 돌파"
-                self.effects:stamp(pos,string.format("%s x%d",label,self.combo),mint);self.effects:ring(pos,mint,2.2)
+                self.effects:ring(pos,mint,2.2)
                 Audio.play("combo",.9,1+math.min(self.combo,24)*.02)
             end
             self.feed:SetAttribute("CaptureBursts",(self.feed:GetAttribute("CaptureBursts") or 0)+1)
         end
         self.feed:SetAttribute("CaptureCombo",self.combo)
         self.captureCount=0;self.captureTile=nil
-    end
-    if (self.gained or 0)>=5 and self:allow("gainFloat",1.1)then
-        if self.gainTile and self:visible(self.gainTile)then self:float(self:position(self.gainTile),string.format(L.text("+%s칸"),UI.number(self.gained)),mint)end
-        self.gained=0;self.gainTile=nil
     end
     if not self.effects.reduced and #self.fronts>0 and self:allow("fronts",UIS.TouchEnabled and .3 or .2) then
         local shown=0
@@ -308,6 +310,127 @@ function M:step(dt)
         end
     end
     self.feed:SetAttribute("StepMs",(os.clock()-started)*1000)
+end
+function M:covered(hard,soft)if V2 then return hard==true end;return hard==true or soft==true end
+function M:band20()
+    if self.band then return self.band end
+    K=K or require(script.Parent.Kit20);X=X or require(script.Parent.Cards20)
+    local feed=self.feed
+    for _,o in ipairs({self.symbol,self.title,self.detail})do o.Visible=false end
+    feed.BackgroundTransparency=1;local st=feed:FindFirstChildOfClass('UIStroke');if st then st.Enabled=false end
+    local plate=K.make('Frame',feed,{Name='Band20',BackgroundColor3=X.DANGER_BG,BackgroundTransparency=.06,BorderSizePixel=0,ZIndex=feed.ZIndex+1,Size=UDim2.fromScale(1,1),Active=false})
+    local b={plate=plate,stroke=K.stroke(plate,K.colors.danger,1,.3,true),icons={},till=0,n=0,shown=false,pc=true,fmt='pc'}
+    b.title=K.text(plate,'Title','',15,K.colors.danger,900);b.title.ZIndex=plate.ZIndex+1
+    b.num=K.num(plate,'Count','',13,K.colors.danger);b.num.ZIndex=plate.ZIndex+1;b.num.TextTruncate=Enum.TextTruncate.None
+    b.chev=K.icon(plate,'chev',14,K.colors.muted,'More');b.chev.ZIndex=plate.ZIndex+1
+    self.focus.ZIndex=plate.ZIndex+3
+    self.band=b
+    X.watch(function(what)if what=='card'or what=='rocket'then self:place20(true)end end)
+    return b
+end
+function M:layout20(w,h)
+    local b=self:band20();self.w20,self.h20=w,h
+    local fmt=X.fmt(w,h);b.fmt=fmt;b.pc=fmt=='pc'
+    K.round(b.plate,b.pc and 10 or 7)
+    self:paint20();self:place20(false)
+end
+function M:slot20()
+    local b=self.band;local w=self.w20 or 1366
+    local bw,bh=b.pc and 380 or 220,b.pc and 40 or 26
+    return math.floor((w-bw)/2+.5),X.bandTop(self.feed.Parent,b.fmt or 'pc'),bw,bh
+end
+function M:place20(animate)
+    local b=self.band;if not b or not self.w20 then return end
+    local x,y,bw,bh=self:slot20();local goal=UDim2.fromOffset(x,y)
+    self.feed.Size=UDim2.fromOffset(bw,bh);b.home=goal
+    if b.leaving then return end
+    if animate and self.feed.Visible and not K.reduced then
+        if b.move then b.move:Cancel()end
+        b.move=Tween:Create(self.feed,TweenInfo.new(.12,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=goal});b.move:Play()
+    elseif not b.entering then self.feed.Position=goal end
+    if b.shown and self.feed.Visible then X.setBand(true,y+bh)end
+end
+function M:paint20()
+    local b=self.band;if not b or not b.kind then return end
+    local pc=b.pc~=false;local spec=messages[b.kind];local look=BAND[b.kind]
+    local ink=K.colors.danger
+    b.plate.BackgroundColor3=X.DANGER_BG;b.stroke.Color=ink
+    local is=pc and 18 or 13;local pad=pc and 12 or 8;local gap=pc and 10 or 6;local bh=pc and 40 or 26;local bw=pc and 380 or 220
+    local key=look.kit and 'kit:'..look.kit or look.icon
+    for k,o in pairs(b.icons)do o.Visible=k==key end
+    local icon=b.icons[key]
+    if not icon then
+        icon=look.kit and K.icon(b.plate,look.kit,18,ink,'Icon')or X.orig(b.plate,look.icon,18,ink,'Icon')
+        icon.ZIndex=b.plate.ZIndex+1;b.icons[key]=icon
+    end
+    icon.Visible=true;X.tint(icon,ink);K.box(icon,pad,math.floor((bh-is)/2),is,is)
+    local word=spec[2];local text=b.name~=''and b.name..' '..word or word
+    b.title.Text=text;b.title.TextSize=pc and 15 or 12;b.title.TextColor3=ink
+    b.num.Text=b.n>1 and '×'..b.n or '';b.num.TextSize=pc and 13 or 11;b.num.TextColor3=ink
+    local cs=pc and 14 or 11;K.box(b.chev,bw-pad-cs,math.floor((bh-cs)/2),cs,cs);b.chev.Visible=b.tile~=nil
+    local rx=bw-pad-cs-8
+    local x=pad+is+gap;local cw=b.num.Text~=''and X.width(b.num.Text,b.num.TextSize,b.num)or 0
+    local room=rx-x-(cw>0 and cw+gap or 0)
+    local tw=math.min(X.width(require(script.Parent.Localization).text(text),b.title.TextSize,b.title),room)
+    K.box(b.title,x,0,tw+2,bh);x+=tw+gap
+    b.num.Visible=cw>0;K.box(b.num,x,0,cw+2,bh)
+    self.focusTile=b.tile;self.focus.Visible=b.tile~=nil;self.focus.Active=b.tile~=nil
+end
+function M:shake20()
+    local plate=self.band.plate;if K.reduced then plate.Position=UDim2.new();return end
+    local token=(self.band.shakeToken or 0)+1;self.band.shakeToken=token
+    task.spawn(function()
+        task.wait(.06)
+        for _,dx in ipairs({4,-4,0})do
+            if self.band.shakeToken~=token then return end
+            Tween:Create(plate,TweenInfo.new(.04,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Position=UDim2.fromOffset(dx,0)}):Play();task.wait(.04)
+        end
+        if self.band.shakeToken==token then plate.Position=UDim2.new()end
+    end)
+end
+function M:moment20(kind,name,tile)
+    if not BAND[kind]then return end
+    local b=self:band20();local now=os.clock()
+    name=kind=='intercepted'and ''or(name or '')
+    if b.shown and not b.leaving and b.kind==kind and b.name==name then
+        b.n+=1;b.till=now+4;b.tile=tile or b.tile;self:paint20();K.punch(b.num,1.15,.14);return
+    end
+    local replace=b.shown and not b.leaving
+    b.kind=kind;b.name=name;b.n=1;b.till=now+4;b.tile=tile
+    self:paint20()
+    if replace then self:shake20();return end
+    if b.move then b.move:Cancel()end
+    local x,y,_,bh=self:slot20();local home=UDim2.fromOffset(x,y);b.home=home
+    b.shown=true;b.leaving=false;b.entering=true
+    local feed=self.feed;feed.Visible=not(self.obscured or X.column.rocket);K.fade(feed,false,0)
+    if K.reduced then feed.Position=home;K.fade(feed,true,.12)
+    else
+        feed.Position=home-UDim2.fromOffset(0,12)
+        b.move=Tween:Create(feed,TweenInfo.new(.14,Enum.EasingStyle.Cubic,Enum.EasingDirection.Out),{Position=home});b.move:Play()
+        K.fade(feed,true,.14,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);self:shake20()
+    end
+    task.delay(.14,function()b.entering=false end)
+    if feed.Visible then X.setBand(true,y+bh)end
+end
+function M:leave20()
+    local b=self.band;b.leaving=true;local feed=self.feed
+    if b.move then b.move:Cancel()end
+    if not K.reduced then b.move=Tween:Create(feed,TweenInfo.new(.12,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=(b.home or feed.Position)-UDim2.fromOffset(0,8)});b.move:Play()end
+    K.fade(feed,false,.12)
+    task.delay(K.reduced and .12 or .12,function()
+        if not b.leaving then return end
+        b.leaving=false;b.shown=false;b.kind=nil;feed.Visible=false;if b.home then feed.Position=b.home end;X.setBand(false)
+    end)
+end
+function M:step20(now)
+    local b=self.band;if not b or not b.shown then return end
+    if not b.leaving and now>=b.till then self:leave20();return end
+    if b.leaving then return end
+    local show=not(self.obscured or X.column.rocket)
+    if self.feed.Visible~=show then
+        self.feed.Visible=show
+        if show then local _,y,_,bh=self:slot20();X.setBand(true,y+bh)else X.setBand(false)end
+    end
 end
 function M:float(position,text,tint,iconKind)
     if not position or (self.floats or 0)>=3 then return end;self.floats=(self.floats or 0)+1

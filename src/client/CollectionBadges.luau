@@ -11,8 +11,9 @@ function M.place(button)
     else b.AnchorPoint=Vector2.new(1,0);b.TextSize=11;b.Size=UDim2.fromOffset(30,14);b.Position=UDim2.new(1,4+(pad and pad.PaddingRight.Offset or 0),0,-1-(pad and pad.PaddingTop.Offset or 0))end
 end
 function M.badge(button,status)
-    require(script.Parent.RedDot).set(button,'CollectionDot',status=='action')
-    if status=='action'then status=nil end
+    local dot=status=='action'or status~=nil and button:GetAttribute('DotBadge')==true
+    require(script.Parent.RedDot).set(button,'CollectionDot',dot)
+    if dot then status=nil end
     local b=button:FindFirstChild('CollectionBadge')
     if not b and not status then return end
     if not b then b=UI.label(button,'CollectionBadge','',13,UI.colors.bg);b.ZIndex=40;b.TextXAlignment=Enum.TextXAlignment.Center;b.Font=Enum.Font.BuilderSansBold;UI.corner(b,999)end
@@ -28,6 +29,7 @@ local function snapshot(lobby)
     end
     return cached
 end
+function M.status(lobby)return snapshot(lobby).status end
 function M.body(lobby)local b=lobby.collectionBody;return b and b.Parent and lobby.page=='wardrobe'and b or lobby.pageBody end
 local function category(lobby)
     if lobby.page~='wardrobe'then return nil end

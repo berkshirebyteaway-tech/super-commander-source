@@ -45,30 +45,32 @@ end
 function M.vip(root,anchor,perks,onMore)
     return M.show(root,anchor,'VipBubble',math.min(320,(root.AbsoluteSize.X/(UI.scale or 1))-16),function(card,w)
         local lock=Icons.create(card,'lock',16,C.ink);lock.ZIndex=63;UI.box(lock,16,16,16,16)
-        local t=UI.label(card,'Title','VIP가 있어야 쓸 수 있어요',15);t.Font=Enum.Font.BuilderSansBold;t.TextWrapped=false;t.TextTruncate=Enum.TextTruncate.AtEnd;t.ZIndex=63;UI.box(t,40,8,w-52,32)
-        local b=UI.label(card,'Perks',perks,13,C.muted);b.ZIndex=63;b.TextYAlignment=Enum.TextYAlignment.Top;UI.box(b,16,44,w-32,40)
+        local t=UI.label(card,'Title','VIP 클럽',15);t.Font=Enum.Font.BuilderSansBold;t.TextWrapped=false;t.TextTruncate=Enum.TextTruncate.AtEnd;t.ZIndex=63;UI.box(t,40,8,w-52,32)
+        local b=UI.label(card,'Perks',perks,13,C.muted);b.ZIndex=63;b.TextYAlignment=Enum.TextYAlignment.Top;UI.box(b,16,42,w-32,20)
         local more=UI.button(card,'VipMore','VIP 보기',onMore);more.ZIndex=64;more.BackgroundColor3=Style.colors.chip;more.TextSize=14
-        Style.round(more,8);Style.line(more,C.ink,1,.2);UI.box(more,16,90,w-32,require(script.Parent.InputMode).touch()and 48 or 40)
-        return 90+more.Size.Y.Offset+14
+        Style.round(more,8);Style.line(more,C.ink,1,.2);UI.box(more,16,70,w-32,require(script.Parent.InputMode).touch()and 48 or 40)
+        return 70+more.Size.Y.Offset+14
     end)
 end
 function M.growth(root,anchor,r,p)
     local tone=r and r.tone or 'idle'
     local full=p and p.cap and p.cap>0 and (p.troops or 0)>=p.cap*.95
     local line,color
-    if full then line,color='■ 상한에 거의 찼어요. 도시로 상한을 올려요',C.muted
-    elseif tone=='falling'then line,color='▼ 지금은 느리게 차는 중',C.recruitmentSlow
-    elseif tone=='rising'then line,color='▲ 지금은 빠르게 차는 중',C.good
-    else line,color='Ⅱ 지금은 멈춰 있어요',C.muted end
+    if full then line,color='■ 상한 가득, 도시 +25K',C.muted
+    elseif tone=='falling'then line,color='▼ 느리게',C.recruitmentSlow
+    elseif tone=='rising'then line,color='▲ 빠르게',C.good
+    else line,color='Ⅱ 멈춤',C.muted end
     return M.show(root,anchor,'GrowthBubble',math.min(330,(root.AbsoluteSize.X/(UI.scale or 1))-16),function(card,w)
         local icon=require(script.Parent.HotbarIcons).create(card,'Soldier',18,C.ink);icon.ZIndex=63;icon.Position=UDim2.fromOffset(16,15)
         local rate=require(script.Parent.Parent.Core.RecruitmentPresentation).rateText(r and r.rate or 0,UI.troops)
         local t=UI.label(card,'Title',require(script.Parent.Localization).text(string.format('병력 %s',rate)),15);t.Font=Enum.Font.BuilderSansBold;t.TextWrapped=false;t.ZIndex=63;t:SetAttribute('LocalizationSkip',true);UI.box(t,42,8,w-140,32)
         local tw=game:GetService('TextService'):GetTextSize(t.Text,15,Enum.Font.BuilderSansBold,Vector2.new(400,32)).X
         local cap=UI.label(card,'Cap',string.format('상한 %s',UI.troops(p and p.cap or 0)),13,C.muted);cap.TextWrapped=false;cap.ZIndex=63;UI.box(cap,58+math.min(tw,w-160),8,110,32)
-        local b=UI.label(card,'Why','상한에 가까울수록 느리게 차요. 도시를 지으면 상한이 올라가요.',13,C.ink);b.ZIndex=63;b.TextYAlignment=Enum.TextYAlignment.Top;UI.box(b,16,44,w-32,40)
-        local n=UI.label(card,'Now',line,13,color);n.Font=Enum.Font.BuilderSansBold;n.TextWrapped=false;n.TextTruncate=Enum.TextTruncate.AtEnd;n.ZIndex=63;UI.box(n,16,88,w-32,22)
-        return 122
+        local fill=math.clamp(p and p.cap and p.cap>0 and (p.troops or 0)/p.cap or 0,0,1)
+        local bar=UI.make('Frame',card,{Name='Fill',BackgroundColor3=C.ink,BackgroundTransparency=.85,BorderSizePixel=0,ZIndex=63});UI.box(bar,16,46,w-32,6);UI.corner(bar,3)
+        local f=UI.make('Frame',bar,{Name='Bar',BackgroundColor3=color,BorderSizePixel=0,ZIndex=64,Size=UDim2.fromScale(fill,1)});UI.corner(f,3)
+        local n=UI.label(card,'Now',line,13,color);n.Font=Enum.Font.BuilderSansBold;n.TextWrapped=false;n.TextTruncate=Enum.TextTruncate.AtEnd;n.ZIndex=63;UI.box(n,16,58,w-32,22)
+        return 90
     end)
 end
 function M.hint(root,anchor,title,body)

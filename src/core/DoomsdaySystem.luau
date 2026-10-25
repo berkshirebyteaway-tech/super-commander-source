@@ -8,7 +8,7 @@ local function lowest(list,n)
 end
 function M:consume(p,t,st)
     if not p.tiles:has(t) then return false end
-    self.w.sim:relinquish(t);if not self.w.sim.fallout[t] then self.w.sim.fallout[t]=true;self.w.falloutTiles=(self.w.falloutTiles or 0)+1 end
+    self.w.sim:relinquish(t);if not self.w.sim.fallout[t] then self.w.sim.fallout[t]=true;self.w.sim.falloutRevision=(self.w.sim.falloutRevision or 0)+1;self.w.falloutTiles=(self.w.falloutTiles or 0)+1 end
     p.rotted=true;st.front[t]=nil
     for _,n in ipairs(self.w.sim:neighbors(t)) do if p.tiles:has(n) then
         if not st.front[n] then st.serial+=1;st.order[n]=st.serial end

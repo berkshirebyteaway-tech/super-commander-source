@@ -20,15 +20,15 @@ function M.new(map,settings,roster,mode)
     return self
 end
 function M:spawnHuman(id,tile)
-    if self.phase~="spawn" or not self.roster[id] then return false,"시작 위치가 이미 확정됐어요." end
-    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"육지를 선택하세요." end
+    if self.phase~="spawn" or not self.roster[id] then return false,"시작 위치 확정됨" end
+    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"육지 선택" end
     local moved=self.spawned[id]~=nil
-    if moved and self.spawned[id]==tile then return false,"이미 이 자리예요. 다른 땅을 고르세요." end
+    if moved and self.spawned[id]==tile then return false,"이미 이 자리" end
     local byte,owner=self.sim.terrain[tile+1],self.sim:owner(tile)
-    if not T.isLand(byte) or T.isImpassable(byte) or owner~=0 and owner~=id then return false,"빈 육지에 정착하세요." end
-    if not self:relocate(id,function() return tile,Spawn.tiles(self,tile,false) end) then return false,"빈 육지에 정착하세요." end
+    if not T.isLand(byte) or T.isImpassable(byte) or owner~=0 and owner~=id then return false,"빈 육지 선택" end
+    if not self:relocate(id,function() return tile,Spawn.tiles(self,tile,false) end) then return false,"빈 육지 선택" end
     self.spawned[id]=tile
-    return true,moved and "시작 위치를 옮겼어요. 시작 전까지 다시 바꿀 수 있어요" or "정착 완료, 시작 전까지 자리를 바꿀 수 있어요"
+    return true,moved and "자리 옮김" or "정착 완료"
 end
 function M:joinCandidate()
     if self.phase=="spawn" then local first;for id in pairs(self.nations)do if not first or id<first then first=id end end;return first end
@@ -56,7 +56,7 @@ function M:takeOver(entry,id)
     self.parked=self.parked or {};self.parked[id]=ai;self.nations[id]=nil
     p.kind="HUMAN";p.name=entry.name;p.userId=entry.userId;r.kind="HUMAN";r.name=entry.name;r.country=country
     self.roster[id]=entry;self.spawned[id]=p.spawnTile or 0;self.eliminated[id]=nil;self.playerEvents[id]=nil;r.disconnected=nil
-    local text=string.format("%s님이 %s 지휘를 넘겨받았어요.",entry.name,tostring(country))
+    local text=string.format("%s, %s 지휘",entry.name,tostring(country))
     for other,q in ipairs(self.sim.players) do if q.kind=="HUMAN" and other~=id then self:notify(other,text,"diplomacy") end end
     return id
 end
@@ -121,31 +121,31 @@ function M:buildFor(id,kind,tile)
 end
 function M:previewFor(id,kind,tile)
     if self.unitSystem then return self.unitSystem:preview(id,kind,tile) end
-    if not self.roster[id] or self.phase~="playing" or self.sim.players[id].tiles.size==0 then return {valid=false,reason="진행 중인 내 영토를 선택하세요."} end
-    if kind~="City" and kind~="DefensePost" then return {valid=false,reason="준비 중인 건물이에요."} end
-    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return {valid=false,reason="육지를 선택하세요."} end
+    if not self.roster[id] or self.phase~="playing" or self.sim.players[id].tiles.size==0 then return {valid=false,reason="내 땅 선택"} end
+    if kind~="City" and kind~="DefensePost" then return {valid=false,reason="준비 중인 건물"} end
+    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return {valid=false,reason="육지 선택"} end
     local cost=E.cost(self.settings,self:economyPlayer(id),kind);local at=self:validConstructionTile(tile,id)
     local valid=at~=nil and B.compare(self:getGold(id),cost)>=0
-    return {valid=valid,tile=at,cost=B.toString(cost),duration=E.duration(self.settings,kind)/10,reason=valid and "건설할 수 있어요." or "내 영토, 건물 간격, 골드를 확인하세요."}
+    return {valid=valid,tile=at,cost=B.toString(cost),duration=E.duration(self.settings,kind)/10,reason=valid and "건설 가능" or "건설 불가"}
 end
 function M:upgradeFor(id,unitId,amount)
     if self.unitSystem then return self.unitSystem:upgrade(id,unitId,amount) end
-    if self.phase~="playing" then return false,"진행 중인 경기에서만 사용할 수 있어요." end
+    if self.phase~="playing" then return false,"경기 중에만" end
     for _,u in ipairs(self.units)do if u.id==unitId and u.owner==id and u.active and not u.building and not u.deleteAt and u.kind=="City" then
         local cost=E.cost(self.settings,self:economyPlayer(id),"City")
-        if B.compare(self:getGold(id),cost)<0 then return false,"골드가 부족해요." end
+        if B.compare(self:getGold(id),cost)<0 then return false,"골드 부족" end
         self:setGold(id,B.subtract(self:getGold(id),cost));u.level+=1;local r=self.resources[id];r.constructed.City=(r.constructed.City or 0)+1
-        return true,"도시를 업그레이드했어요."
+        return true,"도시 업그레이드"
     end end
-    return false,"완공한 내 도시를 선택하세요."
+    return false,"완공한 도시 선택"
 end
 function M:deleteFor(id,unitId)
     local r=self.resources[id]
-    if self.phase~="playing" or self.sim.ticks-r.lastDelete<300 then return false,"철거는 30초마다 할 수 있어요." end
+    if self.phase~="playing" or self.sim.ticks-r.lastDelete<300 then return false,"철거 재사용 대기" end
     for _,u in ipairs(self.units)do if u.id==unitId and U.structures[u.kind] and u.owner==id and u.active and not u.deleteAt and self.sim:owner(u.tile)==id then
         r.lastDelete=self.sim.ticks;u.deleteAt=self.sim.ticks+300;return true,"30초 뒤 철거해요."
     end end
-    return false,"내 건물을 선택하세요."
+    return false,"내 건물 선택"
 end
 function M:forfeit(id)
     if not self.roster[id] then return end
@@ -159,19 +159,19 @@ function M:markDisconnected(id,on)
     for other in pairs(self.roster) do
         local p,q=self.sim.players[other],self.sim.players[id]
         if other~=id and (self.alliances[math.min(id,other)..":"..math.max(id,other)]~=nil or p.team~=nil and p.team==q.team) then
-            self:notify(other,string.format(on and "%s님의 접속이 끊겼어요. 동맹이나 같은 팀이어도 그 땅을 공격할 수 있어요." or "%s님이 다시 접속했어요.",name),"diplomacy")
+            self:notify(other,string.format(on and "%s 접속 끊김  공격 가능" or "%s 재접속",name),"diplomacy")
         end
     end
     return true
 end
-function M:stateFor(viewer,full,shared)
+function M:stateFor(viewer,full,shared,context)
     local s=shared and table.clone(shared)or S.state(self,full)
     if shared then
         s.factions={};for _,f in ipairs(shared.factions)do table.insert(s.factions,table.clone(f))end
-        s.units={};for _,u in ipairs(shared.units)do table.insert(s.units,table.clone(u))end
+        if context then s.units=shared.units else s.units={};for _,u in ipairs(shared.units)do table.insert(s.units,table.clone(u))end end
         s.costs=table.clone(shared.costs);s.naval=table.clone(shared.naval)
     end
-    local p=self.sim.players[viewer];local ep=self:economyPlayer(viewer)
+    local p=self.sim.players[viewer];local ep=self:economyPlayer(viewer,context and context:unitsFor(viewer))
     local swap=function(id)return M.viewId(id,viewer)end
     local own
     for _,f in ipairs(s.factions)do
@@ -192,14 +192,14 @@ function M:stateFor(viewer,full,shared)
     s.owned=own.owned;s.operations={};s.events=table.clone(self.playerEvents[viewer] or {})
     for _,kind in ipairs(U.buildable)do s.costs[kind]=B.toString(self.unitSystem:cost(viewer,kind,ep))end
     s.deleteAvailableIn=math.max(0,300-(self.sim.ticks-self.resources[viewer].lastDelete))/10
-    for _,u in ipairs(s.units)do u.owner=swap(u.owner or 1);if u.target then u.target=swap(u.target) end end
+    if context then s.units=context:units(s.units,swap)else for _,u in ipairs(s.units)do u.owner=swap(u.owner or 1);if u.target then u.target=swap(u.target) end end end
     s.unitEffects={};for _,effect in ipairs(self.unitSystem.effects) do local e=table.clone(effect);e.owner=swap(e.owner);if e.target then e.target=swap(e.target) end;table.insert(s.unitEffects,e) end
     s.naval.transports=self.unitSystem:count(viewer,"TransportShip")
     s.comms=self.unitSystem.comms:forPlayer(viewer,swap)
     if s.captured then local c={};for _,v in ipairs(s.captured)do table.insert(c,{v[1],swap(v[2])})end;s.captured=c end
-    s.battlefronts=Presentation.snapshot(self.sim,viewer,swap)
-    for _,direction in ipairs({"outgoing","incoming"})do for _,a in ipairs(p[direction])do table.insert(s.operations,{id=a.id,direction=direction,kind="land",owner=swap(a.owner),target=swap(a.target),troops=a.troops,frontTile=Presentation.front(self.sim,a,0),frontTiles=Presentation.positions(self.sim,a),retreating=a.retreating==true,retreated=a.retreated==true})end end
-    for _,u in ipairs(self.units) do if u.active and u.kind=="TransportShip" and (u.owner==viewer or u.target==viewer) then table.insert(s.operations,{id=u.id,direction=u.owner==viewer and "outgoing" or "incoming",kind="transport",owner=swap(u.owner),target=swap(u.target),troops=u.troops,frontTile=u.tile,retreating=u.retreating==true}) end end
+    s.battlefronts=context and context:battlefronts(viewer,swap)or Presentation.snapshot(self.sim,viewer,swap)
+    for _,direction in ipairs({"outgoing","incoming"})do for _,a in ipairs(p[direction])do table.insert(s.operations,{id=a.id,direction=direction,kind="land",owner=swap(a.owner),target=swap(a.target),troops=a.troops,frontTile=if context then context:front(self.sim,a,0)else Presentation.front(self.sim,a,0),frontTiles=Presentation.positions(self.sim,a),retreating=a.retreating==true,retreated=a.retreated==true})end end
+    for _,u in ipairs(context and context:transports(viewer)or self.units) do if u.active and u.kind=="TransportShip" and (u.owner==viewer or u.target==viewer) then table.insert(s.operations,{id=u.id,direction=u.owner==viewer and "outgoing" or "incoming",kind="transport",owner=swap(u.owner),target=swap(u.target),troops=u.troops,frontTile=u.tile,retreating=u.retreating==true}) end end
     s.diplomacy={incoming={},outgoing={},donations={},defaultGold=B.toString(B.divideSmall(self:getGold(viewer),3)),defaultTroops=math.floor(p.troops/3)}
     for _,r in pairs(self.requests)do if r.a==viewer or r.b==viewer then table.insert(r.b==viewer and s.diplomacy.incoming or s.diplomacy.outgoing,{from=swap(r.a),to=swap(r.b),name=self.resources[r.a==viewer and r.b or r.a].name,created=r.created,expires=r.created+200})end end
     s.multiplayer=true;s.spawned=self.spawned[viewer]~=nil;s.matchEnded=self.winnerId~=nil
@@ -208,8 +208,8 @@ function M:stateFor(viewer,full,shared)
     elseif s.eliminated then s.phase="lost" else s.phase=self.phase end
     return s
 end
-function M:observerState(watch,full,shared)
-    local s=self:stateFor(watch,full,shared)
+function M:observerState(watch,full,shared,context)
+    local s=self:stateFor(watch,full,shared,context)
     s.events={};s.operations={}
     s.diplomacy={incoming={},outgoing={},donations={}}
     s.comms={events={},targets={}}

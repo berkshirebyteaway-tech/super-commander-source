@@ -50,10 +50,19 @@ end
 function M:constructionTile(kind,tile,owner)
     if kind~="Port" then return self.w:validConstructionTile(tile,owner) end
     if self.w.sim:owner(tile)~=owner then return nil end
-    local valid=self.w:flood(tile,function(t)return self.w.sim:owner(t)==owner and self.w:distance2(t,tile)<225 end)
+    local width=self.w.map.meta.width;local cx,cy=tile%width,math.floor(tile/width)
+    local valid=self.w:flood(tile,function(t)
+        if self.w.sim:owner(t)~=owner then return false end
+        local dx,dy=t%width-cx,math.floor(t/width)-cy;return dx*dx+dy*dy<225
+    end)
+    local structures={}
+    for _,u in ipairs(self.w.units)do if u.active and U.structures[u.kind]then
+        table.insert(structures,{u.tile%width,math.floor(u.tile/width)})
+    end end
     local candidate={};for i,t in ipairs(valid) do
         if not self.nav:shore(t) or self.nav:manhattan(t,tile)>20 then continue end
-        local blocked=false;for _,u in ipairs(self.w.units) do if u.active and U.structures[u.kind] and self.w:distance2(u.tile,t)<225 then blocked=true;break end end
+        local x,y=t%width,math.floor(t/width);local blocked=false
+        for _,u in ipairs(structures)do local dx,dy=u[1]-x,u[2]-y;if dx*dx+dy*dy<225 then blocked=true;break end end
         if not blocked then table.insert(candidate,{tile=t,order=i,d=self.nav:manhattan(t,tile)}) end
     end
     table.sort(candidate,function(a,b)return a.d<b.d or a.d==b.d and a.order<b.order end);return candidate[1] and candidate[1].tile
@@ -88,22 +97,22 @@ function M:upgradeTarget(owner,kind,tile)
     return nil
 end
 function M:preview(owner,kind,tile)
-    if not self.w.sim.players[owner] then return {valid=false,reason="참가한 부대만 명령할 수 있어요."} end
-    if not table.find(U.buildable,kind) or U.disabled(self.w.settings,kind) then return {valid=false,reason="이 경기에서 쓸 수 없는 기능이에요."} end
+    if not self.w.sim.players[owner] then return {valid=false,reason="참가자만"} end
+    if not table.find(U.buildable,kind) or U.disabled(self.w.settings,kind) then return {valid=false,reason="이 경기에선 불가"} end
     local r={valid=false,cost=B.toString(self:cost(owner,kind)),duration=E.duration(self.w.settings,kind)/10}
-    if self.w.phase~="playing" or self.w.sim.players[owner].tiles.size==0 or not self.nav:valid(tile) then r.reason="진행 중인 지도에서 위치를 선택하세요.";return r end
+    if self.w.phase~="playing" or self.w.sim.players[owner].tiles.size==0 or not self.nav:valid(tile) then r.reason="위치 선택";return r end
     local existing=self.w.phase=="playing" and self:upgradeTarget(owner,kind,tile)
     if existing then
         r.upgrade=existing.id;r.tile=existing.tile;r.level=existing.level
-        if B.compare(self.w:getGold(owner),self:cost(owner,kind))<0 then r.reason="골드가 부족해요.";return r end
+        if B.compare(self.w:getGold(owner),self:cost(owner,kind))<0 then r.reason="골드 부족";return r end
         r.valid=true;r.reason="이 건물을 업그레이드해요.";return r
     end
-    if U.structures[kind] then r.tile=self:constructionTile(kind,tile,owner);r.reason=kind=="Port" and "내 해안에 다른 건물과 15칸 이상 떨어져 건설하세요." or "내 땅에 다른 건물과 15칸 이상 떨어져 건설하세요."
+    if U.structures[kind] then r.tile=self:constructionTile(kind,tile,owner);r.reason=kind=="Port" and "내 해안, 15칸 간격" or "내 땅, 15칸 간격"
     elseif kind=="Warship" then local port=self.nav:water(tile) and self.naval:port(owner,tile);r.tile=port and port.tile or nil;r.reason="이 바다에 연결된 내 항구가 필요합니다."
     else local valid,silo=self.nuclear:canLaunch(owner,kind,tile);if valid then r.tile=silo.tile else r.reason=silo end end
     if not r.tile then return r end
-    if B.compare(self.w:getGold(owner),self:cost(owner,kind))<0 then r.reason="골드가 부족해요.";return r end
-    r.valid=true;r.reason=U.nukes[kind] and "이 목표로 발사할 수 있어요." or "배치할 수 있어요.";return r
+    if B.compare(self.w:getGold(owner),self:cost(owner,kind))<0 then r.reason="골드 부족";return r end
+    r.valid=true;r.reason=U.nukes[kind] and "발사 가능" or "배치 가능";return r
 end
 function M:build(owner,kind,tile)
     local p=self:preview(owner,kind,tile);if not p.valid then return false,p.reason end
@@ -119,8 +128,8 @@ function M:upgrade(owner,id,amount)
 end
 function M:upgradeOnce(owner,id)
     local u=self:unit(id)
-    if self.w.phase~="playing" or not u or u.owner~=owner or u.building or u.deleteAt or not U.upgradable[u.kind] then return false,"완공한 내 도시, 항구, 철도 기지, 사일로, 방공 기지를 선택하세요." end
-    if not self:pay(owner,u.kind) then return false,"골드가 부족하거나 비활성화된 건물이에요." end
+    if self.w.phase~="playing" or not u or u.owner~=owner or u.building or u.deleteAt or not U.upgradable[u.kind] then return false,"강화할 건물 선택" end
+    if not self:pay(owner,u.kind) then return false,"골드 부족 또는 비활성" end
     if u.kind=="SAMLauncher" then u.rangeFrom=U.dynamicSamRange(u,self.w.sim.ticks);u.rangeStart=self.w.sim.ticks end
     u.level+=1
     if u.kind=="SAMLauncher" or u.kind=="MissileSilo" then u.missileQueue=u.missileQueue or {};table.insert(u.missileQueue,self.w.sim.ticks) end
@@ -154,10 +163,21 @@ function M:prune()
     self.rail:prune()
 end
 function M:snapshot(state)
-    state.unitEffects=self.effects;state.railRevision=self.rail.revision;state.rails={}
-    for _,r in ipairs(self.rail.rails) do if r.active then table.insert(state.rails,{id=r.id,tiles=r.tiles}) end end
+    state.unitEffects=self.effects;state.railRevision=self.rail.revision
+    local rails=self.railSnapshot
+    if not rails or rails.source~=self.rail.rails or rails.revision~=self.rail.revision then
+        local list={}
+        for _,r in ipairs(self.rail.rails)do if r.active then table.insert(list,table.freeze({id=r.id,tiles=table.freeze(table.clone(r.tiles))}))end end
+        rails={source=self.rail.rails,revision=self.rail.revision,list=table.freeze(list)};self.railSnapshot=rails
+    end
+    state.rails=rails.list
     state.terrainRevision=self.terrainRevision;state.terrainChanges={};for tile,byte in pairs(self.terrainChanges) do table.insert(state.terrainChanges,{tile,byte}) end
-    state.fallout={};for tile in pairs(self.w.sim.fallout or {}) do table.insert(state.fallout,tile) end
+    local sim=self.w.sim;local fallout=self.falloutSnapshot
+    if not fallout or fallout.source~=sim.fallout or fallout.revision~=sim.falloutRevision then
+        local list={};for tile in pairs(sim.fallout or {})do table.insert(list,tile)end
+        fallout={source=sim.fallout,revision=sim.falloutRevision,list=table.freeze(list)};self.falloutSnapshot=fallout
+    end
+    state.fallout=fallout.list
     state.naval={transports=self:count(1,"TransportShip"),maxTransports=3};state.mirvsLaunched=self.mirvsLaunched
     state.doomsday=self.w.settings.doomsdayClock and {required=self.doomsday.required or 0,speed=self.w.settings.doomsdayClockSpeed or "normal"} or nil
     state.comms=self.comms:forPlayer(1)

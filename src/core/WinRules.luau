@@ -25,8 +25,18 @@ function M.hasWon(settings,elapsed,owned,land,fallout)
     if owned*100>(land-(fallout or 0))*M.threshold(settings,elapsed) then return true,"territory" end
     return false
 end
+function M.goal(settings,players)
+    local n=settings.goalConquer;if not n then return nil end
+    for _,p in ipairs(players)do if p.kind~='BOT'and p.tiles.size>0 and(p.countriesConquered or 0)>=n then return p.id,'goal'end end
+    return nil
+end
 function M.ffa(settings,tick,players,land,fallout)
     if tick%10~=0 then return nil end
+    local goal,why=M.goal(settings,players)
+    if goal then return goal,why end
+    if settings.goalConquer and settings.maxTimerValue and tick/10>=settings.maxTimerValue*60 then
+        for _,p in ipairs(players)do if p.kind~='BOT'and p.tiles.size>0 then return p.id,'timer'end end
+    end
     local survivor,reason=M.lastCommander(settings,tick,players)
     if survivor then return survivor,reason end
     local leader=nil

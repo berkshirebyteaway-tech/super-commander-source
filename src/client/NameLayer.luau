@@ -25,6 +25,7 @@ function M:reset()
     for _,p in pairs(self.plates)do release(p)end
     for _,p in ipairs(self.spare)do release(p)end
     self.plates={};self.spare=keep;self.dress={};self.shown={};self.spareShown={};self.motion={};self.leaving={}
+    if self.traitors then self.traitors:reset()end
 end
 M.LERP=10;M.SHIFT_LERP=20;M.APPEAR=.16;M.LEAVE=.2;M.REDRESS=.18
 local function ease(m,now)
@@ -166,6 +167,10 @@ function M:update(args)
             fadeText(p,l.alpha,d and d.faded and .55 or 0,d and d.kind=='BOT')
             p.Position=UDim2.fromOffset(pos.X,pos.Y);if d then d.x=pos.X;d.y=pos.Y end
         end
+    end
+    if args.tick~=nil then
+        if self.traitors==nil then self.traitors=require(script.Parent.Hud20).ENABLED and require(script.Parent.TraitorBadges20).new(self.layer)or false end
+        if self.traitors then self.traitors:step(args.factions,self.plates,shown,args.tick,now)end
     end
     self.shown,self.spareShown=shown,previous
     if alive then for id,p in pairs(self.plates)do if not alive[id]and not leaving[id]then p.Visible=false;self.plates[id]=nil;self.dress[id]=nil;motion[id]=nil;table.insert(self.spare,p)end end end

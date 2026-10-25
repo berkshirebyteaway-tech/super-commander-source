@@ -8,7 +8,7 @@ function M.row(r)
         top10=r.top10==true or nil,ranked=r.ranked==true or nil,conquered=n(r.conquered)or 0,troops=n(r.troops)or 0,seconds=n(r.seconds)or 0}
 end
 function M.build(userId,view,ladders)
-    local out={userId=userId,level=n(view and view.level)or 1,title=view and type(view.title)=='string'and view.title or nil,
+    local out={userId=userId,level=n(view and view.level)or 1,
         records=view and view.records or Records.view({}),history={},ranked={}}
     local list=view and type(view.history)=='table'and view.history or {}
     local all,ranked,public=0,0,0

@@ -11,11 +11,12 @@ function M.reward(e)
     for _,key in ipairs({'seconds','cities','supports','humans','peak','time'})do if e[key]~=nil and not finite(e[key])then return false end end
     if e.tactics~=nil then
         if type(e.tactics)~='table'then return false end
-        for _,key in ipairs({'troopsProduced','countriesConquered','troopsSent','gold','alliances','intercepts','warships','fleetPeak','mirv'})do if e.tactics[key]~=nil and not finite(e.tactics[key])then return false end end
+        for _,key in ipairs({'troopsProduced','countriesConquered','troopsSent','gold','alliances','intercepts','warships','fleetPeak','mirv','growthGreen','trainGold','allyTrainGold','tradeGold','tradeCaptures','embargoes','betrayals'})do if e.tactics[key]~=nil and not finite(e.tactics[key])then return false end end
     end
     for _,key in ipairs({'place','field'})do if e[key]~=nil and not(finite(e[key],10000)and e[key]%1==0)then return false end end
     if e.ranked~=nil and e.ranked~=true then return false end
     if e.voided~=nil and e.voided~=true then return false end
+    if e.official~=nil and e.official~=true then return false end
     if e.daily~=nil and not(finite(e.daily,1e6)and e.daily%1==0)then return false end
     if e.campaign~=nil and not(type(e.campaign)=='string'and #e.campaign<=8 and e.campaign:match('^%d%-%d$'))then return false end
     if e.gameSeconds~=nil and not(finite(e.gameSeconds,1e6)and e.gameSeconds%1==0 and e.gameSeconds>=0)then return false end

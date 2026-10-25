@@ -9,14 +9,14 @@ local P={version=2}
 function P.validFlag(f) return type(f)=="string" and string.match(f,"^%l%l$")~=nil and not Policy.hiddenFlags[f] end
 function P.validVolume(v) return type(v)=="number" and v>=.25 and v<=1.5 end
 function P.validOpacity(v) return v==1 or v==.75 or v==.5 or v==.25 end
-function P.validNumber(key,v) if key=='hudOpacity' then return P.validOpacity(v) end;return P.validVolume(v) end
+function P.validNumber(key,v) if key=='hudOpacity' then return P.validOpacity(v) end;if key=='musicVolume'and v==0 then return true end;return P.validVolume(v) end
 P.languages={["ko-kr"]=true,["en-us"]=true}
 function P.decode(raw)
-    if raw==nil then return {version=P.version,commanderStandard=Standard.default,loadout=C.loadout(C.default),preferences={reducedEffects=false,soundsMuted=false,cameraShake=true,mapFlashes=true,voiceTeamOnly=true,sfxVolume=1,hudOpacity=1,emojiFavorites={},motionLoadout={"wave"}},outgame=O.new(),commerce=Supply.new()} end
+    if raw==nil then return {version=P.version,commanderStandard=Standard.default,loadout=C.loadout(C.default),preferences={reducedEffects=false,soundsMuted=false,cameraShake=true,mapFlashes=true,voiceTeamOnly=true,sfxVolume=1,musicVolume=1,hudOpacity=1,emojiFavorites={},motionLoadout={"wave"}},outgame=O.new(),commerce=Supply.new()} end
     if type(raw)~="table" or(raw.version~=1 and raw.version~=P.version)then return nil,"unsupported-profile" end
     if type(raw.loadout)~="table" or type(raw.preferences)~="table" then return nil,"invalid-profile" end
     if raw.version==P.version and(type(raw.commerce)~='table'or type(raw.outgame)~='table')then return nil,'invalid-profile'end
-    local out={version=P.version,loadout=C.loadout(C.default),preferences={reducedEffects=false,soundsMuted=false,cameraShake=true,mapFlashes=true,voiceTeamOnly=true,sfxVolume=1,hudOpacity=1}}
+    local out={version=P.version,loadout=C.loadout(C.default),preferences={reducedEffects=false,soundsMuted=false,cameraShake=true,mapFlashes=true,voiceTeamOnly=true,sfxVolume=1,musicVolume=1,hudOpacity=1}}
     for _,slot in ipairs(C.slots) do if C.styles[raw.loadout[slot]] then out.loadout[slot]=raw.loadout[slot] end end
     for key,default in pairs(out.preferences) do local v=raw.preferences[key];if type(v)==type(default) and (type(v)=="boolean" or P.validNumber(key,v)) then out.preferences[key]=v end end
     out.preferences.emojiFavorites=Favorites.copy(raw.preferences.emojiFavorites)

@@ -3,12 +3,13 @@
 local Formation=if script then require(script.Parent.PartyFormation)else require('./PartyFormation')
 local Format=if script then require(script.Parent.TeamFormat)else require('./TeamFormat')
 local Catalog=if script then require(script.Parent.Parent.Maps.Catalog)else require('../maps/Catalog')
-local M={version=1,emptySeconds=60,waitSeconds=60,fillSeconds=20,fillPerHuman=2,fillMaxSeconds=45,fullSeconds=5,leaseSeconds=35,maxTickets=80,maxMatches=8}
-function M.fillFor(n)return math.min(M.fillMaxSeconds,M.fillSeconds+math.max(0,(n or 1)-1)*M.fillPerHuman)end
+local M={version=1,emptySeconds=60,waitSeconds=60,fullSeconds=5,leaseSeconds=35,maxTickets=80,maxMatches=8}
+M.waitMaxSeconds=60;M.readySeconds=10;M.joinFloorSeconds=7
+function M.majority(n)return math.floor((n or 0)/2)+1 end
 M.fillTarget={[10]=10,[20]=20}
 M.rookieGames=3
 M.slots={{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='special'},{kind='ffa'},{kind='teams'}}
-M.recruitment={minimum=7,medium=7,maximum=9,mediumAt=16,largeAt=32,warmSeconds=60,presetSlots={1,2,3,4,5,6,7,8,9}}
+M.recruitment={minimum=3,medium=7,maximum=9,mediumAt=10,largeAt=32,warmSeconds=60,presetSlots={1,2,3,4,5,6,7,8,9}}
 M.seatCap=20
 M.maxTimerValue=nil
 M.overtimeMinutes=30
@@ -188,10 +189,12 @@ function M.teams(r,users,groups)
     if hvn(r)then local out={};for _,id in ipairs(users)do out[id]=1 end;return out end
     return Formation.teams(users,groups,r.maximum,countOf(r),packed(r))or Formation.split(users,groups,r.maximum,countOf(r),packed(r))
 end
-function M.selection(r,users,groups)
+function M.selection(r,users,groups,near)
     assert(M.valid(r),'Invalid official rules');assert(#users>=1 and #users<=r.maximum,'Invalid official roster')
     local sorted=table.clone(users);table.sort(sorted);local teams={}
-    if r.mode=='teams'then
+    local together=r.mode=='teams'and not hvn(r)and near and M.teams(r,sorted,near)
+    if together then teams=together
+    elseif r.mode=='teams'then
         if hvn(r)then for _,id in ipairs(sorted)do teams[id]=1 end
         elseif groups and next(groups)or packed(r)then teams=assert(M.teams(r,sorted,groups),'Party roster exceeds a side')
         else local count=countOf(r);for i,id in ipairs(sorted)do teams[id]=(i-1)%count+1 end end

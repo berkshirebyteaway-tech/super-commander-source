@@ -38,23 +38,57 @@ local function before(a,b)
     if wa~=wb then return wa>wb end
     return order[a.key]<order[b.key]
 end
+local K=require(script.Parent.Kit20)
+local function click()require(script.Parent.ToyAudio).play("click")end
 local function text(UI,parent,name,value,size,color,font,align)
+    if UI==K then
+        local t=K.text(parent,name,value,size,color,font==Enum.Font.BuilderSansBold and 800 or 700,align or Left);t:SetAttribute("Kit20",true);return t
+    end
     local t=UI.label(parent,name,value,size,color);t.Font=font or Enum.Font.BuilderSansMedium
     t.TextWrapped=false;t.TextTruncate=Enum.TextTruncate.AtEnd;t.TextXAlignment=align or Left;return t
 end
-local function measure(t)return TextService:GetTextSize(t.Text,t.TextSize,t.Font,Vector2.new(1000,100)).X end
-function M.new(parent,onSelect,theme)
+local function measure(t)
+    if t:GetAttribute("Kit20")then return K.width(t.Text,t.TextSize,t)end
+    return TextService:GetTextSize(t.Text,t.TextSize,t.Font,Vector2.new(1000,100)).X
+end
+function M.new(parent,onSelect,theme,lobby)
     local UI=theme or Theme;local C=UI.colors
     local self=setmetatable({selected="world",category="featured",query="",onSelect=onSelect,UI=UI,items={},cards={},tabs={},headers={},rasters={},spare={},queue={},connections={},alive=true},M)
     self.touch=require(script.Parent.InputMode).touch()
+    if require(script.Parent.Lobby20).ENABLED then
+        local W20=require(script.Parent.Setup20);local l=lobby or W20.lobbyFor(parent)
+        if l then
+            local win=W20.open(l,parent,"maps")
+            W20.head(win,"지도 선택",l.backTo and function()l:back()end or nil,function()l.returnPage=nil;l:closePage()end)
+            local host=K.make("Frame",win.card,{Name="MapHost",BackgroundTransparency=1,BorderSizePixel=0})
+            K.box(host,win.x,win.top,win.w,win.bottom-win.top)
+            self.v2={win=win,host=host};parent=host;C=K.colors
+        end
+    end
+    local v2=self.v2~=nil;local T=v2 and K or UI
+    self.T=T
     local f=UI.make("Frame",parent,{Name="MapBrowser",BackgroundTransparency=1,BorderSizePixel=0});self.frame=f
-    local search=UI.corner(UI.make("TextBox",f,{Name="Search",Text="",PlaceholderText="지도 이름 검색",ClearTextOnFocus=false,BackgroundColor3=C.raised,TextColor3=C.ink,PlaceholderColor3=C.muted,TextSize=14,Font=Enum.Font.BuilderSansMedium,BorderSizePixel=0,TextXAlignment=Left,ClipsDescendants=true}),3)
-    UI.stroke(search,C.line,1);UI.make("UIPadding",search,{PaddingLeft=UDim.new(0,32),PaddingRight=UDim.new(0,36)});self.search=search
+    local search
+    if v2 then
+        search=K.make("TextBox",f,{Name="Search",Text="",PlaceholderText="지도 이름 검색",ClearTextOnFocus=false,BackgroundColor3=C.bg,TextColor3=C.ink,PlaceholderColor3=C.muted,TextSize=14,BorderSizePixel=0,TextXAlignment=Left,ClipsDescendants=true})
+        if K.fonts[700]then search.FontFace=K.fonts[700]end;K.round(search,8);K.stroke(search,C.line,1,0,true)
+    else
+        search=UI.corner(UI.make("TextBox",f,{Name="Search",Text="",PlaceholderText="지도 이름 검색",ClearTextOnFocus=false,BackgroundColor3=C.raised,TextColor3=C.ink,PlaceholderColor3=C.muted,TextSize=14,Font=Enum.Font.BuilderSansMedium,BorderSizePixel=0,TextXAlignment=Left,ClipsDescendants=true}),3)
+        UI.stroke(search,C.line,1)
+    end
+    UI.make("UIPadding",search,{PaddingLeft=UDim.new(0,32),PaddingRight=UDim.new(0,36)});self.search=search
     self.lens=UI.make("Frame",f,{Name="SearchIcon",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=2,Size=UDim2.fromOffset(16,16)})
-    local ring=UI.make("Frame",self.lens,{Name="Ring",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=2,Size=UDim2.fromOffset(11,11)});UI.corner(ring,40);UI.stroke(ring,C.muted,2)
+    local ring=UI.make("Frame",self.lens,{Name="Ring",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=2,Size=UDim2.fromOffset(11,11)})
+    if v2 then K.round(ring,"pill");K.stroke(ring,C.muted,2)else UI.corner(ring,40);UI.stroke(ring,C.muted,2)end
     UI.make("Frame",self.lens,{Name="Handle",BackgroundColor3=C.muted,BorderSizePixel=0,ZIndex=2,Rotation=45,Position=UDim2.fromOffset(9,11),Size=UDim2.fromOffset(6,2)})
-    self.clear=UI.button(f,"Clear","×",function()search.Text=""end)
-    self.clear.BackgroundTransparency=1;self.clear.TextColor3=C.muted;self.clear.TextSize=20;self.clear.ZIndex=2;self.clear.Visible=false
+    if v2 then
+        self.clear=K.make("TextButton",f,{Name="Clear",Text="",BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,ZIndex=2,Visible=false})
+        local x=K.icon(self.clear,"x",14,C.muted,"Icon");x.AnchorPoint=Vector2.new(.5,.5);x.Position=UDim2.fromScale(.5,.5);x.ZIndex=3
+        self.clear.Activated:Connect(function()click();search.Text=""end)
+    else
+        self.clear=UI.button(f,"Clear","×",function()search.Text=""end)
+        self.clear.BackgroundTransparency=1;self.clear.TextColor3=C.muted;self.clear.TextSize=20;self.clear.ZIndex=2;self.clear.Visible=false
+    end
     search:GetPropertyChangedSignal("Text"):Connect(function()
         local q=string.lower(search.Text)
         if q~=""and self.query==""and self.category=="featured"then self.category="all"end
@@ -62,15 +96,21 @@ function M.new(parent,onSelect,theme)
     end)
     self.categories=UI.make("ScrollingFrame",f,{Name="Categories",BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=0,CanvasSize=UDim2.fromOffset(0,0),ScrollingDirection=Enum.ScrollingDirection.Y})
     for _,c in ipairs(M.CATEGORIES)do
-        local b=UI.button(self.categories,"Filter_"..c.id,"",function()require(script.Parent.TelemetryStep).step("map_ui","mapCategory",{item=c.id});self.category=c.id;self:refresh(true)end);b.AutoButtonColor=false
-        local t={button=b,category=c,mark=UI.make("Frame",b,{Name="Mark",BackgroundColor3=C.accent,BorderSizePixel=0,Visible=false}),
-            label=text(UI,b,"Label",c.label,14,C.ink),count=text(UI,b,"Count","",12,C.muted)}
+        local function pick()require(script.Parent.TelemetryStep).step("map_ui","mapCategory",{item=c.id});self.category=c.id;self:refresh(true)end
+        local b,edge
+        if v2 then
+            b=K.make("TextButton",self.categories,{Name="Filter_"..c.id,Text="",BackgroundColor3=C.raised,BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false})
+            K.round(b,8);edge=K.stroke(b,C.line,1,0,true);b.Activated:Connect(function()click();pick()end)
+        else b=UI.button(self.categories,"Filter_"..c.id,"",pick);b.AutoButtonColor=false end
+        local t={button=b,edge=edge,category=c,mark=UI.make("Frame",b,{Name="Mark",BackgroundColor3=C.accent,BorderSizePixel=0,Visible=false}),
+            label=text(T,b,"Label",c.label,14,C.ink),count=v2 and K.num(b,"Count","",13,C.muted)or text(UI,b,"Count","",12,C.muted)}
+        if v2 then K.round(t.mark,"pill");t.count:SetAttribute("Kit20",true)end
         table.insert(self.tabs,t)
     end
     self.railLine=UI.make("Frame",f,{Name="RailLine",BackgroundColor3=C.line,BorderSizePixel=0})
-    self.grid=UI.make("ScrollingFrame",f,{Name="Grid",BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,ScrollBarImageColor3=C.line,CanvasSize=UDim2.fromOffset(0,0),ScrollingDirection=Enum.ScrollingDirection.Y})
+    self.grid=UI.make("ScrollingFrame",f,{Name="Grid",BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=v2 and 3 or 4,ScrollBarImageColor3=C.line,CanvasSize=UDim2.fromOffset(0,0),ScrollingDirection=Enum.ScrollingDirection.Y})
     self.content=UI.make("Frame",self.grid,{Name="Content",BackgroundTransparency=1,BorderSizePixel=0})
-    self.empty=text(UI,self.grid,"Empty","검색 결과가 없어요. 다른 지도 이름으로 찾아보세요.",14,C.muted,nil,Center);self.empty.TextWrapped=true;self.empty.Visible=false
+    self.empty=text(T,self.grid,"Empty","검색 결과 없음",14,C.muted,nil,Center);self.empty.TextWrapped=true;self.empty.Visible=false
     table.insert(self.connections,self.grid:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
         self:window();task.defer(function()if self.alive then self:window()end end)
     end))
@@ -83,7 +123,9 @@ function M:card(m)
     local c=self.cards[m.key];if c then return c end
     local UI=self.UI;local C=UI.colors
     c={key=m.key}
-    local b=UI.button(self.content,"Map_"..m.key,"",function()self.selected=m.key;self:refreshSelection();self.onSelect(m.key)end)
+    local function pick()self.selected=m.key;self:refreshSelection();self.onSelect(m.key)end
+    if self.v2 then return self:card20(m,c,pick)end
+    local b=UI.button(self.content,"Map_"..m.key,"",pick)
     b.BackgroundColor3=C.raised;c.button=b;c.stroke=UI.stroke(b,C.line,1)
     c.picture=UI.corner(UI.make("Frame",b,{Name="Preview",BackgroundColor3=C.ocean,BorderSizePixel=0,ClipsDescendants=true}),3)
     c.title=text(UI,b,"Title",m.label,15,C.ink,Enum.Font.BuilderSansBold)
@@ -95,6 +137,25 @@ function M:card(m)
     c.teams=(m.teamCount or 0)>0 and badge("Teams",string.format("%d팀",m.teamCount),C.panel,C.ice)or nil
     if c.teams then c.teams.BackgroundTransparency=.15 end
     c.check=badge("Selected","✓",C.accent,C.bg);c.check.TextSize=13
+    self.cards[m.key]=c;self:refreshSelection()
+    return c
+end
+function M:card20(m,c,pick)
+    local C=K.colors
+    local b=K.make("TextButton",self.content,{Name="Map_"..m.key,Text="",BackgroundColor3=C.panel,BorderSizePixel=0,AutoButtonColor=false})
+    K.round(b,8);c.button=b;c.stroke=K.stroke(b,C.line,1,0,true)
+    b.Activated:Connect(function()click();pick()end)
+    b.MouseEnter:Connect(function()if self.selected~=c.key then c.stroke.Color=C.muted end end)
+    b.MouseLeave:Connect(function()if self.selected~=c.key then c.stroke.Color=C.line end end)
+    c.picture=K.make("Frame",b,{Name="Preview",BackgroundColor3=C.ocean,BorderSizePixel=0,ClipsDescendants=true});K.round(c.picture,6)
+    c.title=text(K,b,"Title",m.label,15,C.ink,Enum.Font.BuilderSansBold)
+    c.detail=text(K,b,"Detail",#(m.nations or {})>0 and string.format("라이벌 %d명",#m.nations)or m.description or "",12,C.muted)
+    if m.isNew then local chip,w=K.chip(c.picture,"New","NEW","accent",{size=11,height=18,filled=true,icon=false});chip.ZIndex=2;c.new,c.newW=chip,w end
+    if (m.teamCount or 0)>0 then
+        local chip,_,_,l=K.chip(c.picture,"Teams",string.format("%d팀",m.teamCount),nil,{size=11,height=18,icon=false});chip.ZIndex=2;l.TextColor3=C.ice;c.teams=chip
+    end
+    local check=K.make("Frame",c.picture,{Name="Selected",BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=2,Size=UDim2.fromOffset(20,20)});K.round(check,"pill")
+    local mark=K.icon(check,"check",12,C.bg,"Icon");K.box(mark,4,4,12,12);mark.ZIndex=3;c.check=check
     self.cards[m.key]=c;self:refreshSelection()
     return c
 end
@@ -124,7 +185,9 @@ function M:refresh(reset)
     self.items=items;self.rects=nil;self.visibleCount=0;for _,item in ipairs(items)do if item.map then self.visibleCount+=1 end end
     for _,t in ipairs(self.tabs)do
         local on=t.category.id==self.category;t.on=on;t.count.Text=tostring(counts[t.category.id])
-        t.label.Font=on and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium;t.empty=counts[t.category.id]==0
+        if self.v2 then local face=K.fonts[on and 800 or 700];if face then t.label.FontFace=face end
+        else t.label.Font=on and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium end
+        t.empty=counts[t.category.id]==0
     end
     self.clear.Visible=q~="";self.empty.Visible=#items==0
     if q~=""then require(script.Parent.TelemetryStep).change("mapSearch","map_ui","search",{result=#items==0 and "unavailable"or "shown",value=#items})end
@@ -132,11 +195,13 @@ function M:refresh(reset)
     if self.width then self:layout(self.width)end;if self.onLayout then self.onLayout()end
 end
 function M:layout(width,short)
-    local UI=self.UI;local C=UI.colors
+    local UI=self.UI;local C=UI.colors;local v2=self.v2
     if short~=nil then self.short=short end
+    if v2 then width=v2.host.Size.X.Offset end
     self.width=width
     local parentHeight=self.frame.Parent and self.frame.Parent.AbsoluteSize.Y/Theme.scale or 0
     local height=math.floor(parentHeight>0 and math.max(self.short and 200 or 280,parentHeight)or 420)
+    if v2 then height=v2.host.Size.Y.Offset end
     local row=self.touch and 44 or 38;local rail=width>=600;local gx,gy
     if rail then
         UI.box(self.search,0,0,RAIL,44);self.categories.ScrollingDirection=Enum.ScrollingDirection.Y;UI.box(self.categories,0,52,RAIL,height-52)
@@ -146,6 +211,7 @@ function M:layout(width,short)
             UI.box(t.button,0,y,RAIL,row);UI.box(t.mark,0,8,3,row-16);UI.box(t.label,14,0,RAIL-60,row);UI.box(t.count,RAIL-44,0,32,row)
             t.count.TextXAlignment=Right;t.mark.Visible=t.on
             t.button.BackgroundColor3=C.raised;t.button.BackgroundTransparency=t.on and 0 or 1
+            if t.edge then t.edge.Enabled=false end
             t.label.TextColor3=t.empty and not t.on and C.muted or C.ink;t.count.TextColor3=t.on and C.accent or C.muted
             y+=row+2
         end
@@ -158,15 +224,22 @@ function M:layout(width,short)
             t.label.TextSize=14;local lw,cw=measure(t.label),measure(t.count);local w=math.ceil(14+lw+6+cw+14)
             UI.box(t.button,x,0,w,row);UI.box(t.label,14,0,lw+2,row);UI.box(t.count,14+lw+6,0,cw+2,row)
             t.count.TextXAlignment=Left;t.mark.Visible=false
-            t.button.BackgroundTransparency=0;t.button.BackgroundColor3=t.on and C.accent or C.raised
-            t.label.TextColor3=t.on and C.bg or t.empty and C.muted or C.ink;t.count.TextColor3=t.on and C.bg or C.muted
+            if v2 then
+                t.button.BackgroundTransparency=t.on and 0 or 1;t.button.BackgroundColor3=C.raised
+                t.edge.Enabled=true;t.edge.Color=t.on and C.accent or C.line
+                t.label.TextColor3=t.on and C.ink or t.empty and C.muted or C.ink;t.count.TextColor3=t.on and C.accent or C.muted
+            else
+                t.button.BackgroundTransparency=0;t.button.BackgroundColor3=t.on and C.accent or C.raised
+                t.label.TextColor3=t.on and C.bg or t.empty and C.muted or C.ink;t.count.TextColor3=t.on and C.bg or C.muted
+            end
             x+=w+6
         end
         self.categories.CanvasSize=UDim2.fromOffset(math.max(0,x-6),0);self.railLine.Visible=false
         gx,gy=0,52+row+10
     end
     local sx,sy=self.search.Position.X.Offset,self.search.Position.Y.Offset;local sw=self.search.Size.X.Offset
-    UI.box(self.lens,sx+12,sy+15,16,16);UI.box(self.clear,sx+sw-40,sy+2,38,40)
+    UI.box(self.lens,sx+12,sy+15,16,16)
+    if v2 then UI.box(self.clear,sx+sw-44,sy,44,44)else UI.box(self.clear,sx+sw-40,sy+2,38,40)end
     local gw,gh=width-gx,height-gy;UI.box(self.grid,gx,gy,gw,gh)
     local inner=gw-12;local cols=inner>=640 and 4 or inner>=420 and 3 or 2
     local cw=math.floor((inner-(cols-1)*GAP)/cols);local ph=math.floor(cw*(self.short and .48 or .56));local ch=ph+56
@@ -175,7 +248,7 @@ function M:layout(width,short)
         if item.header then
             if col>0 then y+=ch+GAP;col=0 end
             headers+=1;local h=self.headers[headers]
-            if not h then h={label=text(UI,self.content,"Shelf"..headers,"",13,C.muted,Enum.Font.BuilderSansBold),line=UI.make("Frame",self.content,{Name="ShelfLine"..headers,BackgroundColor3=C.line,BorderSizePixel=0})};self.headers[headers]=h end
+            if not h then h={label=text(self.T,self.content,"Shelf"..headers,"",13,C.muted,Enum.Font.BuilderSansBold),line=UI.make("Frame",self.content,{Name="ShelfLine"..headers,BackgroundColor3=C.line,BorderSizePixel=0})};self.headers[headers]=h end
             h.label.Text=item.header;h.label.Visible=true;h.line.Visible=true
             local tw=measure(h.label);UI.box(h.label,2,y,tw+4,28);UI.box(h.line,tw+16,y+14,math.max(0,inner-tw-16),1)
             rects[i]={x=0,y=y,w=inner,h=28};y+=34
@@ -192,9 +265,15 @@ function M:layout(width,short)
             if c.width~=cw then
                 c.width=cw;c.drawn=false;UI.box(c.picture,6,6,cw-12,ph)
                 UI.box(c.title,10,ph+12,cw-20,20);UI.box(c.detail,10,ph+32,cw-20,16)
-                if c.new then UI.box(c.new,6,6,38,18)end
-                if c.teams then UI.box(c.teams,c.new and 48 or 6,6,math.max(30,math.ceil(measure(c.teams))+12),18)end
-                UI.box(c.check,cw-12-28,6,22,18)
+                if v2 then
+                    if c.new then c.new.Position=UDim2.fromOffset(6,6)end
+                    if c.teams then c.teams.Position=UDim2.fromOffset(c.new and 6+c.newW+4 or 6,6)end
+                    c.check.Position=UDim2.fromOffset(cw-12-26,6)
+                else
+                    if c.new then UI.box(c.new,6,6,38,18)end
+                    if c.teams then UI.box(c.teams,c.new and 48 or 6,6,math.max(30,math.ceil(measure(c.teams))+12),18)end
+                    UI.box(c.check,cw-12-28,6,22,18)
+                end
             end
         end
     end
@@ -224,7 +303,8 @@ function M:window()
                 if #self.rasters<M.IMAGES then r=Raster.new(c.picture,128,72);table.insert(self.rasters,r)
                 else for _,other in pairs(self.cards)do if other.raster and not keep[other]then r=other.raster;other.raster=nil;other.drawn=nil;break end end end
             end
-            if r then r.parent=c.picture;r.label.Parent=c.picture;r.label.Visible=false;c.raster=r;c.drawn=false;self:enqueue(c)end
+            if r then r.parent=c.picture;r.label.Parent=c.picture;r.label.Visible=false;c.raster=r;c.drawn=false;self:enqueue(c)
+                if self.v2 and r.label:IsA("ImageLabel")then K.round(r.label,6)end end
         end
     end
     self:pump()

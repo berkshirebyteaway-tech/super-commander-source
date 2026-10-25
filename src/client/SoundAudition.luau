@@ -8,11 +8,19 @@ local rows={
     {"block","Front clash","repeat",{9113880475,9125540235}},
     {"shell","Warship shell","repeat",{9116973350,9126009582}},
     {"click","Console click","repeat",{}},
+    {"orderTap","Order press (instant)","event",{9120456673,9120458071}},
+    {"attackLight","Attack 10%","event",{9126010351}},
+    {"attackHeavy","Attack 50%+","event",{9126010351}},
+    {"orderDrum","Attack 20% drum","event",{1846435399,1842312832}},
+    {"orderImpact","Attack 50%+ impact","event",{1848272916,9039709283}},
+    {"buildHammer","Build City/Port","event",{9114756497,9114755819}},
+    {"buildRatchet","Build Factory/SAM/Ship","event",{9118045838,9118046124}},
+    {"buildHeavy","Build Defense/Silo","event",{9125484367}},
     {"combo","Capture combo","event",{9113867159,9114642723}},
     {"grow","Troop cap growth","event",{9126073001,9119802009}},
     {"attack","Attack sent","event",{9120456889,9118018717}},
     {"build","Build order","event",{}},
-    {"upgrade","Upgrade order","event",{}},
+    {"upgrade","Upgrade order","event",{9125665221,9117884499}},
     {"complete","Build complete","event",{9114285303,9117885256}},
     {"trade","Trade","event",{9125726282,9113848780}},
     {"request","Request received","event",{9126075967,9119141871}},
@@ -32,7 +40,7 @@ local rows={
     {"nuke","Hydrogen / MIRV","blast",{}},
     {"eliminated","Nation eliminated","blast",{9116973611,9126009582}},
     {"betrayal","Betrayal","sting",{9126009638}},
-    {"conquest","Conquest","sting",{9042408957,1846901962}},
+    {"conquest","Conquest","sting",{9126073644,9043511976}},
     {"milestone","Milestone","sting",{1846901962,9042409272}},
     {"start","Match start","sting",{9113343286,1841717931}},
     {"timeUp","Time up","sting",{1846902219}},
@@ -105,6 +113,19 @@ function M.open(audio)
             refresh(false);table.insert(state,s)
         end
     end
+    local music=require(script.Parent.LobbyMusic);local preview
+    local sets={{"Lobby",music.tracks},{"Queue",music.queueTracks},{"Old calm",music.calm},{"Roll",{music.roll}}}
+    local order=#rows
+    for _,set in ipairs(sets)do for j,id in ipairs(set[2])do
+        order+=1;local row=make("Frame",list,{Name="Music"..id,LayoutOrder=order,Size=UDim2.new(1,-8,0,32),BackgroundColor3=colors.panel})
+        text(row,"Label",set[1].." "..j.." · "..id,8,240,j==1 and set[1]=="Lobby"and colors.accent or colors.ink)
+        button(row,"Play","Play",256,60,function()
+            if not preview then preview=make("Sound",SoundService,{Name="AuditionMusic"})end
+            preview:Stop();preview.SoundId="rbxassetid://"..id;preview.Volume=music.volume*2;preview.TimePosition=set[1]=="Roll"and 0 or 20;preview:Play()
+            local mine=preview.SoundId;task.delay(30,function()if preview and preview.SoundId==mine then preview:Stop()end end)
+        end)
+        button(row,"Stop","Stop",320,60,function()if preview then preview:Stop()end end)
+    end end
     local function result()
         local picks,lines={},{}
         for _,s in ipairs(state) do
@@ -135,6 +156,11 @@ function M.open(audio)
         if sheet then sheet:Destroy();sheet=nil;return end
         sheet=make("TextBox",panel,{Name="ResultText",Position=UDim2.fromOffset(8,64),Size=UDim2.new(1,-16,1,-72),BackgroundColor3=colors.panel,TextColor3=colors.ink,Font=Enum.Font.Code,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,ClearTextOnFocus=false,TextEditable=false,MultiLine=true,TextWrapped=false,Text=result(),ZIndex=5})
     end)
-    button(head,"Close","Close",410,86,function()gui:Destroy()end)
+    if audio.packs then
+        status.Size=UDim2.new(0,290,1,0);status.TextTruncate=Enum.TextTruncate.AtEnd
+        local packRow=make("Frame",panel,{Name="Packs",Position=UDim2.fromOffset(300,40),Size=UDim2.fromOffset(208,22),BackgroundTransparency=1})
+        for i,name in ipairs({"A","B","C","D"})do button(packRow,"Pack"..name,"Order "..name,(i-1)*52,48,function()audio.usePack(name);status.Text="Order pack "..name.." in use. Give an order in the match."end)end
+    end
+    button(head,"Close","Close",410,86,function()if preview then preview:Destroy()end;gui:Destroy()end)
 end
 return M

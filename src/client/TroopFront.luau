@@ -29,6 +29,11 @@ function M:update(state,player)
     local attacking=player and M.committed(state.operations)or 0
     local home,away=M.shares(player and player.troops,attacking,player and player.cap)
     local f,cap=self.frame,self.cap;local fill=self.track:FindFirstChild('Fill')
+    if self.track:GetAttribute('V2')then
+        f.Visible=false;cap.Visible=false;f:SetAttribute('Troops',attacking)
+        local low=home<=.15 and (player and (player.tiles or 0)>0)
+        require(script.Parent.Hud20).paintTroops(self.track,home,away,low);return
+    end
     f.Visible=away>0 and fill~=nil;cap.Visible=f.Visible
     if f.Visible then
         local color=endColor(fill);local fc=fill:FindFirstChildOfClass('UICorner');local r=fc and fc.CornerRadius or UDim.new(0,0)

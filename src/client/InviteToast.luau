@@ -5,7 +5,6 @@ function M.show(lobby,r)
     local Step=require(script.Parent.TelemetryStep)
     if lobby.inviteCard and lobby.inviteCard.Parent then lobby.inviteCard:Destroy();Step.step('social','inviteToast',{result='closed',reason='replaced'})end
     Step.step('social','inviteToast',{result='shown'})
-    local Tween=game:GetService('TweenService')
     local match=M.inMatch and M.inMatch()
     local card=UI.panel(match and M.parent or lobby.root,'PartyInviteCard');card.ZIndex=match and 18 or 46;card.Active=true;lobby.inviteCard=card
     local rw=lobby.root.AbsoluteSize.X/Theme.scale;local w=math.min(340,rw-24);UI.box(card,(rw-w)/2,64,w,112)
@@ -26,13 +25,13 @@ function M.show(lobby,r)
         card:SetAttribute('Edge',true);M.paint=function(sw)require(script.Parent.DiplomacyInbox).card(card,{edge=edge,avatar=face,name=title,line=left,bar=bar,fraction=bar:GetAttribute('Fraction')or 1,buttons={accept,decline},color=Theme.colors.accent},sw)end
         M.paint(rw)
     else
-        card.AnchorPoint=Vector2.new(.5,0)
-        card.Position=UDim2.new(.5,0,0,64);card.Size=UDim2.new(1,-24,0,112)
+        card.AnchorPoint=Vector2.new(.5,.5)
+        card.Position=UDim2.new(.5,0,0,64+56);card.Size=UDim2.new(1,-24,0,112)
         UI.make('UISizeConstraint',card,{MaxSize=Vector2.new(340,112)})
         title.Size=UDim2.new(1,-28,0,30);left.Size=UDim2.new(1,-28,0,18)
         accept.Size=UDim2.new(.5,-18,0,36)
         decline.Position=UDim2.new(.5,4,0,64);decline.Size=UDim2.new(.5,-18,0,36)
-        local scale=UI.make('UIScale',card,{Scale=.7});Tween:Create(scale,TweenInfo.new(.3,Enum.EasingStyle.Quint),{Scale=1}):Play()
+        local K=require(script.Parent.Kit20);card.Visible=false;K.appear(card,{scaleFrom=.96,t=.16})
     end
     pcall(function()require(script.Parent.ToyAudio).play('milestone')end)
     if M.changed then M.changed()end

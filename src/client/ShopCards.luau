@@ -90,7 +90,7 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
     end
     ry+=rh+(slim and 6 or 12)
     if kind=='basic'then
-        if not slim then K.text(card,'Refund',string.format('중복이면 코인 %d 돌려받아요',M.refund),pad,ry,w-pad*2,20,13,UI.colors.muted,LEFT)end
+        if not slim then K.text(card,'Refund',string.format('중복 +%d 코인',M.refund),pad,ry,w-pad*2,20,13,UI.colors.muted,LEFT)end
     else
         local shards=not billing.testingAvailable and billing.fragments and billing.fragments[kind]or 0
         K.text(card,'ShardLabel','조각',pad,ry,34,16,13,UI.colors.muted)
@@ -139,9 +139,8 @@ M.members={
         tiles={{'custom','커스텀 게임','공개 방 만들기','공개 방'},{'friends','채팅 켜기','경기 채팅, 음성, 이모지 전체','글, 음성, 이모지'}},
         rest={string.format('매일 뽑기권 %d장, XP 2배, 지휘 모션, 경기 관전',Launch.clubDailyTickets)}},
     permanent={name=Launch.permanent.name,color=UI.colors.prime,icon='marshal',period='영구',cta='구매하기',owned='보유 중',ptype='pass',fallback=Launch.permanent.suggestedRobux,
-        tiles={{'clan','클랜 만들기와 가입','프라임만 클랜을 만들고 들어가요','클랜은 프라임 전용이에요',emblem=true}},tickets=true,
-        rest={string.format('XP 2배, 프리셋 %d칸, 설정 보관함 %d칸',Launch.permanentLoadouts,Launch.permanentPresets)},
-        short={string.format('XP 2배, 프리셋 %d칸, 보관함 %d칸',Launch.permanentLoadouts,Launch.permanentPresets)}},
+        tiles={{'clan','클랜 만들기와 가입','정원 100','정원 100',emblem=true}},tickets=true,
+        rest={'XP 2배, 이름 옆 프라임 마크'},short={'XP 2배, 프라임 마크'}},
 }
 local Tween=game:GetService('TweenService')
 local function loop(o,info,goal)local ok,t=pcall(function()return Tween:Create(o,info,goal)end);if ok and t then t:Play()end end
@@ -170,7 +169,7 @@ local function ticketStrip(card,x,y,w,h,slim,owned,color)
     local keys={};for _,r in ipairs({'epic','legendary','mythic'})do for _=1,welcome[r]do table.insert(keys,r)end end
     local gx=w-12;local cy=h/2
     for k=#keys,1,-1 do local s=sizes[keys[k]];gx-=s*.72;gem(strip,'Gem'..k,keys[k],gx,cy,s);gx-=s*.72+(k>1 and keys[k-1]~=keys[k]and 6 or 2)end
-    local label=owned and string.format('뽑기권 %d장 받았어요',welcomeCount)or string.format('뽑기권 %d장 한 번에 지급',welcomeCount)
+    local label=owned and string.format('✓ 뽑기권 %d장',welcomeCount)or string.format('뽑기권 %d장 한 번에 지급',welcomeCount)
     K.text(strip,'Title',label,12,0,gx-16,h,slim and 14 or 16,color,LEFT,K.heavy)
 end
 function M.member(hub,parent,shop,billing,sku,x,y,w,h,slim)
@@ -194,6 +193,7 @@ function M.member(hub,parent,shop,billing,sku,x,y,w,h,slim)
         if sx+K.width(was,13)<=w-pad-90 then local l=K.text(card,'WasPrice','<s>'..was..'</s>',sx,pad+(slim and 20 or 28),K.width(was,13)+6,22,13,UI.colors.muted);l.RichText=true end
     end
     local ty=pad+is+(slim and 8 or 16);local n=#o.tiles;local tg=8;local tw=(w-pad*2-(n-1)*tg)/n;local th=o.tickets and (slim and 70 or 88)or slim and 82 or (n==1 and 100 or 104)
+    if o.tickets then local room=h-pad-(slim and 48 or 46)-6-(slim and 36 or 44)-(slim and 8 or 12)-ty;if th>room then th=math.max(slim and 52 or 64,room)end end
     for i,t in ipairs(o.tiles)do
         local tile=K.round(UI.make('Frame',card,{Name='Perk_'..t[1],BackgroundColor3=n==1 and color:Lerp(UI.colors.panel,.86)or UI.colors.raised,BackgroundTransparency=.1,BorderSizePixel=0}),8)
         UI.box(tile,pad+(i-1)*(tw+tg),ty,tw,th);UI.stroke(tile,color:Lerp(UI.colors.line,.4),1)
@@ -242,14 +242,12 @@ function M.member(hub,parent,shop,billing,sku,x,y,w,h,slim)
     return card
 end
 M.perkList={
-    club={{'custom','공개 커스텀 게임','내가 만든 방을 누구나 찾아 들어와요'},{'friends','경기 채팅과 음성','로비 글 채팅은 누구나 무료예요'},
+    club={{'custom','공개 커스텀 게임','방 목록에 공개'},{'friends','경기 채팅과 음성','글, 음성, 팀 전용'},
         {'cheer','이모지와 모션 전부','빠른 이모지와 지휘 모션을 다 써요'},{'daily',string.format('매일 뽑기권 %d장',Launch.clubDailyTickets),'구독 중 접속한 날마다 받아요'},
         {'xp','계정 XP 2배','프라임도 있으면 4배예요'},{'watch','다른 경기 관전','진행 중인 경기를 지켜볼 수 있어요'}},
     permanent={{'clan','클랜 만들기와 가입','프라임만 클랜을 만들고 들어가요'},
         {'reward',string.format('뽑기권 %d장 한 번에',welcomeCount),string.format('에픽 %d장, 전설 %d장, 신화 %d장을 바로 드려요',welcome.epic,welcome.legendary,welcome.mythic)},
         {'xp','평생 계정 XP 2배','VIP도 있으면 4배예요'},
-        {'wardrobe',string.format('스킨 프리셋 %d칸',Launch.permanentLoadouts),string.format('기본 %d칸에서 %d칸 늘어나요',Launch.freeLoadouts,Launch.permanentLoadouts-Launch.freeLoadouts)},
-        {'custom',string.format('커스텀 설정 %d칸',Launch.permanentPresets),'커스텀 게임 설정을 저장해 둬요'},
         {'marshal','프라임 커맨더 마크','이름 옆에 프라임 표시가 붙어요'}},
 }
 M.perkNote={club='30일마다 자동 갱신, 언제든 해지',permanent='한 번 결제로 계속 유지'}

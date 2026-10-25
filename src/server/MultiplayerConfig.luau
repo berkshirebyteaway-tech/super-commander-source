@@ -1,7 +1,7 @@
 return {
     rankedEnabled=true,
     globalPvpEnabled=true,
-    queueProtocol=5,
+    queueProtocol=6,
     profileStore="ToyfrontCareer_v1",winsStore="ToyfrontWins_v1",
     spawnSeconds=20,resultSeconds=18,reconnectSeconds=180,
     disconnectMarkSeconds=30,
@@ -10,4 +10,7 @@ return {
     maxPracticeRooms=8,
     lobbyPlaceId=101282682650996,matchPlaceId=101282682650996,
     creatorGroupId=141950845,
+    comebackMessageId='911a2c8d-edab-3243-9ffc-3aa82c8b396b',
+    streakMessageId='9a11248d-1ded-da45-8580-7ed4cce32e07',
+    sortieMessageId='2449b023-71ff-8541-ad0b-260dfa59716b',
 }

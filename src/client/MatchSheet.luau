@@ -64,20 +64,107 @@ end
 function M.lock(parent,size,color)
     local i=Icons.create(parent,'lock',size or 12,color or C.muted);i.ZIndex=parent.ZIndex+2;return i
 end
-function M.banner(parent,name,text,feature,y,w,h)
-    local VipLock=require(script.Parent.VipLock)
+function M.banner(parent,name,text,y,w,h)
     if M.touch()then h=math.max(h or 40,48)end
-    local b=UI.button(parent,name,'',function()VipLock.offer(feature)end);b.BackgroundColor3=Style.colors.chip;b.ZIndex=parent.ZIndex+1
+    local b=UI.make('Frame',parent,{Name=name,BackgroundColor3=Style.colors.chip,BorderSizePixel=0,ZIndex=parent.ZIndex+1})
     Style.round(b,8);Style.line(b,Style.colors.line,1);UI.box(b,0,y,w,h or 40)
-    local lock=M.lock(b,13,C.muted);UI.box(lock,12,((h or 40)-13)/2,13,13)
-    local l=UI.label(b,'Text',text,13,C.muted);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(l,32,0,w-32-86,h or 40);l.ZIndex=b.ZIndex+1
-    local link=UI.label(b,'More','VIP 보기 ›',13,SKY);link.Font=Enum.Font.BuilderSansBold;link.TextXAlignment=Enum.TextXAlignment.Right;link.TextWrapped=false;UI.box(link,w-92,0,80,h or 40);link.ZIndex=b.ZIndex+1
+    local l=UI.label(b,'Text',text,13,C.muted);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd;UI.box(l,12,0,w-24,h or 40);l.ZIndex=b.ZIndex+1
     return b
 end
 local function caption(parent,name,text,x,y,w,color)
     local l=UI.label(parent,name,text,13,color or C.muted);l.TextWrapped=false;l.TextTruncate=Enum.TextTruncate.AtEnd;l.ZIndex=parent.ZIndex+1;UI.box(l,x,y,w,22);return l
 end
 M.caption=caption
+
+local K
+local function kit()K=K or require(script.Parent.Kit20);return K end
+function M.v2()local ok,H=pcall(require,script.Parent.Hud20);return ok and type(H)=='table'and H.ENABLED==true end
+function M.inset()local v=0;pcall(function()v=game:GetService('GuiService'):GetGuiInset().Y/(UI.scale or 1)end);return v end
+function M.format(w,h,touch)
+    if touch==nil then touch=M.touch()end
+    if not touch or Placement.tablet(w,h,touch)then return 'pc'end
+    return h>w and 'pt'or 'ph'
+end
+function M.rect20(w,h,tall)
+    local fmt=M.format(w,h);local top=M.inset()
+    if fmt=='pc'then
+        local sh=math.max(200,math.min(tall and 462 or 380,h-12-104-8))
+        return {x=w-12-400,y=0,w=400,h=sh,fmt=fmt}
+    elseif fmt=='ph'then
+        local sw=math.min(300,w-12-36-8-12)
+        return {x=w-12-36-8-sw,y=8-top,w=sw,h=math.max(160,h+top-16),fmt=fmt,phone=true}
+    end
+    local sh=math.min(tall and 380 or 360,h-40)
+    return {x=0,y=h-sh,w=w,h=sh,fmt=fmt,phone=true,portrait=true}
+end
+function M.paint20(frame,portrait)
+    kit()
+    for _,s in ipairs(frame:GetChildren())do if s:IsA('UIStroke')and s.Name~='Stroke20'then s.Enabled=false end end
+    frame.BackgroundColor3=Color3.fromRGB(12,17,24);frame.BackgroundTransparency=.03
+    K.round(frame,portrait and 16 or 12);K.stroke(frame,K.colors.line,1,.1,true)
+end
+function M.place20(frame,r)
+    local pos=UDim2.fromOffset(math.floor(r.x+.5),math.floor(r.y+.5))
+    frame.Size=UDim2.fromOffset(math.floor(r.w+.5),math.floor(r.h+.5)+(r.portrait and 16 or 0))
+    frame:SetAttribute('Home20',pos);frame:SetAttribute('Sheet20Fmt',r.fmt)
+    if frame:GetAttribute('Moving20')==nil then frame.Position=pos end
+end
+local function slide(frame)local pt=frame:GetAttribute('Sheet20Fmt')=='pt';return pt and 0 or 24,pt and 24 or 0 end
+function M.motion20(frame)
+    kit()
+    if frame:GetAttribute('Motion20')then return end;frame:SetAttribute('Motion20',true)
+    frame:GetPropertyChangedSignal('Visible'):Connect(function()
+        if not M.v2()or not frame.Visible then return end
+        local moving=frame:GetAttribute('Moving20')
+        if moving=='in'or moving=='out'then return end
+        frame:SetAttribute('Shown20',false);local dx,dy=slide(frame);K.appear(frame,{dx=dx,dy=dy,t=.16})
+    end)
+end
+function M.show20(frame)
+    if not M.v2()then frame.Visible=true;return end
+    kit()
+    if frame.Visible and frame:GetAttribute('Moving20')=='out'then local dx,dy=slide(frame);K.appear(frame,{dx=dx,dy=dy,t=.16});return end
+    frame.Visible=true
+end
+function M.hide20(frame)
+    if not(M.v2()and frame.Visible)then frame.Visible=false;return end
+    kit();local dx,dy=slide(frame);K.leave(frame,{dx=dx,dy=dy,t=.10})
+end
+function M.closing(frame)return frame:GetAttribute('Moving20')=='out'end
+local heads=setmetatable({},{__mode='k'})
+function M.head20(frame,onClose)
+    kit()
+    local v=frame:FindFirstChild('Head20')
+    if v then return v end
+    v=K.make('Frame',frame,{Name='Head20',BackgroundTransparency=1,BorderSizePixel=0,ZIndex=frame.ZIndex+1})
+    K.make('Frame',v,{Name='Rule',BackgroundColor3=K.colors.line,BorderSizePixel=0,ZIndex=v.ZIndex})
+    local x=K.button(v,'Close20',{kind='none',icon='x',iconSize=18},onClose);x.iconColorFixed=true;x.iconImage.ImageColor3=K.colors.muted
+    x.button.ZIndex=v.ZIndex+2;x.face.ZIndex=v.ZIndex+2;x.iconImage.ZIndex=v.ZIndex+3
+    heads[frame]=x
+    return v
+end
+function M.placeHead20(frame,w)
+    local v=M.head20(frame);local x=heads[frame]
+    K.box(v,0,0,w,49);K.box(v.Rule,1,48,w-2,1)
+    x:place(w-45,3,44,44)
+    return v,x
+end
+function M.chip20(parent,name,text,on,pad,fn,skip)
+    kit()
+    local tw=K.width(skip and text or L.text(text),12)
+    local w=tw+(pad or 10)*2
+    local b=K.button(parent,name,{kind='none',text=text,size=12,weight=700,hit=36},fn)
+    if skip then b.label:SetAttribute('LocalizationSkip',true)end
+    b.face.BackgroundTransparency=0;b.face.BackgroundColor3=on and K.colors.ink or K.colors.raised;K.round(b.face,'pill')
+    b.label.TextColor3=on and K.colors.bg or K.colors.muted;b.button:SetAttribute('On',on==true)
+    b.w20=w;return b,w
+end
+function M.fill20(b,padLeft)
+    local l=b.label;if not l then return end
+    local x=b.iconImage and b.iconImage.Visible and(b.iconImage.Position.X.Offset+b.iconSize+b.gap)or padLeft or 0
+    l.Position=UDim2.fromOffset(x,0);l.Size=UDim2.new(1,-x-(padLeft or 0),1,0)
+    l.TextXAlignment=padLeft and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center
+end
 
 function M.new(panel,a,send)
     local self=setmetatable({panel=panel,a=a,send=send,page=nil,state=nil,factions={},sorted={}},M)
@@ -115,12 +202,12 @@ function M:comms(tab,id)
     a.chat.openQuick(tab,id)
 end
 function M:close()
-    if self.frame.Visible then Step.step('hud','sheetClose',{item=self.page})end
-    self.frame.Visible=false;self.page=nil
+    if self.frame.Visible and not M.closing(self.frame)then Step.step('hud','sheetClose',{item=self.page})end
+    M.hide20(self.frame);self.page=nil
 end
 function M:open(page)
-    if self.frame.Visible and self.page==page then self:close();return end
-    Step.step('hud','sheetOpen',{item=page});self.page=page;self.frame.Visible=true
+    if self.frame.Visible and not M.closing(self.frame)and self.page==page then self:close();return end
+    Step.step('hud','sheetOpen',{item=page});self.page=page;M.show20(self.frame)
     self.body.CanvasPosition=Vector2.zero;self.signature=nil;self:draw()
 end
 function M:key(input,shift)
@@ -147,6 +234,18 @@ function M:layout(w,h,touch)
         if self.state.phase=='playing'and not self.state.observer and not self.state.eliminated then self:comms('motion')end;return true
     end end
     local bottom=self.controls and self.controls.Visible and self.controls.Position.Y.Offset or nil
+    if M.v2()then
+        local r=M.rect20(w,h,true);self.r=r
+        M.paint20(self.frame,r.portrait);M.place20(self.frame,r);M.motion20(self.frame)
+        M.head20(self.frame,function()self:close()end);M.placeHead20(self.frame,r.w)
+        self.head.close.Visible=false
+        local t=self.head.title;t.TextSize=16;if K.fonts[800]then t.FontFace=K.fonts[800]end;t.TextColor3=K.colors.ink
+        local tw=math.min(K.width(t.Text,16,t),r.w-140);K.box(t,15,0,tw+4,48);t.ZIndex=self.frame.ZIndex+2
+        local sub=self.head.sub;sub.TextSize=12;sub.TextColor3=K.colors.muted;K.box(sub,15+tw+10,0,r.w-tw-90,48);sub.ZIndex=self.frame.ZIndex+2
+        self.top=57
+        if self.frame.Visible and self.drawnW~=r.w then self.signature=nil;self:draw()end
+        return
+    end
     local r=M.rect(w,h,touch,bottom);self.r=r
     UI.box(self.frame,r.x,r.y,r.w,r.h)
     self.top=M.placeHeader(self.head,r.w,touch)
@@ -157,7 +256,7 @@ local function relation(f)
 end
 function M:drawRanks(w)
     local s=self.state;local list={};local mine
-    for _,f in ipairs(self.sorted)do if (f.tiles or 0)>0 and not f.eliminated then table.insert(list,f);if f.id==1 then mine=#list end end end
+    for _,f in ipairs(self.sorted)do if f.kind~='BOT'and(f.tiles or 0)>0 and not f.eliminated then table.insert(list,f);if f.id==1 then mine=#list end end end
     self.head.title.Text='순위';self.head.sub.Text=string.format('%d명',#list)
     local phone=self.r.phone;local y=0;local body=self.body
     local teamGame=Teams.active(s);if not teamGame then self.rankMode=nil end
@@ -340,7 +439,224 @@ function M:drawDiplomacy(w)
             y+=bh+12
         end
     end
-    if y<bh+40 then caption(body,'Empty','지도에서 상대 땅을 누르면 동맹을 요청할 수 있어요.',0,y,w,C.muted);y+=28 end
+    if y<bh+40 then caption(body,'Empty','상대 땅 눌러 동맹 요청',0,y,w,C.muted);y+=28 end
+    body.CanvasSize=UDim2.fromOffset(0,y+4)
+    return 0
+end
+local function rowH20(r)return r.fmt=='ph'and 40 or 44 end
+local function row20(parent,name,y,w,h,band,dim)
+    local parts=band and {{p=3/w,color=dim and band:Lerp(K.colors.panel,.5)or band}}or {}
+    local r=K.fillBar(parent,name,{parts=parts,track=K.colors.panel,r=8}).frame
+    K.box(r,0,y,w,h);r.ZIndex=parent.ZIndex+1;r.Active=true;return r
+end
+local function word20(parent,name,text,size,color,weight,x,y,w,h,align)
+    local l=K.text(parent,name,text,size,color,weight,align);l.ZIndex=parent.ZIndex+1;K.box(l,x,y,w,h);return l
+end
+local function num20(parent,name,text,size,color,x,y,w,h,align)
+    local l=K.num(parent,name,text,size,color,align);l.ZIndex=parent.ZIndex+1;K.box(l,x,y,w,h);return l
+end
+local function face20(parent,f,size,x,y,ring)
+    local id=f and f.userId;local a=K.avatar(parent,'Face',id and id>0 and id or nil,size,ring,ring and 2 or nil)
+    a.ZIndex=parent.ZIndex+1;a.Position=UDim2.fromOffset(x,y);return a
+end
+local function act20(parent,name,text,kind,x,h,bw,on,fn)
+    local b=K.button(parent,name,{kind=(kind=='ally'or kind=='allyo')and 'none'or kind,text=text,size=13,weight=800,hit=h},fn)
+    b:setEnabled(on)
+    if on and kind=='ally'then b.face.BackgroundTransparency=0;b.face.BackgroundColor3=K.colors.ally;b.label.TextColor3=K.colors.bg
+    elseif on and kind=='allyo'then
+        b.face.BackgroundTransparency=.92;b.face.BackgroundColor3=K.colors.ally;b.faceStroke.Enabled=true;b.faceStroke.Color=K.colors.ally;b.faceStroke.Transparency=.3
+        b.baseStroke=K.colors.ally;b.label.TextColor3=K.colors.ally
+    end
+    b:place(x,math.floor((h-30)/2),bw,30);b.button.ZIndex=parent.ZIndex+2;b.face.ZIndex=parent.ZIndex+2;M.fill20(b);if b.label then b.label.ZIndex=parent.ZIndex+3 end
+    return b
+end
+local function columns20(body,y,w,second,landX)
+    local cols=K.make('Frame',body,{Name='Columns',BackgroundTransparency=1,BorderSizePixel=0,ZIndex=body.ZIndex+1});K.box(cols,0,y,w,20)
+    local m=K.colors.muted
+    word20(cols,'Rank','#',11,m,700,10,0,24,20,Enum.TextXAlignment.Center);word20(cols,'Name',second,11,m,700,44,0,120,20)
+    word20(cols,'Land','영토',11,m,700,landX,0,56,20,Enum.TextXAlignment.Right);word20(cols,'Troops','병력',11,m,700,w-62,0,52,20,Enum.TextXAlignment.Right)
+end
+local function focusRow(row,fn)
+    row.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then fn()end end)
+end
+local function share(v)v=(v or 0)*100;return string.format(v>=10 and '%.1f%%'or '%.2f%%',v)end
+function M:drawRanks20(w)
+    local s=self.state;local list={};local mine
+    for _,f in ipairs(self.sorted)do if f.kind~='BOT'and(f.tiles or 0)>0 and not f.eliminated then table.insert(list,f);if f.id==1 then mine=#list end end end
+    self.head.title.Text='순위';self.head.sub.Text=string.format('%d명',#list)
+    local r=self.r;local phone=r.fmt~='pc';local y=0;local body=self.body;local rh=rowH20(r)
+    local teamGame=Teams.active(s);if not teamGame then self.rankMode=nil end
+    if teamGame then
+        local x=0
+        for _,k in ipairs({{'players','개인'},{'teams','팀'}})do
+            local b,bw=M.chip20(body,'RankTab_'..k[1],k[2],(self.rankMode or 'players')==k[1],12,function()
+                if (self.rankMode or 'players')==k[1]then return end
+                self.rankMode=k[1];Step.step('hud','rankMode',{item=k[1]});self.signature=nil;self.body.CanvasPosition=Vector2.zero;self:draw()
+            end)
+            b:place(x,5,bw,30);M.fill20(b);b.button.ZIndex=body.ZIndex+2;x+=bw+6
+        end
+        y+=40
+        if self.rankMode=='teams'then return self:drawTeams20(w,y)end
+    end
+    if not phone and s.player then
+        local p=s.player
+        word20(body,'Economy',string.format('내 생산  병력 +%s/s  골드 +%s/s',UI.troops(p.growth or 0),UI.number(p.income or 0)),12,K.colors.muted,700,2,y,w-4,24)
+        y+=28
+    end
+    local landX=w-118;columns20(body,y,w,'지휘관',landX);y+=22
+    local Colors=require(script.Parent.FactionColors);local top=list[1]and list[1].share or 1
+    local function row(parent,f,rank,yy,me)
+        local band=me and K.colors.accent or f.teammate and K.team or f.allied and K.colors.ally or nil
+        local rw=row20(parent,me and 'Mine'or 'Row'..rank,yy,w,rh,band)
+        if me then K.stroke(rw,K.colors.accent,1,.55,true)end
+        num20(rw,'Rank',tostring(rank),13,me and K.colors.accent or K.colors.muted,10,0,24,rh,Enum.TextXAlignment.Center)
+        face20(rw,f,24,42,math.floor((rh-24)/2),Colors.get(f.id,f.kind))
+        local right=phone and landX-8 or landX-56;local tag=not me and relation(f);local chip,cw
+        if tag then chip,cw=K.chip(rw,'Ally',L.text(tag),f.teammate and 'team'or 'ally',{size=11,height=18});chip.ZIndex=rw.ZIndex+1;chip.Text.ZIndex=rw.ZIndex+2;chip.Text:SetAttribute('LocalizationSkip',true)end
+        local room=right-74-(cw and cw+6 or 0)
+        local name=word20(rw,'Name',me and '나'or L.nation(f),13,me and K.colors.accent or K.colors.ink,800,74,0,room,rh)
+        name:SetAttribute('LocalizationSkip',not me);K.fit(name,room,13,11)
+        if chip then chip.Position=UDim2.fromOffset(74+math.min(K.width(name.Text,name.TextSize,name)+2,room)+6,math.floor((rh-18)/2))end
+        if not phone then
+            local bar=K.fillBar(rw,'LandBar',{p=math.clamp((f.share or 0)/math.max(.0001,top),0,1),fill=me and K.colors.accent or K.colors.muted,track=K.colors.line})
+            K.box(bar.frame,landX-46,math.floor(rh/2)-2,40,4);bar.frame.ZIndex=rw.ZIndex+1
+        end
+        num20(rw,'Land',share(f.share),13,K.colors.ink,landX,0,56,rh,Enum.TextXAlignment.Right)
+        num20(rw,'Troops',UI.troops(f.troops or 0),13,K.colors.ink,w-62,0,52,rh,Enum.TextXAlignment.Right)
+        focusRow(rw,function()if f.labelTile and self.a.focusTile then Step.step('hud','rankFocus',{value=rank});self.a.focusTile(f.labelTile)end end)
+        return rw
+    end
+    for i,f in ipairs(list)do if f.id~=1 then row(body,f,i,y,false);y+=rh+4 end end
+    body.CanvasSize=UDim2.fromOffset(0,y+4)
+    for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
+    if mine then row(self.pinned,list[mine],mine,0,true)end
+    return mine and rh+6 or 0
+end
+function M:drawTeams20(w,y)
+    local s=self.state;local list=Teams.build(s,self.sorted);local mine
+    for i,t in ipairs(list)do if t.mine then mine=i end end
+    self.head.title.Text='순위';self.head.sub.Text=string.format('%d개 팀',#list)
+    local r=self.r;local phone=r.fmt~='pc';local body=self.body;local rh=rowH20(r)
+    local landX=w-118;columns20(body,y,w,'팀',landX);y+=22
+    local top=list[1]and list[1].share or 1
+    local function row(parent,t,rank,yy,me)
+        local rw=row20(parent,me and 'MyTeam'or 'Team'..rank,yy,w,rh,t.color)
+        if me then K.stroke(rw,K.colors.accent,1,.55,true)end
+        num20(rw,'Rank',tostring(rank),13,me and K.colors.accent or K.colors.muted,10,0,24,rh,Enum.TextXAlignment.Center)
+        local dot=K.make('Frame',rw,{Name='TeamColor',BackgroundColor3=t.color,BorderSizePixel=0,ZIndex=rw.ZIndex+1});K.round(dot,'pill');K.box(dot,48,math.floor((rh-12)/2),12,12)
+        local room=(phone and landX-8 or landX-56)-70
+        local name=word20(rw,'Name',string.format('%s  %d명',t.name,t.alive),13,me and K.colors.accent or K.colors.ink,800,70,0,room,rh);K.fit(name,room,13,11)
+        if not phone then
+            local bar=K.fillBar(rw,'LandBar',{p=math.clamp(t.share/math.max(.0001,top),0,1),fill=t.color,track=K.colors.line})
+            K.box(bar.frame,landX-46,math.floor(rh/2)-2,40,4);bar.frame.ZIndex=rw.ZIndex+1
+        end
+        num20(rw,'Land',share(t.share),13,K.colors.ink,landX,0,56,rh,Enum.TextXAlignment.Right)
+        num20(rw,'Troops',UI.troops(t.troops),13,K.colors.ink,w-62,0,52,rh,Enum.TextXAlignment.Right)
+        focusRow(rw,function()
+            if not self.a.focusTile then return end
+            for _,f in ipairs(self.sorted)do if f.team==t.team and f.kind~='BOT'and not f.eliminated and (f.tiles or 0)>0 then
+                if f.labelTile then Step.step('hud','rankFocus',{value=rank,item='team'});self.a.focusTile(f.labelTile)end;break
+            end end
+        end)
+        return rw
+    end
+    for i,t in ipairs(list)do if not t.mine then row(body,t,i,y,false);y+=rh+4 end end
+    body.CanvasSize=UDim2.fromOffset(0,y+4)
+    for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
+    if mine then row(self.pinned,list[mine],mine,0,true)end
+    return mine and rh+6 or 0
+end
+function M:drawDiplomacy20(w)
+    local s=self.state;local d=s.diplomacy or {};local body=self.body;local y=0;local send=self.send
+    local r=self.r;local rh=rowH20(r);local touch=self.touch;local playing=s.phase=='playing'and not s.paused
+    local ink,muted=K.colors.ink,K.colors.muted
+    self.head.title.Text='외교';self.head.sub.Text=''
+    local enemies,blocked=0,0
+    for _,f in ipairs(self.sorted)do if f.id~=1 and f.kind~='BOT'and not f.allied and not f.teammate and (f.tiles or 0)>0 then enemies+=1;if f.embargoed then blocked+=1 end end end
+    local stopped=enemies>0 and blocked==enemies
+    local sh=touch and 42 or 36
+    word20(body,'TradeTitle','적과 교역',13,ink,800,2,y,w-150,sh)
+    local seg=K.segment(body,'Trade',{{'on','계속'},{'off','중단'}},stopped and 'off'or 'on',function(id)
+        local stop=id=='off';Step.step('match','embargoAll',{item=stop and 'stop'or 'resume'});send('embargoAll',stop)
+    end,{size=13})
+    seg:place(w-140,y,140,sh);seg.frame.ZIndex=body.ZIndex+1
+    y+=sh+14
+    local function section(name,text)word20(body,name,text,12,muted,700,2,y,w-4,22);y+=24 end
+    local function name2(rw,f,width)
+        local n=word20(rw,'Name',L.nation(f),13,ink,800,48,math.floor(rh/2)-17,width,18);n:SetAttribute('LocalizationSkip',true);K.fit(n,width,13,11);return n
+    end
+    local incoming=d.incoming or {}
+    if #incoming>0 then
+        section('IncomingTitle',string.format('받은 요청 %d',#incoming))
+        for _,q in ipairs(incoming)do
+            local rw=row20(body,'Request'..q.from,y,w,rh,K.colors.ally)
+            local f=self.factions[q.from]or {name=q.name};face20(rw,f,28,12,math.floor((rh-28)/2))
+            local id=q.from;local bw=touch and 64 or 60
+            act20(rw,'Reject','거절','plain',w-bw-6,rh,bw,playing,function()send('alliance','reject',id)end)
+            act20(rw,'Accept','수락','ally',w-bw*2-12,rh,bw,playing,function()send('alliance','accept',id)end)
+            local width=w-bw*2-12-8-48;name2(rw,f,width)
+            local left=math.max(0,math.ceil(((q.expires or 0)-(s.tick or 0))/10))
+            word20(rw,'Detail',string.format('동맹 요청 %d초',left),11,muted,700,48,math.floor(rh/2)+1,width,15)
+            y+=rh+4
+        end
+        y+=6
+    end
+    local allies={};for _,f in ipairs(self.sorted)do if f.allied and not f.teammate and f.id~=1 and (f.tiles or 0)>0 then table.insert(allies,f)end end
+    if #allies>0 then
+        section('AlliesTitle',string.format('동맹 %d',#allies))
+        local total=((s.settings and s.settings.customAllianceDuration)or 5)*600
+        for _,f in ipairs(allies)do
+            local rw=row20(body,'Ally'..f.id,y,w,rh,K.colors.ally);face20(rw,f,28,12,math.floor((rh-28)/2))
+            local left=math.max(0,(f.allianceExpires or 0)-(s.tick or 0));local ending=left<=300
+            local id=f.id;local bw=touch and 56 or 52;local x=w-bw-6
+            local ready=playing and math.ceil(f.donationAvailableIn or 0)<=0
+            act20(rw,'SendTroops','병력','plain',x,rh,bw,ready and f.canDonateTroops==true,function()send('support','troops',id)end);x-=bw+6
+            act20(rw,'SendGold','골드','plain',x,rh,bw,ready and f.canDonateGold==true,function()send('support','gold',id)end);x-=bw+6
+            if ending then act20(rw,'Extend','연장','allyo',x-4,rh,bw+4,playing,function()send('alliance','extend',id)end);x-=bw+10 end
+            local width=math.max(40,x-8-48);name2(rw,f,width)
+            local sec=math.ceil(left/10)
+            local bar=K.fillBar(rw,'TimeLeft',{p=math.clamp(left/math.max(1,total),0,1),fill=ending and muted or K.colors.ally,track=K.colors.line})
+            K.box(bar.frame,48,math.floor(rh/2)+6,math.max(16,width-44),4);bar.frame.ZIndex=rw.ZIndex+1
+            num20(rw,'Left',string.format('%d:%02d',sec//60,sec%60),11,ending and ink or muted,48+width-40,math.floor(rh/2),40,15,Enum.TextXAlignment.Right)
+            y+=rh+4
+        end
+        y+=6
+    end
+    local outgoing=d.outgoing or {}
+    if #outgoing>0 then
+        section('OutgoingTitle',string.format('보낸 요청 %d',#outgoing))
+        for _,q in ipairs(outgoing)do
+            local rw=row20(body,'Sent'..q.to,y,w,rh,K.colors.ally,true)
+            local f=self.factions[q.to]or {name=q.name};face20(rw,f,28,12,math.floor((rh-28)/2))
+            local n=word20(rw,'Name',L.nation(f),13,ink,800,48,0,w-48-140,rh);n:SetAttribute('LocalizationSkip',true);K.fit(n,w-48-140,13,11)
+            word20(rw,'Waiting','응답 기다리는 중',12,muted,700,w-136,0,124,rh,Enum.TextXAlignment.Right)
+            y+=rh+4
+        end
+        y+=6
+    end
+    local others={};local asked={};for _,q in ipairs(outgoing)do asked[q.to]=true end;for _,q in ipairs(incoming)do asked[q.from]=true end
+    for _,f in ipairs(self.sorted)do if f.id~=1 and not f.allied and not f.teammate and f.kind~='BOT'and (f.tiles or 0)>0 and not asked[f.id]then table.insert(others,f)end end
+    if #others>0 then
+        section('OthersTitle',string.format('다른 국가 %d',#others))
+        local off=s.settings and (s.settings.disableAlliances or s.settings.customAllianceDuration==0)
+        for _,f in ipairs(others)do
+            local rw=row20(body,'Nation'..f.id,y,w,rh,nil);local bw=touch and 96 or 88;local id=f.id
+            local more=K.make('TextButton',rw,{Name='Detail',Text='',BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,ZIndex=rw.ZIndex+1})
+            K.box(more,0,0,w-bw-12,rh);more.Activated:Connect(function()self.a.tactical:open(id)end)
+            face20(rw,f,28,12,math.floor((rh-28)/2))
+            if r.fmt=='ph'then
+                name2(rw,f,w-bw-12-56);num20(rw,'Share',share(f.share),11,muted,48,math.floor(rh/2)+1,w-bw-12-56,15)
+            else
+                local n=word20(rw,'Name',L.nation(f),13,ink,800,48,0,w-bw-12-48-60,rh);n:SetAttribute('LocalizationSkip',true);K.fit(n,w-bw-12-48-60,13,11)
+                num20(rw,'Share',share(f.share),12,muted,w-bw-12-56,0,50,rh,Enum.TextXAlignment.Right)
+            end
+            act20(rw,'RequestAlliance','동맹 요청','allyo',w-bw-6,rh,bw,playing and not off,function()send('alliance','request',id)end)
+            y+=rh+4
+        end
+    end
+    if #incoming+#allies+#outgoing+#others==0 then
+        word20(body,'Empty','상대 땅 눌러 동맹 요청',13,muted,700,0,y+8,w,40,Enum.TextXAlignment.Center);y+=56
+    end
     body.CanvasSize=UDim2.fromOffset(0,y+4)
     return 0
 end
@@ -356,17 +672,23 @@ function M:signatureOf()
     return table.concat(parts,'|')
 end
 function M:draw()
-    if not self.frame.Visible or not self.state or not self.r then return end
+    if not self.frame.Visible or M.closing(self.frame)or not self.state or not self.r then return end
     local sig=self:signatureOf();if sig==self.signature then return end;self.signature=sig
     local scroll=self.body.CanvasPosition
     for _,o in ipairs(self.body:GetChildren())do o:Destroy()end
     for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
     local w=self.r.w-32;self.drawnW=self.r.w
-    local pinned=self.page=='ranks'and self:drawRanks(w)or self:drawDiplomacy(w)
+    local v2=M.v2();if v2 then kit()end
+    local pinned
+    if self.page=='ranks'then pinned=v2 and self:drawRanks20(w)or self:drawRanks(w)
+    else pinned=v2 and self:drawDiplomacy20(w)or self:drawDiplomacy(w)end
     local top=self.top or 56
     UI.box(self.body,16,top,w+6,self.r.h-top-8-pinned);UI.box(self.pinned,16,self.r.h-8-pinned+4,w,pinned)
     self.body.CanvasPosition=scroll
-    M.placeHeader(self.head,self.r.w,self.touch)
+    if M.v2()then
+        local t=self.head.title;local tw=math.min(K.width(t.Text,16,t),self.r.w-140);K.box(t,15,0,tw+4,48);K.box(self.head.sub,15+tw+10,0,self.r.w-tw-90,48)
+        K.scrollPad(self.body,2)
+    else M.placeHeader(self.head,self.r.w,self.touch)end
 end
 
 function M:cards(w,h,obscured)
@@ -380,6 +702,7 @@ function M:cards(w,h,obscured)
     local status=a.matchStatus and a.matchStatus.frame
     local y=phone and 52 or 108
     if status and status.Visible and not phone then y=math.max(y,status.Position.Y.Offset+status.Size.Y.Offset+(a.matchStatus.speedPill and a.matchStatus.speedPill.Visible and 34 or 8))end
+    local chip=self.panel:FindFirstChild('CampaignTask20');if chip and chip.Visible then y=math.max(y,chip.Position.Y.Offset+chip.Size.Y.Offset+6)end
     local more=#list-1
     for i,p in ipairs(list)do
         p.Visible=i==1 and not obscured

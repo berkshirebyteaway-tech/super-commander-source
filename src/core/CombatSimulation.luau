@@ -11,7 +11,7 @@ function M.new(spec)
     local tb=if typeof(spec.terrain)=="buffer" then buffer.create(buffer.len(spec.terrain)) else nil
     if tb then buffer.copy(tb,0,spec.terrain) end
     local terrain=if tb then setmetatable({}, {__index=function(_,i) return buffer.readu8(tb,i-1) end,__newindex=function(_,i,v) buffer.writeu8(tb,i-1,v) end}) else table.clone(spec.terrain)
-    local self=setmetatable({width=spec.width,height=spec.height,terrain=terrain,tb=tb,owners={},fallout={},players={},ticks=0,execs={},pending={},captured={},playerCount=#spec.troops,ownerChanges=0},M)
+    local self=setmetatable({width=spec.width,height=spec.height,terrain=terrain,tb=tb,owners={},fallout={},falloutRevision=0,players={},ticks=0,execs={},pending={},captured={},playerCount=#spec.troops,ownerChanges=0},M)
     for id=1,self.playerCount do self.players[id]={id=id,troops=math.floor(spec.troops[id]),kind=spec.types and spec.types[id] or "HUMAN",tiles=S.new(),border=S.new(),outgoing={},incoming={}} end
     for i=1,spec.width*spec.height do self.owners[i]=0 end
     for i,id in ipairs(spec.owners) do if id~=0 then self:conquer(id,i-1) end end
@@ -55,7 +55,7 @@ function M:conquer(id,t)
         if not p.conqueredCountries[old]then p.conqueredCountries[old]=true;p.countriesConquered=(p.countriesConquered or 0)+1 end
     end
     self.players[id].lastTileChange=self.ticks;if old~=0 then self.players[old].lastTileChange=self.ticks end
-    if self.fallout[t] then self.fallout[t]=nil;if self.onFalloutCleared then self.onFalloutCleared(t) end end
+    if self.fallout[t] then self.fallout[t]=nil;self.falloutRevision=(self.falloutRevision or 0)+1;if self.onFalloutCleared then self.onFalloutCleared(t) end end
     local w,h=self.width,self.height;local x=t%w
     updateBorder(self,t)
     if t>=w then updateBorder(self,t-w) end

@@ -13,15 +13,30 @@ local function decode(hex,pixels)
         end
     end
 end
+local function decodeColor(hex,pixels)
+    local i,p,n=1,0,#hex
+    while i<=n and p<4096 do
+        if string.byte(hex,i)==122 then
+            local run=tonumber(string.sub(hex,i+1,i+2),16)or 0
+            for _=1,math.min(run,4096-p)do buffer.writeu32(pixels,p*4,0);p+=1 end
+            i+=3
+        else
+            for k=0,3 do buffer.writeu8(pixels,p*4+k,tonumber(string.sub(hex,i+k*2,i+k*2+1),16)or 0)end
+            p+=1;i+=8
+        end
+    end
+end
+local kit20
 local function image(key)
     if cache[key]==nil then
-        local hex=masks[key]
+        local hex=masks[key];local color
+        if not hex then kit20=kit20 or require(script.Parent.Kit20IconPixels);hex=kit20.masks[key];if not hex then color=kit20.colors[key]end end
         local ok,img=pcall(function()
-            if not hex then return nil end
+            if not hex and not color then return nil end
             local editable=game:GetService('AssetService'):CreateEditableImage({Size=Vector2.new(64,64)})
             if not editable then return nil end
             local pixels=buffer.create(64*64*4)
-            decode(hex,pixels)
+            if color then decodeColor(color,pixels)else decode(hex,pixels)end
             editable:WritePixelsBuffer(Vector2.zero,Vector2.new(64,64),pixels);return editable
         end)
         cache[key]=ok and img or false

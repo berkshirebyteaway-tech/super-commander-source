@@ -38,7 +38,8 @@ function M.new(lobby)
         while lobby.frame.Parent do
             local open=self:inPlaza()
             for p,prompt in pairs(self.prompts)do
-                if prompt.Parent then prompt.Enabled=open and p:GetAttribute('FrontierRoom')==nil else self.prompts[p]=nil end
+                local head=p.Character and p.Character:FindFirstChild('Head');local hidden=head~=nil and head.LocalTransparencyModifier>=1
+                if prompt.Parent then prompt.Enabled=open and p:GetAttribute('FrontierRoom')==nil and not hidden else self.prompts[p]=nil end
                 self:syncTap(p,prompt.Enabled)
             end
             for _,p in ipairs(Players:GetPlayers())do if p~=Me and not self.prompts[p]and p.Character then self:attach(p,p.Character)end end
@@ -100,8 +101,7 @@ function M:fill()
     local caption=Badge.caption(permanent,club)
     self.handle.Text='@'..p.Name..(caption~=''and '  '..L.text(caption)or '')
     self.handle.TextColor3=Badge.color(permanent,club)
-    local worn=h and h.title~=''and h.title~=h.rank
-    self.rank.Text=h and (worn and string.format('Lv. %d  %s  %s',h.level,h.rank,h.title)or string.format('Lv. %d  %s',h.level,h.rank))or ''
+    self.rank.Text=h and string.format('Lv. %d',h.level)or ''
     local mine=Me:GetAttribute('CommanderClan')
     self.unit.Text=unit and (unit==mine and '같은 클랜'or '클랜 소속')or '클랜 없음'
     self.unit.TextColor3=unit and unit==mine and UI.colors.accent or UI.colors.muted

@@ -10,7 +10,6 @@ local Telemetry=require(script.Parent.TelemetryClient)
 local Pending=require(script.Parent.PressPending)
 local S={};S.__index=S
 function S.new(onAccount,notify,redraw)
-    task.spawn(function()require(script.Parent.SupplyAnnouncements).watch()end)
     local self=setmetatable({prices={},fetching={},account={loading=true,owned={},products={}},onAccount=onAccount,notify=notify,redraw=redraw,busy=false},S)
     self.remote=pack:WaitForChild("AccountRequest")
     pack:WaitForChild("AccountChanged").OnClientEvent:Connect(function(account) self:apply(account) end)
@@ -41,7 +40,7 @@ function S:request(action,value,extra)
     local operation=self.requests and self.requests.active
     local ok,r=pcall(function() return self.remote:InvokeServer(action,value,extra) end)
     if operation and not self.requests:current(operation)then return nil end
-    if not ok then Telemetry.step('shop','requestFailed',{item=type(action)=='string'and action or nil,reason='network'});self.notify("연결하지 못했어요. 다시 시도하세요.",true);return nil end
+    if not ok then Telemetry.step('shop','requestFailed',{item=type(action)=='string'and action or nil,reason='network'});self.notify("연결 실패",true);return nil end
     if r.account then self:apply(r.account) end
     if r.message then self.notify(r.message,not r.ok) end
     return r
@@ -54,14 +53,14 @@ function S:run(fn)
     self.busy=true;self.redraw()
     task.delay(12,function()
         if self.requests:expire(operation,os.clock())then
-            Pending.finish(pend);Telemetry.step('shop','requestFailed',{reason='timeout'});self.busy=self.promptOpen==true;self.redraw();self.notify('응답이 늦어지고 있어요. 연결을 확인한 뒤 다시 시도하세요.',true)
+            Pending.finish(pend);Telemetry.step('shop','requestFailed',{reason='timeout'});self.busy=self.promptOpen==true;self.redraw();self.notify('응답 지연',true)
         end
     end)
     task.spawn(function()
         local ok,err=pcall(fn)
         if not self.requests:complete(operation)then return end
         Pending.finish(pend);self.busy=self.promptOpen==true;self.redraw()
-        if not ok then warn("Storefront request failed",err);self.notify("요청을 완료하지 못했어요. 다시 시도하세요.",true) end
+        if not ok then warn("Storefront request failed",err);self.notify("요청 실패",true) end
     end)
 end
 function S:holdPrompt()
@@ -78,7 +77,7 @@ function S:equip(id,slot)
         local ok,r=pcall(function() return pack.EquipCosmetic:InvokeServer(id,slot) end)
         if not self.requests:current(operation)then return end
         if ok and r.ok then self:apply(r.account);self.notify(C.get(id).name.." 장착 완료")
-        else self.notify(ok and r.message or "장착하지 못했어요.",true) end
+        else self.notify(ok and r.message or "장착 실패",true) end
     end)
 end
 function S:purchase(id)
@@ -156,7 +155,7 @@ end
 function S:render(body,label,button,guide,compact)
     self.compact=compact
     local a=self.account;local colors=UI.colors
-    if not compact then label("ShopIntro","외형만 바뀌어요. 병력과 전투 성능은 모두 같아요.",0,45,colors.muted,14) end
+    if not compact then label("ShopIntro","NO PAY-TO-WIN",0,45,colors.muted,12) end
     label("AccountStatus",a.status or "보관함을 불러오는 중…",compact and 0 or 47,compact and 36 or 46,a.localMode and colors.gold or colors.muted,12)
     local y=compact and 42 or 104
     local iconSize=compact and 68 or 92

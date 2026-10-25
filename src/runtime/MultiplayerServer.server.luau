@@ -3,6 +3,7 @@ local Run=game:GetService("RunService")
 local pack=game.ReplicatedStorage:WaitForChild("FrontierNative")
 local services=game.ServerScriptService:WaitForChild("FrontierServices")
 local Session=require(pack.Core.MultiplayerSession)
+local RoomSnapshotContext=require(pack.Core.RoomSnapshotContext)
 local Single=require(pack.Core.SkirmishSession)
 local Lobby=require(pack.Core.LobbyModel)
 local Maps=require(pack.Maps.MapLoader)
@@ -55,6 +56,7 @@ analytics.resolveParty=function(p)return parties[p.UserId]end
 local LiveModel=require(pack.Core.LiveMatchModel)
 local liveMatches=require(services.LiveMatches).new(Config,{notify=function(id,message)local e=entries[id];if e and e.player.Parent==Players then results:FireClient(e.player,{action='lobby',ok=false,message=message,version=e.version})end end})
 local Presets=require(pack.Core.SinglePresets)
+local QuickSolo=require(pack.Core.QuickSolo)
 local defaults=Presets.standard
 local Outgame=require(pack.Core.OutgameRules)
 local BadgeRules=require(pack.Core.BadgeRules)
@@ -117,14 +119,14 @@ local shuttingDown=false
 local function nextVersion()serial+=1;return serial end
 local function finite(n)return type(n)=="number" and n==n and math.abs(n)<math.huge end
 local function user(id)return Players:GetPlayerByUserId(id)end
-local function nudgeReady(party,leader)for _,u in ipairs(party.users)do local m=entries[u];if u~=leader.UserId and m and user(u)and not(party.ready and party.ready[u])then results:FireClient(m.player,{action='lobby',ok=true,message=string.format('%s님이 출전을 눌렀어요. 준비를 눌러 주세요',leader.DisplayName),version=m.version})end end end
+local function nudgeReady(party,leader)for _,u in ipairs(party.users)do local m=entries[u];if u~=leader.UserId and m and user(u)and not(party.ready and party.ready[u])then results:FireClient(m.player,{action='lobby',ok=true,message=string.format('%s님 출전, 준비를 눌러 주세요',leader.DisplayName),version=m.version})end end end
 local function between(e)local r=e and e.room;if not r then return true end;local pr=r.progress and r.progress[e.player.UserId];return r.practice==true or r.endedAt~=nil or pr~=nil and pr.ended==true end
 local function partyEntry(p,party)
-    if #party.users>1 and party.leader~=p.UserId then return nil,'파티장이 전장을 골라요. 준비를 눌러 주세요.'end
+    if #party.users>1 and party.leader~=p.UserId then return nil,'파티장이 골라요'end
     local ids={p.UserId};for _,uid in ipairs(party.users)do if uid~=p.UserId then table.insert(ids,uid)end end
     for _,uid in ipairs(ids)do local member=entries[uid]
-        if not member or not user(uid)or not between(member)or member.loading or member.arriving then return nil,'파티원이 경기를 마치면 함께 참가할 수 있어요.'end
-        if uid~=p.UserId and not require(pack.Core.PartyFormation).isReady(party,uid)then nudgeReady(party,p);return nil,'친구가 준비 버튼을 누르면 출발할 수 있어요.'end
+        if not member or not user(uid)or not between(member)or member.loading or member.arriving then return nil,'파티원 경기 중'end
+        if uid~=p.UserId and not require(pack.Core.PartyFormation).isReady(party,uid)then nudgeReady(party,p);return nil,'친구 준비 대기'end
     end
     return ids
 end
@@ -155,11 +157,11 @@ end
 local function participants(room,fn)for id in pairs(room.members)do local p=user(id);if p and entries[id] and entries[id].room==room then fn(p,entries[id])end end end
 local function observers(room,fn)for id in pairs(room.observers or {})do local p=user(id);local e=entries[id];if p and e and e.room==room and e.observer then fn(p,e)end end end
 local function validTile(s,t)return finite(t) and t%1==0 and t>=0 and t<s.map.meta.width*s.map.meta.height end
-local function baseState(e)return {phase="menu",version=e.version,settings=e.settings,selectedMap=e.singleMap or 'world',loadingMap=e.loadingMap,controller=e.player.UserId,loading=e.loading==true or e.arriving==true,paused=false}end
-local function observerSnapshot(e,full,shared)
+local function baseState(e)return {phase="menu",version=e.version,settings=e.settings,selectedMap=e.singleMap or 'world',loadingMap=e.loadingMap,loadingCampaign=e.loadingCampaign,controller=e.player.UserId,loading=e.loading==true or e.arriving==true,paused=false}end
+local function observerSnapshot(e,full,shared,context)
     local room=e.room;local session=room.session
     e.watch=LiveModel.pick(session,e.watch)
-    local s=session:observerState(e.watch,full,shared)
+    local s=session:observerState(e.watch,full,shared,context)
     if full then if session.map.packed then bigMaps:pack(e,s,session.map)else s.mapTerrain=session.map.terrain end end
     local a=accounts:sessionView(e.player,false);s.cosmetics=a.cosmetics or Cosmetics.loadout("classic");s.style=s.cosmetics.territory
     s.version=e.version;s.controller=e.player.UserId;s.player.userId=e.player.UserId;s.paused=room.paused==true;s.canPause=false;s.studio=Run:IsStudio()
@@ -168,18 +170,18 @@ local function observerSnapshot(e,full,shared)
     if room.replay then s.observer.replay={speed=room.replay.speed,tick=session.sim.ticks,endTick=room.replay.endTick}end
     return s
 end
-local function snapshot(e,full,shared)
+local function snapshot(e,full,shared,context)
     e.snapshotSerial=(e.snapshotSerial or 0)+1;local serial=e.snapshotSerial
     local room=e.room;if not room then local s=baseState(e);s.snapshotSerial=serial;return s end
-    if e.observer then local s=observerSnapshot(e,full,shared);s.snapshotSerial=serial;return s end
-    local s=room.single and room.session:state(full) or room.session:stateFor(e.faction,full,shared)
+    if e.observer then local s=observerSnapshot(e,full,shared,context);s.snapshotSerial=serial;return s end
+    local s=room.single and room.session:state(full) or room.session:stateFor(e.faction,full,shared,context)
     if full then if room.session.map.packed then bigMaps:pack(e,s,room.session.map)else s.mapTerrain=room.session.map.terrain end end
     local progress=room.progress and room.progress[e.player.UserId]
     local a=accounts:sessionView(e.player,progress and progress.ended);s.cosmetics=a.cosmetics or Cosmetics.loadout("classic");s.style=s.cosmetics.territory
     s.version=e.version;s.controller=e.player.UserId;s.player.userId=e.player.UserId;s.paused=room.paused==true;s.speed=room.single and (room.speed or 1)or nil;s.canPause=room.single or room.hostUserId==e.player.UserId;s.studio=Run:IsStudio()
     s.multiplayer=not room.single;s.roomId=room.id;s.mode=room.mode;s.queueMode=room.queueMode;s.customRules=room.customRules;s.note=room.note;s.loading=false
     s.unrecorded=room.unrecorded==true;s.watchers=room.observerCount;s.ranked=room.ranked;s.clanwar=room.clanwar and {size=room.clanwar.size or 2,count=room.clanwar.count or 2}or nil
-    s.casual=room.casual or nil;s.intro=room.intro or nil;s.awaitFirst=room.awaitFirst or nil
+    s.casual=room.casual or nil;s.intro=room.intro or nil;s.awaitFirst=room.awaitFirst or nil;s.campaign=room.campaign
     s.spawnRemaining=math.max(0,math.ceil((room.spawnUntil or 0)-os.clock()));s.spawnLeft=math.max(0,(room.spawnUntil or 0)-os.clock())
     s.allSpawned=room.allSpawned or nil;s.randomSpawn=room.randomSpawn or nil;s.nextRoundIn=room.endedAt and math.max(0,math.ceil(room.endedAt+Config.resultSeconds-os.clock()))or nil
     s.drop=room.drop and room.session.phase=='spawn'and room.drop.players[e.faction]and room.drop.players[e.faction].userId==e.player.UserId and room.drop:snapshot(e.faction,os.clock())or nil
@@ -192,12 +194,16 @@ local function snapshot(e,full,shared)
         local account=accounts.accounts[e.player]
         local receipt=account and account.profile and account.profile.outgame.receipts[progress.id]
         s.personalResult={id=progress.id,map=progress.map,mode=progress.mode,seconds=math.floor(progress.seconds),peak=progress.peak,cities=progress.cities,supports=progress.supports,xp=xp,medals=medals,outcome=progress.outcome,pending=pending,final=progress.final==true,unrecorded=progress.unrecorded==true,
-            recordStatus=ResultPresentation.recordState(progress,receipt,pending,a.ready,accounts.localMode)}
+            recordStatus=ResultPresentation.recordState(progress,receipt,pending,a.ready,accounts.localMode),
+            priorPeak=progress.start and progress.start.peaks and (progress.start.peaks[progress.map]or 0)or nil}
         do local t=progress.tactics or {};local built=0;for _,n in pairs(t.built or {})do built+=n end
             local r=s.personalResult;r.place=progress.place;r.field=progress.total;r.conquered=t.countriesConquered or 0;r.troopsSent=t.troopsSent or 0;r.built=built;r.nukes=t.nukes or 0 end
+        if progress.ended and progress.outcome=='won'and not progress.unrecorded and receipt and account then s.personalResult.invite=Outgame.career.inviteAsk(account.profile.outgame,receipt)end
         if receipt and receipt.totalsComplete then s.personalResult.bonus={xp=math.max(0,receipt.grantedXP-receipt.xp),medals=math.max(0,receipt.grantedMedals-receipt.medals),parts=ResultPresentation.bonusParts(receipt)};s.personalResult.granted={xp=receipt.grantedXP,medals=receipt.grantedMedals}end
         if progress.daily then local D=Outgame.dailyOperation;local score=D.score(progress);local d=a.progress and a.progress.dailyOp;local top=math.max(score or -1,d and d.day==progress.daily and d.best or -1)
-            s.personalResult.daily={score=D.label(score),best=D.label(top>=0 and top or nil)}end
+            s.personalResult.daily={score=D.label(score),best=D.label(top>=0 and top or nil),paid=receipt and receipt.daily==true and type(receipt.parts)=='table'and receipt.parts.dailyOp~=nil and D.medals or nil}end
+        if progress.official and a.progress and a.progress.dailySupply then local v=a.progress.dailySupply
+            s.personalResult.supply={n=v.n,steps=v.steps,step=receipt and receipt.supply or nil}end
         if progress.campaign then local C=Outgame.campaign;local stage=C.stage(progress.campaign);local saved=a.progress and a.progress.campaign
             local mask=C.stars(stage,progress);local best=bit32.bor(mask,saved and saved.stars and saved.stars[stage.id]or 0)
             local nxt=Replay.campaignNext(room,e.player.UserId,saved)
@@ -207,7 +213,8 @@ local function snapshot(e,full,shared)
         if progress.ended and a.ready and not progress.unrecorded then
             local view=a.progress
             awardBadges(e.player,view)
-            s.personalResult.progression={level=view.level,currentXP=view.currentXP,nextXP=view.nextXP,startLevel=progress.startLevel,title=view.title,startTitle=progress.startLevel and select(2,Outgame.rank(progress.startLevel))or nil,conquest=view.conquest[progress.map],career={goals=view.career.goals,next=view.career.next},daily=view.daily,weekly=view.weekly,mastery=view.mastery[progress.map]}
+            s.personalResult.progression={level=view.level,currentXP=view.currentXP,nextXP=view.nextXP,startLevel=progress.startLevel,conquest=view.conquest[progress.map],career={goals=view.career.goals,next=view.career.next},daily=view.daily,weekly=view.weekly,mastery=view.mastery[progress.map],
+                login=room.intro and view.login and {nextReward=view.login.nextReward}or nil,campaignNext=room.intro and view.campaign and view.campaign.next or nil}
             local b=progress.start;if b then local _,cur,nxt=Outgame.level(b.xp);local pr=s.personalResult.progression;pr.startXP=b.xp;pr.startCurrentXP=cur;pr.startNextXP=nxt;pr.unlocks=ResultPresentation.unlocks(b,view)end
         end
         if progress.ended then s.personalResult.recap=progress.recap:view()end
@@ -244,12 +251,13 @@ end
 local function sendRoom(room,full)
     local started=os.clock()
     local shared=not room.single and room.session:state(full)or nil
+    local context=shared and RoomSnapshotContext.new(room.session)or nil
     participants(room,function(p,e)
-        local s=snapshot(e,full,shared);e.stateStream=e.stateStream or {};StateDelta.encode(e.stateStream,s,full,e.faction);updates:FireClient(p,s)
+        local s=snapshot(e,full,shared,context);e.stateStream=e.stateStream or {};StateDelta.encode(e.stateStream,s,full,e.faction,context and context.encoding);updates:FireClient(p,s)
         local f=p:FindFirstChild("leaderstats");if f then f["점유율"].Value=math.floor(s.player.share*10000)/100;f["병력"].Value=math.floor(s.player.troops/10);f["골드"].Value=tonumber(s.player.gold)or 0 end
     end)
     room.observerFlip=not room.observerFlip
-    if full or room.observerFlip then observers(room,function(p,e)e.stateStream=e.stateStream or {};updates:FireClient(p,StateDelta.encode(e.stateStream,snapshot(e,full,shared),full,'watch:'..tostring(e.watch)))end)end
+    if full or room.observerFlip then observers(room,function(p,e)e.stateStream=e.stateStream or {};updates:FireClient(p,StateDelta.encode(e.stateStream,snapshot(e,full,shared,context),full,'watch:'..tostring(e.watch),context and context.encoding))end)end
     room.session:ackOwnership()
     PerfStats.add(room,'send',os.clock()-started)
 end
@@ -268,7 +276,7 @@ local function lobbySnapshot(id)
     if e then analytics:queueState(e.player,queue:status(id,os.clock()))end
     table.sort(roster,function(a,b)return a.userId<b.userId end)
     local received={};for from,t in pairs(invites[id]or {})do if t>os.clock() and user(from)then table.insert(received,{from=from,name=user(from).DisplayName})end end
-    return {queue=queue:status(id,os.clock()),battlefields=queue:directory(id),recentCustom=e and e.recentCustom,inviteRoomCode=e and e.inviteRoomCode,partyHost=e and e.partyHost,partyWait=e and e.partyHost and e.partyFriend and (function()local h=entries[e.partyHost];local hp=user(e.partyHost)
+    return {serial=os.clock(),queue=queue:status(id,os.clock()),battlefields=queue:directory(id),recentCustom=e and e.recentCustom,inviteRoomCode=e and e.inviteRoomCode,partyHost=e and e.partyHost,partyWait=e and e.partyHost and e.partyFriend and (function()local h=entries[e.partyHost];local hp=user(e.partyHost)
         return {host=e.partyHost,name=hp and hp.DisplayName or nil,reason=not hp and 'notHere'or h and h.room and not h.room.practice and 'inMatch'or queue.membership[e.partyHost]and 'queued'or 'joining'}end)()or nil,privateServer=game.PrivateServerId~=''or nil,career=careers:snapshot(id),ranked=ranked:view(id),clanWar=ranked:clanWarBoard(id),party=group(id),partyStatus=(function()local out={};for _,u in ipairs(group(id).users)do local m=entries[u];local g=group(id)
         out[tostring(u)]=not m and 'away'or m.loading and 'loading'or m.room and not m.room.practice and (between(m)and 'results'or 'match')or queue.membership[u]and 'queued'or g.ready and g.ready[u]and 'ready'or 'hq'end;return out end)(),players=roster,invites=received,sent=(function()local out={};for to,offers in pairs(invites)do if offers[id]and offers[id]>os.clock()then table.insert(out,to)end end;return out end)(),live=liveMatches:list(rooms),rejoin=e and not e.room and liveMatches:mine(rooms,id)or nil,rankedEnabled=Config.rankedEnabled,localMode=careers.localMode,inMatch=e and e.room~=nil,practice=e and e.room and e.room.practice==true,roomCount=#rooms}
 end
@@ -277,7 +285,7 @@ local function joinFriend(id)
     local e=entries[id];local host=e and e.partyHost;if not host or not e.partyFriend then return end
     if os.clock()>(e.partyHostUntil or 0)then
         e.partyHost=nil;local p=user(id)
-        if p then results:FireClient(p,{action='lobby',ok=false,message='친구를 이 서버에서 찾지 못했어요. 친구 목록에서 따라가기를 눌러 주세요.',version=e.version})end
+        if p then results:FireClient(p,{action='lobby',ok=false,message='다른 서버  친구 목록에서 따라가기',version=e.version})end
         pushLobby();return
     end
     local p,h=user(id),entries[host];if not p or not h or not user(host)then return end
@@ -300,7 +308,7 @@ local function placeCharacter(p,tile,room)
     if not room and c:GetAttribute('ToyfrontBaseScale')then if c:GetScale()~=c:GetAttribute('ToyfrontBaseScale')then c:ScaleTo(c:GetAttribute('ToyfrontBaseScale'))end;c:SetAttribute('ToyfrontGrowth',1);c:SetAttribute('ToyfrontGrowthStep',0)end
     local x,y,z=0,Geometry.surfaceY,0
     if room and tile then x,y,z=Geometry.toWorld(tile,room.session.map.meta.width,room.session.map.meta.height)end
-    c:PivotTo(room and CFrame.new(x,y+4,z)or Plaza.spawn(p.UserId));r.AssemblyLinearVelocity=Vector3.zero;r.Anchored=false
+    c:PivotTo(room and CFrame.new(x,y+4,z)or Plaza.spawn(p.UserId,c));r.AssemblyLinearVelocity=Vector3.zero;r.Anchored=room==nil
     local hum=c:FindFirstChildOfClass("Humanoid");if hum then hum.WalkSpeed=room and 34 or PlazaLayout.walkSpeed;hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,room==nil)end
 end
 local function emit(room,p,kind,tile)
@@ -322,7 +330,7 @@ local function release(e,forfeit)
     if room.casual then if not room.endedAt then room.session:handBack(e.faction)end;room.members[e.player.UserId]=nil
     elseif forfeit and not room.single and not room.session.winnerId then if room.replayLog then room.replayLog:add(room.session.sim.ticks,e.faction,'forfeit')end;room.session:forfeit(e.faction)end
     if room.customRules then e.recentCustom=Outgame.copy(room.customRules)end
-    e.room=nil;e.faction=nil;e.version=nextVersion();e.player:SetAttribute("FrontierRoom",nil);e.player:SetAttribute('FrontierUnrecorded',nil)
+    e.room=nil;e.faction=nil;e.stateStream=nil;e.version=nextVersion();e.player:SetAttribute("FrontierRoom",nil);e.player:SetAttribute('FrontierUnrecorded',nil)
     if not e.settingsTouched then local a=accounts:snapshot(e.player);if a.ready then e.settings=Outgame.copy(a.progress.single.settings);e.singleMap=a.progress.single.map end end
     updates:FireClient(e.player,baseState(e));placeCharacter(e.player,nil,nil)
     local stats=e.player:FindFirstChild("leaderstats");if stats then for _,v in ipairs(stats:GetChildren())do v.Value=0 end end
@@ -331,38 +339,38 @@ local function unobserve(e,silent)
     local room=e.room;if not room or not e.observer then return end
     if room.observers and room.observers[e.player.UserId]then room.observers[e.player.UserId]=nil;room.observerCount=math.max(0,(room.observerCount or 1)-1)end
     if e.observeAt then analytics:flow(e.player,'spectate','watchEnd',{value=math.max(0,os.time()-e.observeAt),result=room.endedAt and 'complete'or 'left'});e.observeAt=nil end
-    e.room=nil;e.observer=nil;e.watch=nil;e.version=nextVersion();e.player:SetAttribute("FrontierRoom",nil)
+    e.room=nil;e.observer=nil;e.watch=nil;e.stateStream=nil;e.version=nextVersion();e.player:SetAttribute("FrontierRoom",nil)
     if not silent and e.player.Parent==Players then updates:FireClient(e.player,baseState(e));placeCharacter(e.player,nil,nil)end
 end
 local function observe(e,room,watch)
-    if room.endedAt or room.session.winnerId then return false,'이 경기는 이미 끝났어요.'end
-    if (room.observerCount or 0)>=LiveModel.maxObservers then return false,'관전 자리가 가득 찼어요.'end
+    if room.endedAt or room.session.winnerId then return false,'끝난 경기'end
+    if (room.observerCount or 0)>=LiveModel.maxObservers then return false,'관전 가득'end
     if e.observer then unobserve(e,true)elseif e.room then release(e,false)end
     room.observers=room.observers or {};room.observers[e.player.UserId]=true;room.observerCount=(room.observerCount or 0)+1
     e.room=room;e.observer=true;e.faction=nil;e.watch=LiveModel.pick(room.session,watch);e.version=nextVersion();e.observeAt=os.time()
     e.player:SetAttribute("FrontierRoom",'watch:'..room.id);e.player:SetAttribute('FrontierUnrecorded',nil)
     placeCharacter(e.player,room.session.sim.players[e.watch]and room.session.sim.players[e.watch].spawnTile,room)
     updates:FireClient(e.player,snapshot(e,true))
-    return true,'관전을 시작했어요. ‹ › 로 지휘관을 넘겨 볼 수 있어요'
+    return true
 end
 local function full(light)local n,k=preparing,0;for _,r in ipairs(rooms)do if r.intro or r.practice then k+=1 else n+=1 end end;return light and k>=Config.maxPracticeRooms or not light and n>=Config.maxRooms end
 local function watchReplay(e,id)
-    if e.room and not e.room.practice or e.loading or queue.membership[e.player.UserId]then return false,'대기를 취소하면 다시 볼 수 있어요.'end
-    if full(false)then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 시도하세요.'end
+    if e.room and not e.room.practice or e.loading or queue.membership[e.player.UserId]then return false,'대기 중'end
+    if full(false)then return false,'전장 가득'end
     local Guards=require(pack.Core.AbuseGuards);e.guards=e.guards or {}
-    if Guards.blocked(e.guards,'room',os.clock(),Guards.roomWindow,Guards.roomBurst)then return false,"잠시 뒤 다시 시도하세요."end
+    if Guards.blocked(e.guards,'room',os.clock(),Guards.roomWindow,Guards.roomBurst)then return false,"다시 시도"end
     local player,version,previous=e.player,e.version,e.room
     local data=replayStore:load(id)
     if entries[player.UserId]~=e or user(player.UserId)~=player or e.version~=version or e.room~=previous
-        or e.loading or e.arriving or queue.membership[player.UserId]then return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
-    if not data then return false,'다시보기를 찾지 못했어요.'end
-    if not ReplayLog.playable(data,game.PlaceVersion)then return false,'업데이트 전 경기라 다시 볼 수 없어요.'end
-    if full(false)then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 시도하세요.'end
+        or e.loading or e.arriving or queue.membership[player.UserId]then return false,'파티원 상태 변경, 다시 시도'end
+    if not data then return false,'다시보기 없음'end
+    if not ReplayLog.playable(data,game.PlaceVersion)then return false,'이전 버전 경기'end
+    if full(false)then return false,'전장 가득'end
     local h=data.header
     if h.settings and h.settings.mapSize=='normal'then
         e.loading=true;pcall(function()bigMaps.store:ensure(h.map)end);e.loading=false
         if entries[player.UserId]~=e or user(player.UserId)~=player or e.version~=version or e.room~=previous then return false end
-        if full(false)then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 시도하세요.'end
+        if full(false)then return false,'전장 가득'end
     end
     Guards.count(e.guards,'room',os.clock(),Guards.roomWindow)
     preparing+=1;e.loading=true;e.loadingMap=h.map;updates:FireClient(e.player,baseState(e));task.wait()
@@ -373,7 +381,7 @@ local function watchReplay(e,id)
     end)
     preparing-=1;e.loading=false;e.loadingMap=nil
     if entries[player.UserId]~=e or user(player.UserId)~=player or e.version~=version or e.room~=previous then return false end
-    if not ok then warn(s);updates:FireClient(e.player,baseState(e));return false,'다시보기를 준비하지 못했어요.'end
+    if not ok then warn(s);updates:FireClient(e.player,baseState(e));return false,'다시보기 실패'end
     s.chatManaged=true
     for index,flag in ipairs(h.flags or {})do if flag and s.resources[index]then s.resources[index].flag=flag end end
     local room={id='replay-'..game.HttpService:GenerateGUID(false),session=s,single=false,queueMode='replay',mode=h.mode,members={},progress={},progressTimer=0,startedAt=os.time(),spawnUntil=os.clock(),accumulator=0,display=0,knownBuildings={},note='',guides={},joined={},
@@ -382,7 +390,7 @@ local function watchReplay(e,id)
     table.insert(rooms,room)
     if e.player.Parent~=Players then return false end
     local watching,message=observe(e,room)
-    return watching,watching and '다시보기를 시작했어요. 속도를 바꿀 수 있어요'or message
+    return watching,not watching and message or nil
 end
 local function createRoom(selection,single)
     for i=#rooms,1,-1 do
@@ -399,14 +407,14 @@ local function createRoom(selection,single)
         local kept={};for _,id in ipairs(selection.users)do if user(id)and entries[id]then table.insert(kept,id)end end
         if #kept>=math.max(1,ffa and 4 or selection.customRules and selection.customRules.minimum or 1)and #kept<#selection.users then selection.users=kept end
     end
-    local roster={};for _,id in ipairs(selection.users)do local p=user(id);local e=entries[id];if not p or not e or e.room and not e.room.practice or e.loading then return false,"파티원 상태가 바뀌었어요. 다시 시도해 주세요."end;table.insert(roster,{userId=id,name=p.DisplayName,team=selection.teams[id]})end
+    local roster={};for _,id in ipairs(selection.users)do local p=user(id);local e=entries[id];if not p or not e or e.room and not e.room.practice or e.loading then return false,"파티원 상태 변경, 다시 시도"end;table.insert(roster,{userId=id,name=p.DisplayName,team=selection.teams[id]})end
     local soloTakesLast=single and not(selection.intro or selection.practice or selection.soloTransfer)and #roster==1 and soloTransfer.a.live
         and require(pack.Core.RoomBudget).soloTakesLast(rooms,preparing,Config.maxRooms)
     if soloTakesLast or full(single and (selection.intro or selection.practice)==true)then
         if single and not selection.practice and not selection.soloTransfer and #roster==1 then
             return soloTransfer:depart(user(roster[1].userId),selection,selection.resumeSettings or entries[roster[1].userId].settings)
         end
-        return false,"모든 전장이 사용 중이에요. 잠시 뒤 다시 참가하세요."
+        return false,"전장 가득"
     end
     local presets={{bots=40,gold=0,minutes=12},{bots=60,gold=125000,minutes=15},{bots=100,gold=0,minutes=18}}
     local rng=Random.new();local preset=presets[rng:NextInteger(1,#presets)]
@@ -440,14 +448,15 @@ local function createRoom(selection,single)
         elseif selection.mode=='ffa'then cfg.nations='disabled'end
     end
     if selection.daily then cfg=Outgame.copy(selection.daily.settings);cfg.seed=selection.daily.seed end
+    if selection.intro and not selection.unrecorded and not selection.campaign then selection.campaign=Outgame.campaign.introStage end
     if selection.campaign then local seed=cfg.seed;cfg=Outgame.campaign.settings(Outgame.campaign.stage(selection.campaign));cfg.seed=seed end
     if selection.practice then cfg={difficulty="Medium",nations=3,bots=30,startingGold=125000,goldMultiplier=1,customAllianceDuration=5,seed=cfg.seed}end
-    if selection.intro then cfg={difficulty='Easy',nations=2,bots=30,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=5,seed=cfg.seed}end
+    if selection.intro then local n=Outgame.campaign.stage(Outgame.campaign.introStage).task.n;cfg={difficulty='Easy',nations=0,bots=60,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=Outgame.campaign.introMinutes,goalConquer=n,seed=cfg.seed}end
     if single then cfg=require(pack.Core.SoloChallenge).resolve(Maps.meta(selection.map),cfg)end
-    if selection.intro or selection.official or selection.goal or selection.campaign and not Outgame.campaign.stage(selection.campaign).team then cfg.lastCommanderWins=true end
+    if not selection.intro and (selection.official or selection.goal or selection.campaign and not Outgame.campaign.stage(selection.campaign).team)then cfg.lastCommanderWins=true end
     if selection.ranked or selection.clanwar then cfg.lastCommanderWins=nil end
     preparing+=1
-    for _,id in ipairs(selection.users)do local e=entries[id];e.loading=true;e.loadingMap=selection.map;updates:FireClient(e.player,baseState(e))end
+    for _,id in ipairs(selection.users)do local e=entries[id];e.loading=true;e.loadingMap=selection.map;e.loadingCampaign=selection.campaign;updates:FireClient(e.player,baseState(e))end
     task.wait()
     local _,settled=pcall(bigMaps.settle,bigMaps,cfg,selection.map,selection.official)
     if settled==false then for _,id in ipairs(selection.users)do local pl=user(id);if pl then pcall(analytics.flow,analytics,pl,'match','mapFallback',{item='compact',map_key=selection.map,result='failed',reason='storage_unavailable'})end end end
@@ -464,10 +473,10 @@ local function createRoom(selection,single)
     end)
     if ok then pcall(function()for index,r in ipairs(roster)do local pl=user(r.userId);local acc=pl and accounts:snapshot(pl);if acc and s.resources[index] then s.resources[index].flag=acc.flag end end end)end
     preparing-=1
-    for _,id in ipairs(selection.users)do if entries[id]then entries[id].loading=false;entries[id].loadingMap=nil end end
-    for _,id in ipairs(selection.users)do if not user(id)then return false,"참가자가 퇴장해 준비를 취소했어요."end end
-    if not ok then warn(s);return false,"경기를 준비하지 못했어요. 다시 참가하세요."end
-    local room={id=cfg.seed,session=s,single=single,practice=selection.practice,queueMode=selection.queueMode or selection.mode,mode=selection.mode,members={},progress={},progressTimer=0,startedAt=os.time(),spawnUntil=single and nil or os.clock()+Config.spawnSeconds,accumulator=0,display=0,knownBuildings={},note="육지에서 시작 위치를 선택하세요."}
+    for _,id in ipairs(selection.users)do if entries[id]then entries[id].loading=false;entries[id].loadingMap=nil;entries[id].loadingCampaign=nil end end
+    for _,id in ipairs(selection.users)do if not user(id)then return false,"참가자 퇴장  준비 취소"end end
+    if not ok then warn(s);return false,"경기 준비 실패"end
+    local room={id=cfg.seed,session=s,single=single,practice=selection.practice,queueMode=selection.queueMode or selection.mode,mode=selection.mode,members={},progress={},progressTimer=0,startedAt=os.time(),spawnUntil=single and nil or os.clock()+Config.spawnSeconds,accumulator=0,display=0,knownBuildings={},note="육지 선택"}
     if selection.daily then room.id=game.HttpService:GenerateGUID(false);room.daily=selection.daily.day end
     room.campaign=selection.campaign
     if replayInput then
@@ -492,9 +501,10 @@ local function createRoom(selection,single)
         room.progress[r.userId]=Participation.new(room.id,mode,selection.map,#roster,os.time())
         room.progress[r.userId].unrecorded=room.unrecorded
         room.progress[r.userId].ranked=room.ranked~=nil or nil
-        room.progress[r.userId].daily=room.daily;room.progress[r.userId].campaign=room.campaign
+        room.progress[r.userId].daily=room.daily;room.progress[r.userId].campaign=room.campaign;room.progress[r.userId].official=room.official or nil
         waited(r.userId,'QueueWait',selection.map,mode)
         analytics:match(e.player,selection.map,room.intro and 'training'or selection.practice and 'practice'or room.ranked and 'ranked'or mode=='pvp'and (room.official and 'official'or 'custom')or mode,room);if room.daily then analytics:custom(e.player,'DailyOpStarted',selection.map,mode,1)end
+        if type(room.campaign)=='string'then pcall(analytics.flow,analytics,e.player,'campaign','start',{item='stage_'..room.campaign:gsub('%-','_'),map_key=selection.map,result='accepted'})end
         local account=accounts:snapshot(e.player);local progress=account.progress
         room.progress[r.userId].benefitXPMultiplier=account.billing.benefits.xpMultiplier
         room.progress[r.userId].startLevel=progress and progress.level or nil;room.progress[r.userId].start=ResultPresentation.baseline(progress)
@@ -519,7 +529,7 @@ local function createRoom(selection,single)
 end
 local function openRoom(e,selection)
     local Guards=require(pack.Core.AbuseGuards);e.guards=e.guards or {}
-    if Guards.blocked(e.guards,'room',os.clock(),Guards.roomWindow,Guards.roomBurst)then return false,"잠시 뒤 다시 시도하세요."end
+    if Guards.blocked(e.guards,'room',os.clock(),Guards.roomWindow,Guards.roomBurst)then return false,"다시 시도"end
     local ok,message=createRoom(selection,true)
     if ok then Guards.count(e.guards,'room',os.clock(),Guards.roomWindow)end
     return ok,message
@@ -533,15 +543,15 @@ end
 joinCasual=function(ids)
     local saved={}
     for _,id in ipairs(ids)do local e=entries[id]
-        if not e or not user(id)or e.loading or e.arriving then return false,'경기를 준비 중이에요.'end
+        if not e or not user(id)or e.loading or e.arriving then return false,'경기 준비 중'end
         saved[id]={entry=e,player=e.player,version=e.version,room=e.room,party=parties[id]}
         local pr=e.room and e.room.progress[id]
-        if e.room and not(e.room.practice or e.room.intro or e.room.endedAt or pr and pr.ended)then return false,'지금 경기를 마친 뒤 들어갈 수 있어요.'end
+        if e.room and not(e.room.practice or e.room.intro or e.room.endedAt or pr and pr.ended)then return false,'경기 중'end
     end
     for _,id in ipairs(ids)do local cancelled,why=queue:cancel(id,os.clock());if cancelled==false then return false,why end end
     for _,id in ipairs(ids)do local e,v=entries[id],saved[id]
         if e~=v.entry or user(id)~=v.player or e.version~=v.version or e.room~=v.room
-            or e.loading or e.arriving or parties[id]~=v.party then return false,'경기를 준비 중이에요.'end
+            or e.loading or e.arriving or parties[id]~=v.party then return false,'경기 준비 중'end
     end
     for _,id in ipairs(ids)do local e=entries[id];if e.room then release(e,false)end end
     local room=casualRoom(#ids)
@@ -558,7 +568,7 @@ joinCasual=function(ids)
             table.insert(factions,faction);humans+=1
             room.members[id]=faction;room.joined[id]=os.time();e.room=room;e.faction=faction;e.version=nextVersion()
             p:SetAttribute('FrontierRoom',room.id);p:SetAttribute('FrontierUnrecorded',nil)
-            local pr=Participation.new(room.id..':'..id..':'..os.time(),'pvp',s.map.meta.key,humans,os.time());pr.startLevel=acc.progress and acc.progress.level or nil;pr.start=ResultPresentation.baseline(acc.progress);pr.benefitXPMultiplier=acc.billing.benefits.xpMultiplier;room.progress[id]=pr
+            local pr=Participation.new(room.id..':'..id..':'..os.time(),'pvp',s.map.meta.key,humans,os.time());pr.startLevel=acc.progress and acc.progress.level or nil;pr.start=ResultPresentation.baseline(acc.progress);pr.benefitXPMultiplier=acc.billing.benefits.xpMultiplier;pr.official=room.official or nil;room.progress[id]=pr
             for _,other in pairs(room.progress)do if not other.ended then other.humans=math.max(other.humans or 1,humans)end end
             analytics:match(p,s.map.meta.key,'pvp')
             if acc.flag then s.resources[faction].flag=acc.flag end
@@ -569,7 +579,7 @@ joinCasual=function(ids)
         if party and not seen[party]then seen[party]=true;local list={};local friends={};for _,u in ipairs(party.users)do if room.members[u]and entries[u]and entries[u].room==room then table.insert(list,room.members[u]);table.insert(friends,u)end end
             if #list>1 then s:allyFriends(list);for _,u in ipairs(friends)do if room.progress[u]then room.progress[u].party=true end end end end end
     sendRoom(room,true)
-    return #factions>0,#factions>0 and '진행 중인 전장에 합류했어요. 국가를 넘겨받았어요'or '자리가 없어요. 잠시 뒤 다시 눌러 주세요.'
+    return #factions>0,#factions>0 and '합류  국가 지휘'or '자리 없음'
 end
 local function saveLobby(e)
     if not accounts:snapshot(e.player).ready then return end
@@ -602,43 +612,43 @@ local function setting(e,key,value)
     elseif table.find({"infiniteGold","infiniteTroops","instantBuild","waterNukes","disableNukes","disableAlliances","doomsdayClock","randomSpawn"},key)and type(value)=="boolean"then s[key]=value
     elseif key=="spawnImmunityMinutes" and finite(value) and value%1==0 and value>=0 and value<=10 then s.spawnImmunityDuration=value>0 and value*600 or nil
     elseif key=="disabledUnits" and type(value)=="table" and #value<=11 then
-        local list={};for _,kind in ipairs(value)do if type(kind)~="string" or not table.find(require(pack.Core.UnitRules).toggleable,kind) or table.find(list,kind)then return false,"설정 범위를 확인하세요."end;table.insert(list,kind)end
+        local list={};for _,kind in ipairs(value)do if type(kind)~="string" or not table.find(require(pack.Core.UnitRules).toggleable,kind) or table.find(list,kind)then return false,"설정 확인"end;table.insert(list,kind)end
         s.disabledUnits=#list>0 and list or nil
     elseif key=="mapSize" and (value=="normal" or value=="compact")then s.mapSize=value=="normal" and "normal" or nil
     elseif key=="teamFormat" and (value=="ffa" or require(pack.Core.TeamFormat).valid(value) and (type(value)~="number" or value<=7))then s[key]=value~="ffa" and value or nil
-    else return false,"설정 범위를 확인하세요."end
-    return true,"설정을 적용했어요."
+    else return false,"설정 확인"end
+    return true
 end
 local function handle(p,action,value,extra,requestId,version)
     local e=entries[p.UserId];if not e then return end
     local observedAt=os.clock();local observedDuplicate=false
-    if table.find({'start','learn','practiceSolo','daily','campaign'},action)then analytics:requested(p,action=='learn'and 'training'or 'single')end
+    if table.find({'start','quick','learn','practiceSolo','daily','campaign'},action)then analytics:requested(p,action=='learn'and 'training'or 'single')end
     local function reply(ok,message)
         analytics:command(p,action,ok,message,requestId,version,observedAt,type(value)=='string'and value or nil,observedDuplicate)
         results:FireClient(p,{action=action,requestId=requestId,ok=ok,message=message,version=e.version})
     end
-    if type(action)~="string"or e.loading or e.arriving then reply(false,"경기를 준비 중이에요.");return end
+    if type(action)~="string"or e.loading or e.arriving then reply(false,"경기 준비 중");return end
     if not e.room then local held=require(services.OpsService).blocked(action,p);if held then reply(false,held);return end end
-    if version~=e.version then reply(false,"화면을 갱신한 뒤 다시 시도하세요.");return end
+    if version~=e.version then reply(false,"다시 시도");return end
     e.commandGate=e.commandGate or CommandGate.new()
     observedDuplicate=type(requestId)=='number'and requestId==requestId and e.commandGate.version==version and requestId<=e.commandGate.request
-    if not e.commandGate:accept(os.clock(),requestId,version)then reply(false,"잠시 뒤 다시 시도하세요.");return end
+    if not e.commandGate:accept(os.clock(),requestId,version)then reply(false,"다시 시도");return end
     local room=e.room;local ok,message
     if e.observer then
         if action=="menu"then unobserve(e);ok=true
         elseif action=="replaySpeed"and room.replay and table.find(ReplayLog.speeds,value)then room.replay.speed=value;ok=true
         elseif action=="watch"and finite(value)and value%1==0 and room.session.sim.players[value]and room.session.sim.players[value].kind~="BOT"then
             e.watch=value;placeCharacter(p,room.session.sim.players[value].spawnTile,room);updates:FireClient(p,snapshot(e,true));ok=true
-        else ok=false;message="관전 중에는 명령할 수 없어요."end
+        else ok=false;message="관전 중"end
         reply(ok==true,message);if not e.room then updates:FireClient(p,baseState(e))end;return
     end
-    if not room and table.find({'start','setting','preset','daily','campaign'},action)and not accounts:snapshot(p).ready then reply(false,'저장을 다시 연결하거나 저장 없이 연습하세요.');return end
+    if not room and table.find({'start','quick','setting','preset','daily','campaign'},action)and not accounts:snapshot(p).ready then reply(false,'저장 연결 필요');return end
     if (action=='learn'or action=='practiceSolo')and not room then
-        if queue.membership[p.UserId]then reply(false,'참가 대기를 먼저 취소하세요.');return end
+        if queue.membership[p.UserId]then reply(false,'대기 중');return end
         if #group(p.UserId).users>1 then reply(false,'첫 연습은 혼자 해볼 수 있어요.');return end
         ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map='korea',intro=true,unrecorded=action=='practiceSolo'or not accounts:snapshot(p).ready})
     elseif action=="start" and not room and type(value)=="string"and Maps.meta(value)then
-        if queue.membership[p.UserId]then reply(false,"참가 대기를 먼저 취소하세요.");return end
+        if queue.membership[p.UserId]then reply(false,"대기 중");return end
         if extra=='goal'then
             local cfg=require(pack.Core.SoloChallenge).goal(Maps.meta(value),e.settings.difficulty)
             ok,message=openRoom(e,{users={p.UserId},teams={},mode='single',map=value,resumeSettings=cfg,rewardMode='single',goal=true})
@@ -648,20 +658,26 @@ local function handle(p,action,value,extra,requestId,version)
             task.spawn(function()for attempt=1,3 do if accounts:saveSingle(p,value,savedSettings)then break end;task.wait(attempt)end end)
             ok,message=openRoom(e,{users={p.UserId},teams={},mode="single",map=value})
         end
+    elseif action=='quick'and not room and type(value)=='string'and QuickSolo.valid(value)then
+        if queue.membership[p.UserId]then reply(false,"대기 중");return end
+        local key=QuickSolo.pick(value);local cfg=QuickSolo.settings(Maps.meta(key),value)
+        ok,message=openRoom(e,{users={p.UserId},teams={},mode='single',map=key,resumeSettings=cfg,rewardMode='single',quick=true})
+        analytics:flow(p,'solo','quickStart',{map_key=key,item=value,result=ok and 'accepted'or 'rejected'})
     elseif action=='daily'and not room then
-        if queue.membership[p.UserId]then reply(false,"참가 대기를 먼저 취소하세요.");return end
-        if not accounts.live.enabled('dailyOp')then reply(false,'오늘의 작전을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.');return end
+        if queue.membership[p.UserId]then reply(false,"대기 중");return end
+        if not accounts.live.enabled('dailyOp')then reply(false,'오늘의 도전 점검 중');return end
         local Daily=require(pack.Core.DailyOperation);local op=Daily.of(Daily.day(os.time()))
         ok,message=openRoom(e,{users={p.UserId},teams={},mode="single",map=op.map,daily=op,rewardMode='single'})
     elseif action=='campaign'and not room then
         local C=Outgame.campaign;local stage=C.stage(value);local view=(accounts:snapshot(p).progress or {}).campaign
-        if queue.membership[p.UserId]then reply(false,"참가 대기를 먼저 취소하세요.");return end
-        if not stage then ok,message=false,'작전을 찾지 못했어요.'
-        elseif not C.unlocked({campaign=view},stage.id)then ok,message=false,'앞 작전을 먼저 이겨야 열려요.'
+        if queue.membership[p.UserId]then reply(false,"대기 중");return end
+        if not stage then ok,message=false,'작전 없음'
+        elseif not C.unlocked({campaign=view},stage.id)then ok,message=false,'🔒 앞 작전'
+        elseif stage.intro then ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map=stage.map,intro=true})
         else ok,message=openRoom(e,{users={p.UserId},teams={},mode='single',map=stage.map,campaign=stage.id,rewardMode='single'})end
         analytics:flow(p,'solo','campaignStart',{item=stage and 'stage_'..stage.id:gsub('%-','_')or nil,map_key=stage and stage.map or nil,result=ok and 'accepted'or 'rejected'})
     elseif action=="setting" and not room then ok,message=setting(e,value,extra);if ok then e.settingsTouched=true;saveLobby(e)end
-    elseif action=="preset"and not room and type(value)=="string"and Presets[value]then e.settings=Outgame.copy(Presets[value]);e.settingsTouched=true;saveLobby(e);ok=true;message="프리셋을 적용했어요."
+    elseif action=="preset"and not room and type(value)=="string"and Presets[value]then e.settings=Outgame.copy(Presets[value]);e.settingsTouched=true;saveLobby(e);ok=true
     elseif action=="menu" then if room and room.practice then local cancelled,why=queue:cancel(p.UserId,os.clock());if cancelled==false then reply(false,why);return end end;release(e,true);ok=true
     elseif room then
         local s=room.session;local id=e.faction;local actual=function(t)return room.single and t or Session.viewId(t,id)end
@@ -672,25 +688,25 @@ local function handle(p,action,value,extra,requestId,version)
             elseif room.hostUserId==p.UserId and s.phase=="playing"then
                 local now=os.clock();if room.pauseFrom then room.pauseSpent=(room.pauseSpent or 0)+now-room.pauseFrom;room.pauseFrom=nil end
                 local left=300-(room.pauseSpent or 0)
-                if value==true and left<1 then room.paused=false;room.pauseLimit=nil;ok=false;message="이번 경기 일시정지 시간을 다 썼어요."
+                if value==true and left<1 then room.paused=false;room.pauseLimit=nil;ok=false;message="일시정지 시간 소진"
                 else room.paused=value==true;room.pauseFrom=room.paused and now or nil;room.pauseLimit=room.paused and now+math.min(180,left)or nil;ok=true end
-            else ok=false;message="방장만 일시정지할 수 있어요."end
+            else ok=false;message="방장 전용"end
         elseif action=="speed"then
             if room.single and (value==.5 or value==1 or value==2 or value==4)then room.speed=value;ok=true else ok=false end
-        elseif room.paused then ok=false;message=(room.single or room.hostUserId==e.player.UserId)and "일시정지를 해제하세요."or "방장이 경기를 잠시 멈췄어요. 곧 이어져요."
-        elseif action=='spawn'and room.drop and not room.drop.finished then ok=false;message='낙하 조작으로 착륙지를 정하세요.'
-        elseif action=="spawn"and not room.single and room.randomSpawn and s.spawned[id]then ok=false;message="무작위 시작 경기라 자리를 바꿀 수 없어요."
+        elseif room.paused then ok=false;message=(room.single or room.hostUserId==e.player.UserId)and "일시정지 중"or "Ⅱ 방장 일시정지"
+        elseif action=='spawn'and room.drop and not room.drop.finished then ok=false;message='낙하 중'
+        elseif action=="spawn"and not room.single and room.randomSpawn and s.spawned[id]then ok=false;message="랜덤 시작"
         elseif action=="spawn"and value=="auto"and s.phase=="spawn"then
             local tile=SpawnRules.random(s,"quick:"..p.UserId..":"..os.clock(),s.settings.seed or room.id)
-            if not tile then ok=false;message="빈 자리를 찾지 못했어요. 지도에서 직접 골라 주세요."
+            if not tile then ok=false;message="빈 자리 없음"
             else if room.single then ok,message=s:spawn(tile)else ok,message=s:spawnHuman(id,tile)end;if ok then placeCharacter(p,tile,room);if room.replayLog then room.replayLog:add(s.sim.ticks,id,'spawn',tile)end end end
         elseif action=="spawn"and validTile(s,value)then if room.single then ok,message=s:spawn(value)else ok,message=s:spawnHuman(id,value)end;if ok then placeCharacter(p,value,room);if room.replayLog then room.replayLog:add(s.sim.ticks,id,'spawn',value)end end
-        elseif s.phase~="playing"or s.sim.players[id].tiles.size==0 or s.resources[id].forfeited then ok=false;message="진행 중인 내 경기에서만 사용할 수 있어요."
+        elseif s.phase~="playing"or s.sim.players[id].tiles.size==0 or s.resources[id].forfeited then ok=false;message="경기 중에만"
         else
             ok,message=RoomCommands.apply(s,id,room.single,action,value,extra)
             if ok and room.replayLog then local v,x=RoomCommands.record(action,value,extra);room.replayLog:add(s.sim.ticks,id,action,v,x)end
         end
-        if ok and table.find({"attack","build","upgrade"},action)then emit(room,p,action,action=="build"and extra or nil)end
+        if ok and table.find({"attack","build","upgrade"},action)then emit(room,p,action,(action=="build"or action=="attack")and extra or nil)end
         if ok and room.awaitFirst and (action=='attack'or action=='transport')then room.awaitFirst=nil end
         if ok and room.progress[p.UserId]then room.progress[p.UserId]:command(action,value,os.time())end
         if ok and action=='attack'and extra and s.sim:owner(extra)>0 and not room.progress[p.UserId].combatOrderLogged then
@@ -699,7 +715,7 @@ local function handle(p,action,value,extra,requestId,version)
         if ok and room.guides[p.UserId]then room.guides[p.UserId]:command(action,s.sim.players[id].tiles.size)end
         if ok and action=="spawn"then local tile=s.spawned and s.spawned[id]or room.single and tonumber(value)or nil;if tile then emit(room,p,moved and 'relocate'or 'settle',tile)end end
         if e.room then sendRoom(room,action=="spawn")end
-    else ok=false;message="경기에 먼저 참가하세요."end
+    else ok=false;message="참가 먼저"end
     reply(ok==true,message);if not e.room then updates:FireClient(p,baseState(e))end
 end
 command.OnServerEvent:Connect(handle)
@@ -737,7 +753,7 @@ if Run:IsStudio() then
         if action=='analyticsExercise'then
             local p=assert(user(userId));local before=analytics:diagnostic();local s=analytics.sessions[p];local began=os.clock()
             local n=math.clamp(args and args.count or 1000,1,3000);local base=100000000+(s.qaTelemetrySequence or 0);s.qaTelemetrySequence=base+n
-            for i=1,n do analytics:command(p,'attack',i%5~=0,i%5==0 and '골드가 부족해요.'or nil,base+i,1,os.clock())end
+            for i=1,n do analytics:command(p,'attack',i%5~=0,i%5==0 and '골드 부족'or nil,base+i,1,os.clock())end
             analytics:command(p,'attack',true,nil,base+1,1,os.clock());for _,member in ipairs(Players:GetPlayers())do analytics:flushCommands(member,true)end
             local seq=s.clientSeq;local invalid=analytics.health.client_rejected
             analytics:ingest(p,{events={{name='commerce_grant_result',sequence=seq+1,data={result='granted'}}}})
@@ -783,7 +799,7 @@ if Run:IsStudio() then
             if room.replayLog then room.replayLog:add(s.sim.ticks,e.faction,'forfeit')end;s:forfeit(e.faction)
         elseif action=='resultEliminate'then
             assert(not room.single and s.phase=='playing','Use a multiplayer result test')
-            local enemy;for id,pl in ipairs(s.sim.players)do if id~=e.faction and pl.team~=s.sim.players[e.faction].team and pl.tiles.size>0 then enemy=id;break end end
+            local enemy;for id,pl in ipairs(s.sim.players)do if id~=e.faction and (pl.team==nil or pl.team~=s.sim.players[e.faction].team) and pl.tiles.size>0 then enemy=id;break end end
             assert(enemy,'Need an actual opposing faction')
             for _,tile in ipairs(s.sim.players[e.faction].tiles:values())do s.sim:conquer(enemy,tile)end
             s:recordOwnership()
@@ -794,8 +810,12 @@ if Run:IsStudio() then
             assert(room.endedAt,'End the match first');room.endedAt=os.clock()-180
         elseif action=="feedbackScenario" then
             local outcome=args.kind=='victory'or args.kind=='defeat'
-            assert(room.single and #s.sim.players>=2 and (outcome or #s.sim.players==2),"Use a solo outcome or two-side QA fixture")
-            if args.kind=="incoming" then s.sim:attack(2,1,100000)
+            local pact=args.kind=='ally'or args.kind=='betray'
+            assert(room.single and #s.sim.players>=2 and (outcome or pact or #s.sim.players==2),"Use a solo outcome or two-side QA fixture")
+            local other=args.id;if pact and not other then for id,pl in ipairs(s.sim.players)do if id~=1 and pl.kind=='NATION'and pl.tiles.size>0 then other=id;break end end end;other=other or 2
+            if args.kind=="ally" then s:allianceCommand(other,1,"request");s:step();s:allianceCommand(1,other,"accept");s:step()
+            elseif args.kind=="betray" then s:allianceCommand(other,1,"break");s:step()
+            elseif args.kind=="incoming" then s.sim:attack(2,1,100000)
             elseif args.kind=="request" then s:allianceCommand(2,1,"request")
             elseif args.kind=="accept" then s:allianceCommand(1,2,"accept")
             elseif args.kind=="eliminate" then for _,tile in ipairs(s.sim.players[2].tiles:values()) do s.sim:conquer(1,tile) end
@@ -817,8 +837,8 @@ read.OnServerInvoke=function(p)
     e.stateStream=nil;return snapshot(e,true)
 end
 preview.OnServerInvoke=function(p,kind,tile,version,options)
-    local e=entries[p.UserId];if not e or not e.room or e.observer or e.version~=version or os.clock()-(e.lastPreview or 0)<.08 then return {valid=false,reason="위치를 다시 확인하세요."}end
-    if type(kind)~="string" or not validTile(e.room.session,tile) then return {valid=false,reason="유효한 위치를 선택하세요."} end
+    local e=entries[p.UserId];if not e or not e.room or e.observer or e.version~=version or os.clock()-(e.lastPreview or 0)<.08 then return {valid=false,reason="위치 확인 필요"}end
+    if type(kind)~="string" or not validTile(e.room.session,tile) then return {valid=false,reason="위치 선택"} end
     e.lastPreview=os.clock()
     if table.find({'AtomBomb','HydrogenBomb','MIRV'},kind)and options and type(options)=='table'then
         return require(pack.Core.NuclearAimModel).plan(e.room.session,e.faction,kind,tile,options.up)
@@ -834,15 +854,15 @@ equip.OnServerInvoke=function(p,id,slot)return accounts:equip(p,id,slot)end
 local function lobbyHandle(p,action,value)
     local id=p.UserId;local e=entries[id];if not e then return {ok=false}end
     if action=="read"then return {ok=true,state=lobbySnapshot(id)}end
-    if e.arriving or e.loading then return {ok=false,message='경기를 준비 중이에요.'}end
-    if table.find({'map','selectMode'},action)and not accounts:snapshot(p).ready then return {ok=false,message='저장을 다시 연결하거나 저장 없이 연습하세요.'}end
-    if os.clock()-(e.lastLobby or 0)<.2 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end;e.lastLobby=os.clock()
+    if e.arriving or e.loading then return {ok=false,message='경기 준비 중'}end
+    if table.find({'map','selectMode'},action)and not accounts:snapshot(p).ready then return {ok=false,message='저장 연결 필요'}end
+    if os.clock()-(e.lastLobby or 0)<.2 then return {ok=false,message="다시 시도"}end;e.lastLobby=os.clock()
     do local held=require(services.OpsService).blocked(action,p);if held then return {ok=false,message=held}end end
     local ok,message=true,nil;local party=group(id)
     if action=='selectMode'then
         if not table.find({'single','pvp','coop'},value)then return {ok=false}end
-        if party.leader~=id and #party.users>1 then return {ok=false,message='파티장이 모드를 고를 수 있어요.'}end
-        if e.room and not e.room.practice then return {ok=false,message='경기를 마친 뒤 바꿀 수 있어요.'}end
+        if party.leader~=id and #party.users>1 then return {ok=false,message='파티장 전용'}end
+        if e.room and not e.room.practice then return {ok=false,message='경기 중'}end
         local queued=queue.membership[id]
         if queued and queued.mode==value then return {ok=true,state=lobbySnapshot(id)}end
         local cancelled,why=queue:cancel(id,os.clock());if cancelled==false then return {ok=false,message=why}end
@@ -854,38 +874,39 @@ local function lobbyHandle(p,action,value)
         if e.room or type(value)~='string'or not Maps.meta(value)then return {ok=false}end
         e.singleMap=value;e.settingsTouched=true;saveLobby(e)
     elseif action=='ready'then
-        if not between(e)or queue.membership[id]then return {ok=false,message='경기를 마친 뒤 준비할 수 있어요.'}end
+        if not between(e)or queue.membership[id]then return {ok=false,message='경기 중'}end
         party.ready=party.ready or {};party.ready[id]=not party.ready[id]
     elseif action=='again'then
         local room=e.room;local pr=room and room.progress[id]
-        if not room or not pr or not pr.ended then return {ok=false,message='이번 판을 마친 뒤 다시 시작할 수 있어요.'}end
-        if queue.membership[id]then return {ok=false,message='대전 대기 중에는 연습을 다시 시작할 수 없어요. 대기를 취소해 주세요.'}end
+        if not room or not pr or not pr.ended then return {ok=false,message='경기 중'}end
+        if queue.membership[id]then return {ok=false,message='대기 중'}end
         local single,map,mode=room.single,room.session.map.meta.key or e.singleMap,room.queueMode
-        if room.daily and not accounts.live.enabled('dailyOp')then return {ok=false,message='오늘의 작전을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.'}end
+        if room.daily and not accounts.live.enabled('dailyOp')then return {ok=false,message='오늘의 도전 점검 중'}end
         local repeatSelection=single and Replay.single(room,id,os.time(),(accounts:snapshot(p).progress or {}).campaign)or nil
         release(e,false)
         if single then ok,message=openRoom(e,repeatSelection)
         elseif room.ranked and not room.clanwar and room.ranked~='2v2'then ok,message=ranked:join(queue,{id},room.ranked,os.clock());if ok then queued({id},'ranked')end
-        else message=mode=='custom'and '같은 규칙을 확인하고 다음 방을 만드세요.'or '다음 전장의 지도와 규칙을 확인하고 참가하세요.'end
+        else message=mode=='custom'and '규칙 변경, 다시 확인'or '규칙 변경, 다시 확인'end
     elseif action=='customCreate'or action=='customUpdate'or action=='customReady'or action=='customStart'or action=='customLaunch'or action=='customTeam'or action=='joinCode'then
-        if e.room or e.loading then return {ok=false,message='경기를 마친 뒤 참가할 수 있어요.'}end
+        if e.room or e.loading then return {ok=false,message='경기 중'}end
         if action=='customCreate'or action=='customUpdate'then
             local rules=action=='customCreate'and value or type(value)=='table'and value.rules
             local allowed=accounts.billing:publicCustom(p,rules)
-            if not allowed then return {ok=false,message='공개 모집은 VIP 클럽 혜택이에요. 초대 전용은 누구나 만들 수 있어요.'}end
+            if not allowed then return {ok=false,message='🔒 VIP 공개 모집'}end
         end
         if action=='customCreate'or action=='joinCode'then
             local ids,why=partyEntry(p,party);if not ids then return {ok=false,message=why}end
             if action=='customCreate'then ok,message=queue:createCustom(id,value,os.clock(),ids)else ok,message=queue:joinCode(id,value,os.clock(),ids)end
             if ok then queued(ids,'custom');for _,uid in ipairs(ids)do local member=entries[uid];if member and member.room and not member.room.practice then release(member,false)end end end
         else ok,message=queue:customCommand(id,action,value)end
+    elseif action=='fieldReady'then ok,message=queue:fieldReady(id,type(value)=='table'and value.ready==true)
     elseif action=='ranked'then
-        if not between(e)or e.loading then return {ok=false,message='경기를 마친 뒤 참가할 수 있어요.'}end
+        if not between(e)or e.loading then return {ok=false,message='경기 중'}end
         local ids,why=partyEntry(p,party);if not ids then return {ok=false,message=why}end
         ok,message=ranked:join(queue,ids,value,os.clock())
         if ok then queued(ids,'ranked');for _,uid in ipairs(ids)do local member=entries[uid];if member and member.room and not member.room.practice then release(member,false)end end end
     elseif action=='joinField'then
-        if not between(e)or e.loading then return {ok=false,message='경기를 마친 뒤 참가할 수 있어요.'}end
+        if not between(e)or e.loading then return {ok=false,message='경기 중'}end
         local custom=type(value)=='table'and type(value.field)=='string'and value.field:sub(1,7)=='custom-'
         local ids,why=partyEntry(p,party);if not ids then return {ok=false,message=why}end
         local why;ok,message,why=queue:joinField(ids,value,os.clock())
@@ -899,17 +920,17 @@ local function lobbyHandle(p,action,value)
             for _,uid in ipairs(ids)do local member=entries[uid];if member and member.room and not member.room.practice then release(member,false)end end
         end
     elseif action=="join"then
-        if value~="pvp"and value~="coop"then return {ok=false,message="대전 또는 연합전을 선택하세요."}end
+        if value~="pvp"and value~="coop"then return {ok=false,message="모드 선택"}end
         if party.leader~=id then return {ok=false,message="파티장이 참가 모드를 선택해요."}end
-        for _,u in ipairs(party.users)do if not entries[u]or not between(entries[u])or entries[u].loading then return {ok=false,message="파티원이 경기 중이에요. 끝나면 함께 참가할 수 있어요."}end end
-        for _,u in ipairs(party.users)do if u~=id and not(party.ready and party.ready[u])then nudgeReady(party,p);return {ok=false,message='친구가 준비 버튼을 누르면 출발할 수 있어요.'}end end
+        for _,u in ipairs(party.users)do if not entries[u]or not between(entries[u])or entries[u].loading then return {ok=false,message="파티원 경기 중"}end end
+        for _,u in ipairs(party.users)do if u~=id and not(party.ready and party.ready[u])then nudgeReady(party,p);return {ok=false,message='친구 준비 대기'}end end
         ok,message=queue:join(party.users,value,os.clock());if ok then queued(party.users,value)
             for _,uid in ipairs(party.users)do local member=entries[uid];if member and member.room and not member.room.practice then release(member,false)end end
         end
     elseif action=='play'then
         if #party.users>1 and party.leader~=id then
             party.ready=party.ready or {};party.ready[id]=true;pushLobby()
-            return {ok=true,message='준비 완료. 파티장이 시작하면 함께 들어가요',state=lobbySnapshot(id)}
+            return {ok=true,message='준비 완료',state=lobbySnapshot(id)}
         end
         ok,message=joinCasual(table.clone(party.users))
     elseif action=='practice'then
@@ -917,76 +938,76 @@ local function lobbyHandle(p,action,value)
         if not waiting or waiting.mode~='pvp'or e.room or e.loading then return {ok=false}end
         ok,message=openRoom(e,{users={id},teams={},mode='practice',map='thebox',practice=true})
     elseif action=='hq'then
-        if game.PrivateServerId==''then return {ok=false,public=true,message='이미 공개 로비에 있어요.'}end
+        if game.PrivateServerId==''then return {ok=false,public=true,message='이미 공개 로비'}end
         if #party.users>1 and party.leader~=id then return {ok=false,message='파티장이 로비 복귀를 누르면 함께 이동해요.'}end
-        if queue.membership[id]then return {ok=false,message='대기를 취소한 뒤 이동할 수 있어요.'}end
+        if queue.membership[id]then return {ok=false,message='대기 중'}end
         local players,leader={},party.leader or id
         for _,uid in ipairs(party.users)do local m=entries[uid];if m and user(uid)and between(m)and not queue.membership[uid]then table.insert(players,user(uid))end end
-        if #players==0 then return {ok=false,message='이동할 수 있는 지휘관이 없어요.'}end
+        if #players==0 then return {ok=false,message='대상 없음'}end
         local options=Instance.new('TeleportOptions');options:SetTeleportData({party=#players>1 and leader or nil,hop=#players>1 and game.HttpService:GenerateGUID(false)or nil})
         if not script:GetAttribute('HqFailHook')then script:SetAttribute('HqFailHook',true)
             game:GetService('TeleportService').TeleportInitFailed:Connect(function(pl,why)local m=entries[pl.UserId]
                 if not(m and m.hqSending and os.clock()-m.hqSending<30)then return end
                 if m.hqOptions and not m.hqRetried then m.hqRetried=true;local o=m.hqOptions
-                    task.delay(2,function()if user(pl.UserId)==pl and m.hqSending then local sent=pcall(function()game:GetService('TeleportService'):TeleportAsync(game.PlaceId,{pl},o)end);if sent then return end end;m.hqSending=nil;if user(pl.UserId)then results:FireClient(pl,{action='lobby',ok=false,message='로비로 이동하지 못했어요. 잠시 뒤 다시 눌러 주세요.',version=m.version})end end);return end
-                m.hqSending=nil;results:FireClient(pl,{action='lobby',ok=false,message='로비로 이동하지 못했어요. 잠시 뒤 다시 눌러 주세요.',version=m.version})
+                    task.delay(2,function()if user(pl.UserId)==pl and m.hqSending then local sent=pcall(function()game:GetService('TeleportService'):TeleportAsync(game.PlaceId,{pl},o)end);if sent then return end end;m.hqSending=nil;if user(pl.UserId)then results:FireClient(pl,{action='lobby',ok=false,message='이동 실패',version=m.version})end end);return end
+                m.hqSending=nil;results:FireClient(pl,{action='lobby',ok=false,message='이동 실패',version=m.version})
                 warn('hq teleport failed',pl.UserId,why)end)
         end
         for _,pl in ipairs(players)do local m=entries[pl.UserId];if m then m.hqSending=os.clock();m.hqOptions=options;m.hqRetried=nil end end
         local sent=pcall(function()game:GetService('TeleportService'):TeleportAsync(game.PlaceId,players,options)end)
-        if not sent then for _,pl in ipairs(players)do local m=entries[pl.UserId];if m then m.hqSending=nil end end;return {ok=false,message='로비로 이동하지 못했어요. 잠시 뒤 다시 눌러 주세요.'}end
+        if not sent then for _,pl in ipairs(players)do local m=entries[pl.UserId];if m then m.hqSending=nil end end;return {ok=false,message='이동 실패'}end
         message='공개 로비로 이동해요'
     elseif action=='replays'then
         local rows=replayStore:list(id);return {ok=rows~=nil,replays=rows}
     elseif action=='replay'then
         if type(value)~='string'or #value>64 then return {ok=false}end
-        if not accounts.live.enabled('replays')then return {ok=false,message='다시보기를 잠시 점검 중이에요.'}end
+        if not accounts.live.enabled('replays')then return {ok=false,message='다시보기 점검 중'}end
         ok,message=watchReplay(e,value)
     elseif action=='spectate'then
         if type(value)~='string'or #value>64 then return {ok=false}end
-        if e.room and not e.room.practice or queue.membership[id]then return {ok=false,message='대기를 취소하면 관전할 수 있어요.'}end
-        if not accounts.live.enabled('spectate')then return {ok=false,message='관전을 잠시 점검 중이에요.'}end
+        if e.room and not e.room.practice or queue.membership[id]then return {ok=false,message='대기 중'}end
+        if not accounts.live.enabled('spectate')then return {ok=false,message='관전 점검 중'}end
         local mine=liveMatches:mine(rooms,id)
         if not require(pack.Core.VipComms).allows('spectate',nil,p:GetAttribute('CommanderVIP')==true)and not(mine and mine.id==value)then
-            analytics:flow(p,'spectate','vipLocked',{result='rejected',reason='subscription_required'});return {ok=false,vipLocked=true,message='다른 경기 관전은 VIP 클럽 혜택이에요.'}
+            analytics:flow(p,'spectate','vipLocked',{result='rejected',reason='subscription_required'});return {ok=false,vipLocked=true,message='🔒 VIP 관전'}
         end
         local target;for _,r in ipairs(rooms)do if r.globalMatch==value and LiveModel.listed(r)then target=r;break end end
         if target then ok,message=observe(e,target)else ok,message=liveMatches:send(p,value)end
     elseif action=='rejoin'then
         local mine=not e.room and liveMatches:mine(rooms,id)
-        if not mine then return {ok=false,message='돌아갈 경기가 이미 끝났어요.'}end
-        if queue.membership[id]then return {ok=false,message='대기를 취소한 뒤 돌아갈 수 있어요.'}end
+        if not mine then return {ok=false,message='끝난 경기'}end
+        if queue.membership[id]then return {ok=false,message='대기 중'}end
         ok,message=liveMatches:send(p,mine.id);if ok then message='경기로 돌아가는 중…'end
     elseif action=="cancel"then local cancelled,why=queue:cancel(id,os.clock());if cancelled==false then return {ok=false,message=why}end;waited(id,'QueueCancelled');message=why;if #party.users>1 then party.ready={}end;if e.room and e.room.practice then release(e,false)end
     elseif action=="vote"then ok=queue:vote(id,value)
     elseif action=="invite"then
         local function busy(en)return not between(en)end
         local other=finite(value)and entries[value]
-        local why=party.leader~=id and '파티장만 초대할 수 있어요.'or #party.users>=5 and '파티는 최대 5명이에요.'or busy(e)and '경기를 마친 뒤 초대할 수 있어요.'
-            or queue.membership[id]and '대기를 취소한 뒤 초대하세요.'or (not other or value==id or not user(value))and '이 서버에 있는 지휘관만 초대할 수 있어요.'
-            or parties[value]and '이미 다른 파티에 있는 지휘관이에요.'or busy(other)and '경기 중인 지휘관이에요. 끝난 뒤 초대하세요.'
+        local why=party.leader~=id and '파티장 전용'or #party.users>=5 and '파티 가득 5/5'or busy(e)and '경기 중'
+            or queue.membership[id]and '대기 중'or (not other or value==id or not user(value))and '다른 서버'
+            or parties[value]and '다른 파티'or busy(other)and '상대 경기 중'
         if why then return {ok=false,message=why}end
         local now=os.clock();local Guards=require(pack.Core.AbuseGuards)
         e.inviteSentAt=e.inviteSentAt or {}
         for target,at in pairs(e.inviteSentAt)do if now-at>=Guards.inviteCooldown then e.inviteSentAt[target]=nil end end
-        if e.inviteSentAt[value]then return {ok=false,message='잠시 뒤 다시 초대할 수 있어요.'}end
+        if e.inviteSentAt[value]then return {ok=false,message='초대 재사용 대기'}end
         e.inviteSentAt[value]=now
-        invites[value]=invites[value]or {};invites[value][id]=now+60;message='초대를 보냈어요'
+        invites[value]=invites[value]or {};invites[value][id]=now+60
         results:FireClient(other.player,{action='invite',ok=true,from=id,name=p.DisplayName,message=string.format('%s님이 파티에 초대했어요',p.DisplayName),version=other.version})
     elseif action=="accept"then
         local offer=invites[id]and invites[id][value];local host=entries[value];local target=group(value);local targetParty=parties[value]
         local function busy(en)return not between(en)end
-        if not offer or offer<os.clock()or not host or not user(value)then return {ok=false,message='초대가 만료됐어요. 다시 초대를 받아 주세요.'}end
-        if busy(host)or queue.membership[value]or #target.users>=5 then return {ok=false,message='파티가 지금 출격 중이에요. 잠시 뒤 다시 초대를 받아 주세요.'}end
-        if busy(e)then return {ok=false,message='경기를 마친 뒤 합류할 수 있어요.'}end
-        if parties[id]then return {ok=false,message='지금 파티에서 나온 뒤 합류할 수 있어요.'}end
+        if not offer or offer<os.clock()or not host or not user(value)then return {ok=false,message='초대 만료'}end
+        if busy(host)or queue.membership[value]or #target.users>=5 then return {ok=false,message='파티 출격 중'}end
+        if busy(e)then return {ok=false,message='경기 중'}end
+        if parties[id]then return {ok=false,message='이미 파티'}end
         if queue.membership[id]then local cancelled,why=queue:cancel(id,os.clock());if cancelled==false then return {ok=false,message=why}end end
         if entries[id]~=e or user(id)~=p or entries[value]~=host or not user(value)
             or parties[value]~=targetParty or parties[id]or busy(e)or busy(host)
             or e.loading or e.arriving or host.loading or host.arriving
             or queue.membership[id]or queue.membership[value]or #target.users>=5
             or not invites[id]or invites[id][value]~=offer or offer<os.clock()then
-            return {ok=false,message='초대가 만료됐어요. 다시 초대를 받아 주세요.'}
+            return {ok=false,message='초대 만료'}
         end
         parties[value]=target;table.insert(target.users,id);target.ready=target.ready or {};target.ready[id]=true;target.mode='pvp';for _,u in ipairs(target.users)do parties[u]=target end;invites[id]=nil
         for _,u in ipairs(target.users)do local pl,en=user(u),entries[u]
@@ -998,8 +1019,8 @@ local function lobbyHandle(p,action,value)
         local host=finite(value)and entries[value]
         if offer and host and user(value)then results:FireClient(host.player,{action='lobby',ok=false,message=string.format('%s님이 초대를 거절했어요',p.DisplayName),version=host.version})end
     elseif action=="kick"then
-        if party.leader~=id or not finite(value)or value==id or not table.find(party.users,value)then return {ok=false,message='파티장만 파티원을 내보낼 수 있어요.'}end
-        if queue.membership[value]or queue.membership[id]then return {ok=false,message='대기를 취소한 뒤 내보낼 수 있어요.'}end
+        if party.leader~=id or not finite(value)or value==id or not table.find(party.users,value)then return {ok=false,message='파티장 전용'}end
+        if queue.membership[value]or queue.membership[id]then return {ok=false,message='대기 중'}end
         table.remove(party.users,table.find(party.users,value));parties[value]=nil;party.ready={}
         if #party.users==1 then parties[party.users[1]]=nil end
         local gone=entries[value];if gone and user(value)then results:FireClient(gone.player,{action='lobby',ok=false,message='파티장이 파티에서 내보냈어요',version=gone.version})end
@@ -1009,7 +1030,7 @@ local function lobbyHandle(p,action,value)
             party.ready={};if #party.users==1 then parties[party.users[1]]=nil elseif #party.users>1 then party.leader=party.users[1]end end
     elseif action=="leaders"then
         local rows=careers:leaders(true);return {ok=rows~=nil,leaders=rows}
-    else ok=false;message="지원하지 않는 로비 동작이에요."end
+    else ok=false;message="불가"end
     pushLobby();return {ok=ok,message=message,state=lobbySnapshot(id)}
 end
 lobbyRequest.OnServerInvoke=function(p,action,value)
@@ -1023,14 +1044,14 @@ lobbyRequest.OnServerInvoke=function(p,action,value)
     if table.find({'joinField','join','play','again','customCreate','joinCode','rejoin'},action)then analytics:requested(p,'pvp')end
     local function invoke()
     local e=entries[p.UserId]
-    local heavy=e and ({joinField=2,join=2,play=2,again=2,customCreate=2,joinCode=2,hq=2,rejoin=2,replay=2,ranked=2,practice=1,spectate=1,ready=1,cancel=1,leaveParty=1,customUpdate=1,customReady=1,customStart=1,customLaunch=1,customTeam=1,selectMode=1,invite=1,accept=1,kick=1})[action]
+    local heavy=e and ({joinField=2,join=2,play=2,again=2,customCreate=2,joinCode=2,hq=2,rejoin=2,replay=2,ranked=2,practice=1,spectate=1,ready=1,cancel=1,leaveParty=1,customUpdate=1,customReady=1,fieldReady=1,customStart=1,customLaunch=1,customTeam=1,selectMode=1,invite=1,accept=1,kick=1})[action]
     if not heavy then return lobbyHandle(p,action,value)end
     local cancelling=action=='cancel'or action=='leaveParty';local lock=cancelling and 'queueCancelBusy'or 'queueBusy'
-    if e[lock]or not cancelling and e.queueCancelBusy or heavy==2 and os.clock()-(e.lastQueue or -math.huge)<1 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end
+    if e[lock]or not cancelling and e.queueCancelBusy or heavy==2 and os.clock()-(e.lastQueue or -math.huge)<1 then return {ok=false,message="다시 시도"}end
     local operation={};e[lock]=operation;if heavy==2 then e.lastQueue=os.clock()end
     local ok,result=pcall(lobbyHandle,p,action,value)
     if e[lock]==operation then e[lock]=nil end
-    if not ok then warn('lobby',action,result);return {ok=false,message="잠시 뒤 다시 시도하세요."}end
+    if not ok then warn('lobby',action,result);return {ok=false,message="다시 시도"}end
     return result
     end
     local result=invoke()
@@ -1062,7 +1083,7 @@ if Run:IsStudio()then
 end
 queue:start({
     joinGuard=queueJoinGuard,
-    departing=function(ids)for _,uid in ipairs(ids)do waited(uid,'QueueWait',nil,'transfer')end end,
+    departing=function(ids)for _,uid in ipairs(ids)do waited(uid,'QueueWait',nil,'transfer')end;pcall(function()accounts.comeback:sortie(ids)end)end,
     failed=function(p)analytics:custom(p,'TransferFailed',nil,'pvp',1)end,
     hasLobby=function()for _,e in pairs(entries)do if not e.room or e.room.practice then return true end end;return false end,
     create=function(selection)
@@ -1080,8 +1101,8 @@ soloTransfer=require(services.SoloTransfer).new(Config,{
     create=function(id,ticket)
         local e=entries[id];if not e or e.room then return false end
         local player,version=e.player,e.version
-        local goal=ticket.goal==true
-        if goal then
+        local goal=ticket.goal==true;local temporary=goal or ticket.quick==true
+        if temporary then
             local deadline=os.clock()+10;local account
             repeat
                 if entries[id]~=e or not user(id)then return false end
@@ -1097,7 +1118,7 @@ soloTransfer=require(services.SoloTransfer).new(Config,{
         end
         local daily=ticket.daily and require(pack.Core.DailyOperation).of(ticket.daily)
         local stage=ticket.campaign and Outgame.campaign.stage(ticket.campaign)
-        return createRoom({users={id},teams={},mode='single',map=daily and daily.map or stage and stage.map or ticket.map,intro=ticket.intro,rewardMode=ticket.rewardMode,daily=daily or nil,campaign=stage and stage.id or nil,soloTransfer=true,goal=goal,resumeSettings=goal and Outgame.copy(ticket.settings)or nil},true)
+        return createRoom({users={id},teams={},mode='single',map=daily and daily.map or stage and stage.map or ticket.map,intro=ticket.intro,rewardMode=ticket.rewardMode,daily=daily or nil,campaign=stage and stage.id or nil,soloTransfer=true,goal=goal,quick=ticket.quick,resumeSettings=temporary and Outgame.copy(ticket.settings)or nil},true)
     end,
 })
 local world=Instance.new("Folder");world.Name="FrontierWorld";world.Parent=workspace
@@ -1160,7 +1181,7 @@ local function added(p)
         task.spawn(function()
             local target
             for _=1,10 do for _,r in ipairs(rooms)do if r.globalMatch==watching then target=r;break end end;if target or p.Parent~=Players then break end;task.wait(1)end
-            local ok,message=false,'관전하려던 경기가 끝났어요. 여기서 다음 경기에 참가할 수 있어요.'
+            local ok,message=false,'관전 경기 종료'
             if target and p.Parent==Players and not e.room then ok,message=observe(e,target)end
             if p.Parent==Players then results:FireClient(p,{action='lobby',ok=ok,message=message,version=e.version})end
         end)
@@ -1212,7 +1233,6 @@ local function finish(room)
     end
 end
 local lobbyTimer=0
-local boardTimer=9
 local function stepRoom(room,dt,now)
         local s=room.session
         local okA,errA=pcall(analytics.room,analytics,room,now);if not okA then warn('TOYFRONT telemetry room error',room.id,errA)end
@@ -1305,7 +1325,7 @@ local function stepRoom(room,dt,now)
                 local pr=room.progress[id];if pr and not pr.ended then pr:finish('expired',os.time(),true);recordProgress(id,pr)end
                 if room.casual then if not room.endedAt then s:handBack(e.faction)end;room.members[id]=nil
                 elseif not room.single and not room.endedAt then if s:markDisconnected(e.faction,true) and room.replayLog then room.replayLog:add(s.sim.ticks,e.faction,'disconnect')end end
-                e.room=nil;e.markedAway=nil else retained=true end
+                e.room=nil;e.stateStream=nil;e.markedAway=nil else retained=true end
         end end
         if room.endedAt and now>=room.endedAt+Config.resultSeconds then observers(room,function(_,e)unobserve(e)end)end
         if not retained then
@@ -1339,22 +1359,6 @@ local function lobbyTick(now)
         liveMatches:sync(rooms)
         for _,e in pairs(entries)do if e.player.Parent==Players then matchChat:sync(e)end end
         matchChat:clean()
-        boardTimer=(boardTimer or 0)+1
-        local board=plazaModel and plazaModel:FindFirstChild('LiveBoard');local live=board and board:FindFirstChild('Live')
-        if live and boardTimer>=10 then
-            boardTimer=0
-            local waiting=0;for _,g in pairs(queue.membership)do if g.mode=='pvp'then waiting+=1 end end
-            local online=#Players:GetPlayers()
-            local away=0;for _,p in ipairs(Players:GetPlayers())do if p:GetAttribute('FrontierRoom')~=nil then away+=1 end end
-            live.StatsNote.Stats.Text=(waiting>0 or #rooms>0)and string.format('로비 %d명   경기 중 %d명   대전 대기 %d명',online-away,away,waiting)
-                or online>2 and string.format('지금 접속 %d명   AI 지휘관 상시 대기',online)or 'AI 지휘관 상시 대기   혼자도 바로 출발'
-            task.spawn(function()
-                local rows=careers:leaders()
-                if not rows or not live.Parent then return end
-                local lines={};for _,row in ipairs(rows)do if #lines>=8 then break end;if (row.wins or 0)>0 then table.insert(lines,string.format('%d. %s  %d승',#lines+1,row.name or '지휘관',row.wins or 0))end end
-                live.LeadersNote.Leaders.Text=#lines>0 and table.concat(lines,'\n')or '첫 승리의 주인공을 기다려요'
-            end)
-        end
         for _,e in pairs(entries)do if not e.room and e.player.Character then local r=e.player.Character:FindFirstChild("HumanoidRootPart");if r and (r.Position.Y<PlazaLayout.y-3 or math.abs(r.Position.X-PlazaLayout.x)>PlazaLayout.width/2+4 or math.abs(r.Position.Z-PlazaLayout.z)>PlazaLayout.depth/2+4)then placeCharacter(e.player,nil,nil)end end end
         for _,mode in ipairs({"pvp","coop"})do if not full(false)then local selection=queue:take(mode,now);if selection then
             local ok,message=createRoom(selection,false);if not ok then for _,id in ipairs(selection.users)do local p=user(id);if p then results:FireClient(p,{action="lobby",ok=false,message=message})end end end
@@ -1364,7 +1368,7 @@ end
 local function quarantine(room,err)
     warn('TOYFRONT room closed after repeated errors',room.id,err)
     for id,pr in pairs(room.progress or {})do if not pr.final then pcall(function()pr:finish(pr.outcome or 'serverStop',os.time(),true);recordProgress(id,pr)end)end end
-    for id in pairs(room.members or {})do local e=entries[id];if e and e.room==room then pcall(release,e,false);local p=user(id);if p then results:FireClient(p,{action='lobby',ok=false,message='경기에 문제가 생겨 로비로 돌아왔어요. 기록은 저장됐어요.'})end end end
+    for id in pairs(room.members or {})do local e=entries[id];if e and e.room==room then pcall(release,e,false);local p=user(id);if p then results:FireClient(p,{action='lobby',ok=false,message='경기 오류  기록 저장됨'})end end end
     observers(room,function(_,e)pcall(unobserve,e)end)
     local k=table.find(rooms,room);if k then table.remove(rooms,k)end
 end

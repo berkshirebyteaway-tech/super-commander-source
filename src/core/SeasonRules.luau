@@ -8,16 +8,12 @@ M.countSeconds=120
 M.modes={single=true,pvp=true,coop=true}
 M.seasons={
     {id=0,name='프리시즌',start=1791590400,finish=1793491200,tierXP=400,legacy={
-        [5]={kind='title',id='s0:t5',name='얼리버드'},
         [10]={kind='plate',id='s0:p10',name='프리시즌 강철',color={96,112,132}},
-        [15]={kind='title',id='s0:t15',name='개국공신'},
         [20]={kind='plate',id='s0:p20',name='프리시즌 청록',color={40,180,170}},
-        [25]={kind='title',id='s0:t25',name='프리시즌 OG'},
         [30]={kind='plate',id='s0:p30',name='프리시즌 금장',color={232,184,72}},
     }},
 }
 M.names={[1]='프리시즌2'}
-M.monthlyTitleTiers={[5]=2,[15]=3,[25]=4}
 local generated={}
 function M.get(n)
     if type(n)~='number'or n%1~=0 or n<0 then return nil end

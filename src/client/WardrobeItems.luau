@@ -11,7 +11,7 @@ local Launch=require(script.Parent.Parent.Core.LaunchCommerce)
 local Standards=require(script.Parent.Parent.Core.CommanderStandardRules)
 local M={}
 local function step(name,data)local ok,T=pcall(require,script.Parent.TelemetryClient);if ok and T.step then pcall(T.step,'cosmetics',name,data)end end
-M.tabs={{'commanderStandard','깃발'},{'flag','국기'},{'territory','영토'},{'city','건물'},{'projectile','핵'},{'commanderTrail','트레일'},{'parachute','낙하산'},{'vehicle','탈것'},{'commanderOrder','지휘 연출'}}
+M.tabs={{'commanderStandard','깃발'},{'territory','영토'},{'city','건물'},{'projectile','핵'},{'commanderTrail','트레일'},{'parachute','낙하산'},{'vehicle','탈것'},{'commanderOrder','지휘 연출'}}
 local legacy={'arctic','copper'}
 M.noneSlots={vehicle={desc='아무것도 타지 않고 걸어 다녀요'},commanderTrail={desc='지나간 자리에 아무것도 남기지 않아요'}}
 function M.emptyPreview(parent)
@@ -53,10 +53,8 @@ local function entries(hub,slot,shop)
     local function preview(item)return function(parent,hero)
         if family.id=='territory'and C.get(item.style).flat then return require(script.Parent.SkinMapScene).patch(parent,item)end
         if family.id=='buildings'and hero then
-            local holder=UI.make('Frame',parent,{Name='BuildingPair',BackgroundTransparency=1})
-            local left=Preview.create(holder,item,{role='City'});left.Size=UDim2.fromScale(.56,1)
-            local right=Preview.create(holder,item,{role='DefensePost'});right.Size=UDim2.fromScale(.48,.86);right.Position=UDim2.fromScale(.52,.14)
-            return holder
+            local v=Preview.create(parent,item,{roles=require(script.Parent.BuildingModels).previewOrder});v.Name='BuildingRow'
+            return v
         end
         return Preview.create(parent,item,{role=role})
     end end

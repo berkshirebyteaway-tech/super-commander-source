@@ -948,14 +948,20 @@ require(script.Parent.BuildingVolume2).register(T,motion,kit)
 function M.has(style)return style and style.tier~=nil and T[style.theme]~=nil end
 local Meshes=require(script.Parent.CosmeticMeshes)
 local levelScale={.84,.92,1}
+local farDrop={Bush=true,Door=true,Win=true,Slit=true,Cable=true,Cargo=true}
 local function meshKey(style,kind)return style.id and style.id..'/'..kind end
 local function meshFill(model,kind,style,level,detailed,owner)
     local key=meshKey(style,kind);local tier=style.tier or 0
-    local top,half=.3,2.25
-    for _,e in ipairs(Meshes.rig(key).parts)do if e.def.name=='Plinth'then top=e.def.pos[2]+e.def.size[2]/2;half=e.def.size[3]/2 end end
-    local list=Meshes.build(model,key,{colors={team=owner,primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)},
+    local top,half,px,wide=.3,2.25,0,2.25
+    local turn=CFrame.Angles(0,PI,0)
+    for _,e in ipairs(Meshes.rig(key).parts)do if e.def.name=='Plinth'then
+        local p,z=e.def.pos,e.def.size;top=p[2]+z[2]/2;half=-p[3]+z[3]/2;px=-p[1];wide=z[1]/2
+    end end
+    local list=Meshes.build(model,key,{origin=turn,colors={team=owner,primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)},
         heroScale=levelScale[level],heroBase=V3(0,top,0),groundCap=5,keep=function(e)
             local d=e.def;local z=d.size
+            local n=d.name:match('^Missile(%d*)$');if n and (tonumber(n)or 1)>level then return false end
+            if not detailed and style.id=='default_buildings'and farDrop[d.name]then return false end
             if not detailed and d.name:sub(-3)=='Top'then return d.name=='RoofRimTop'or d.name=='RoofHaloTop'or d.name=='RoofCrownTop'end
             return detailed or e.kind~=nil or V3(z[1],z[2],z[3]).Magnitude>=.45
         end})
@@ -980,12 +986,16 @@ local function meshFill(model,kind,style,level,detailed,owner)
         if r.part.Size.Magnitude<.7 then r.part.CastShadow=false end
     end
     tallest=tallest or highest
+    local fit=math.min(1,wide/2.25)
     local function tab(name,w,x,color)
-        local p=G.block(model,name,V3(w,.12,.06),CF(x,top*.55,half+.03),color);p.CastShadow=false;return p
+        local p=G.block(model,name,V3(w,.12,.06),CF(px+x*fit,top*.55,half+.03),color);p.CastShadow=false;return p
     end
     local beacon=tab('StatusBeacon',.42,-1.5,ice);beacon.Material=MAT.Neon;beacon.Transparency=.08
     if level>=2 then tab('LevelStripe',.36+.22*(level-2),1.3,C(245,196,81))end
-    local missile=model:FindFirstChild('Missile');if missile then missile:SetAttribute('ReadyColor',missile.Color)end
+    if kind=='MissileSilo'and not model:FindFirstChild('Missile')then
+        for i=1,level do local p=tab(i==1 and 'Missile'or 'Missile'..i,.22,-.98+(i-1)*.32,ice);p.Material=MAT.Neon end
+    end
+    for i=1,3 do local missile=model:FindFirstChild(i==1 and 'Missile'or 'Missile'..i);if missile then missile:SetAttribute('ReadyColor',missile.Color)end end
     local light
     if tier>=4 and tallest then
         light=Instance.new('PointLight');light.Name='CollectionLight';light.Color=tallest.part.Color;light.Range=6;light.Brightness=.8;light.Shadows=false;light.Parent=tallest.part
@@ -1031,6 +1041,22 @@ function M.create(kind,style,level,detailed,ownerColor)
     attributes(model,kind,style,state.tier)
     model.WorldPivot=CFrame.identity
     M.step(model,0,true,3)
+    return model
+end
+M.defaultMeshes=true
+local defaultStyle={id='default_buildings',tier=0,primary={243,235,221},secondary={226,214,194},accent={245,196,81}}
+function M.defaultKey(kind)local key='default_buildings/'..kind;return M.defaultMeshes and Meshes.has(key)and key or nil end
+function M.prefetchDefault()for _,kind in ipairs({'City','DefensePost','Port','Factory','MissileSilo','SAMLauncher'})do local key=M.defaultKey(kind);if key then Meshes.request(key)end end end
+function M.createDefault(kind,level,detailed,owner,block)
+    local key=M.defaultKey(kind)
+    if key and Meshes.ready(key)then
+        local model=Instance.new('Model');model.Name=kind
+        local state=meshFill(model,kind,defaultStyle,level,detailed,owner)
+        if state then states[model]=state;model.WorldPivot=CFrame.identity;M.step(model,0,true);return model end
+        model:Destroy()
+    end
+    local model=block()
+    if key then states[model]={items={},tier=0};Meshes.watchModel(key,model,function()meshSwap(model,kind,defaultStyle,level,detailed,owner)end)end
     return model
 end
 function M.step(model,at,reduced,phase,batch)

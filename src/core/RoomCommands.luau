@@ -24,27 +24,27 @@ function M.apply(s,id,single,action,value,extra)
     elseif action=="moveWarship"and finite(value)and value%1==0 and validTile(s,extra)then ok,message=s.unitSystem.naval:move(id,value,extra)
     elseif action=="moveWarships"and type(value)=="table"and #value>=1 and #value<=200 and validTile(s,extra)then
         local moved=0;for _,unitId in ipairs(Guards.uniqueIds(value))do if finite(unitId)and unitId%1==0 and s.unitSystem.naval:move(id,unitId,extra)then moved+=1 end end
-        ok=moved>0;message=ok and string.format("군함 %d척의 순찰 구역을 옮겨요.",moved)or "이동할 수 있는 군함이 없어요."
+        ok=moved>0;message=ok and string.format("군함 %d척의 순찰 구역을 옮겨요.",moved)or "군함 없음"
     elseif action=="retaliate"and finite(value)and value>=.01 and value<=1 then ok,message=s:retaliate(id,value)
     elseif action=="alliance"and finite(extra)and extra%1==0 and type(value)=="string"then
         local target=actual(extra);local q=s.sim.players[target]
-        if q and s.sim.players[id].team and q.team==s.sim.players[id].team then ok=false;message="같은 팀은 동맹을 해제할 수 없어요."else ok,message=s:allianceCommand(id,target,value)end
+        if q and s.sim.players[id].team and q.team==s.sim.players[id].team then ok=false;message="같은 팀"else ok,message=s:allianceCommand(id,target,value)end
     elseif action=="support"and type(value)=="string"then
         local target=type(extra)=='table'and extra.target or extra
         local amount=type(extra)=='table'and extra.amount or nil
         if finite(target)and target%1==0 and (amount==nil or finite(amount)and amount%1==0 and amount>=1 and amount<=9007199254740991)then ok,message=s:supportCommand(id,actual(target),value,amount)
-        else ok=false;message='지원량과 대상을 확인하세요.'end
+        else ok=false;message='지원 불가'end
     elseif action=="embargoAll" and type(value)=="boolean" then ok,message=s.diplomacyEconomy:embargoAll(id,value)
     elseif action=="cancelAttack"and finite(value)then ok=s.sim:cancelAttack(id,value)
     elseif action=="comms" and type(value)=="string" and type(extra)=="table" and finite(extra.target) and extra.target%1==0 then
-        ok=false;message='메시지는 Roblox 채팅으로 보내 주세요.'
+        ok=false;message='Roblox 채팅 사용'
     elseif action=='nuclear'and type(value)=='string'and table.find({'AtomBomb','HydrogenBomb','MIRV'},value)and type(extra)=='table'and validTile(s,extra.tile)and finite(extra.silo)and type(extra.up)=='boolean'and type(extra.relationStamp)=='string'and #extra.relationStamp<=1000 then
         local amount=finite(extra.amount)and extra.amount%1==0 and extra.amount or 1
         ok,message=s.unitSystem.nuclear:launchMany(id,value,extra.tile,{silo=extra.silo,up=extra.up,relationStamp=extra.relationStamp},amount)
     elseif action=="build"and type(value)=="string"and validTile(s,extra)then if single then ok,message=s:build(value,extra)else ok,message=s:buildFor(id,value,extra)end
     elseif action=="upgrade"and finite(value)then local amount=extra=="max"and 50 or finite(extra)and extra%1==0 and math.clamp(extra,1,50)or 1;if single then ok,message=s:upgrade(value,amount)else ok,message=s:upgradeFor(id,value,amount)end
     elseif action=="delete"and finite(value)then if single then ok,message=s:deleteUnit(value)else ok,message=s:deleteFor(id,value)end
-    else ok=false;message="사용할 수 없는 명령이에요."end
+    else ok=false;message="불가"end
     return ok,message
 end
 function M.replay(s,entry)

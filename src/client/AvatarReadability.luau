@@ -21,7 +21,7 @@ function M:release()
 end
 function M:characterChanged(char)
     self:release();self.character=char;if not char then return end
-    local function add(p)if p:IsA('BasePart')then self.parts[p]={base=p.LocalTransparencyModifier}end end
+    local function add(p)if p:IsA('BasePart')then self.parts[p]={base=p.LocalTransparencyModifier<.99 and p.LocalTransparencyModifier or 0}end end
     for _,p in ipairs(char:GetDescendants())do add(p)end
     self.connection=char.DescendantAdded:Connect(add)
 end

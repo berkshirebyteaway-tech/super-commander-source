@@ -23,7 +23,24 @@ function M.new()
         end)
     end
     if not self.live then self.state=Model.apply(nil,os.clock(),{kind='pulse',host='studio'})end
+    self.friends={}
+    local function fetch(p)task.spawn(function()self:friendsOf(p.UserId)end)end
+    Players.PlayerAdded:Connect(fetch);for _,p in ipairs(Players:GetPlayers())do fetch(p)end
+    Players.PlayerRemoving:Connect(function(p)self.friends[p.UserId]=nil end)
     return self
+end
+function M:friendsOf(id)
+    local cached=self.friends[id];if cached then return cached end
+    local list={};self.friends[id]=list
+    if id<=0 then return list end
+    pcall(function()
+        local pages=Players:GetFriendsAsync(id)
+        while #list<200 do
+            for _,f in ipairs(pages:GetCurrentPage())do table.insert(list,f.Id)end
+            if pages.IsFinished then break end;pages:AdvanceToNextPageAsync()
+        end
+    end)
+    return list
 end
 function M:refreshView()
     self.state=self.storage:view(self.directoryBucket)
@@ -116,17 +133,17 @@ function M:rollbackJoin(op)
     end
 end
 function M:withJoin(ids,fn)
-    if type(ids)~='table'or #ids<1 or #ids>5 then return false,'파티원을 확인하고 함께 다시 참가하세요.'end
+    if type(ids)~='table'or #ids<1 or #ids>5 then return false,'파티원 확인'end
     ids=table.clone(ids)
     local op={players={}}
     for _,id in ipairs(ids)do
-        if self.joining[id]or self.cancelling[id]then return false,'잠시 뒤 다시 시도하세요.'end
-        local p=Players:GetPlayerByUserId(id);if not p then return false,'파티원이 로비를 떠났어요.'end
+        if self.joining[id]or self.cancelling[id]then return false,'다시 시도'end
+        local p=Players:GetPlayerByUserId(id);if not p then return false,'파티원 나감'end
         op.players[id]=p
     end
     if self.callbacks and self.callbacks.joinGuard then
         op.guard=self.callbacks.joinGuard(ids)
-        if not op.guard then return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
+        if not op.guard then return false,'파티 상태 바뀜'end
     end
     for id in pairs(op.players)do self.joining[id]=op end
     local result=table.pack(pcall(fn,op))
@@ -147,19 +164,20 @@ function M:joinField(ids,ticket,now,invited)
     return logged(self,ids,'queue','joinResult',fieldKind(ticket),self:withJoin(ids,function(op)return self:joinFieldNow(table.clone(ids),ticket,now,invited,op)end))
 end
 function M:joinFieldNow(ids,ticket,now,invited,request)
-    if #ids<1 or #ids>5 or type(ticket)~='table'or type(ticket.field)~='string'or #ticket.field>128 or type(ticket.revision)~='number'then return false,'참가 정보를 확인하세요.'end
-    if not self:joinValid(request)then return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
+    if #ids<1 or #ids>5 or type(ticket)~='table'or type(ticket.field)~='string'or #ticket.field>128 or type(ticket.revision)~='number'then return false,'참가 정보 확인'end
+    if not self:joinValid(request)then return false,'파티 상태 바뀜'end
     local custom=ticket.field:sub(1,7)=='custom-'
     local ranked=ticket.field:sub(1,7)=='ranked-'and ticket.field:sub(8)or nil
-    local tokens,names={},{}
+    local tokens,names,levels,clans,friends={},{},{},{},{}
     for _,id in ipairs(ids)do
         local current=self.active[id]and self:status(id,now)
-        if self.sending[id]or current and current.phase=='transferring'then return false,'전장으로 이동 중이에요.'end
-        local p=Players:GetPlayerByUserId(id);if not p then return false,'파티원이 로비를 떠났어요.'end
-        tokens[tostring(id)]=Http:GenerateGUID(false);names[tostring(id)]=p.DisplayName
+        if self.sending[id]or current and current.phase=='transferring'then return false,'전장 이동 중'end
+        local p=Players:GetPlayerByUserId(id);if not p then return false,'파티원 나감'end
+        tokens[tostring(id)]=Http:GenerateGUID(false);names[tostring(id)]=p.DisplayName;levels[tostring(id)]=p:GetAttribute('CommanderLevel')
+        clans[tostring(id)]=p:GetAttribute('CommanderClan');friends[tostring(id)]=self.friends[id]
     end
     local groupId=#ids>1 and Http:GenerateGUID(false)or nil
-    local op={kind='joinGroup',users=ids,tokens=tokens,names=names,group=groupId,leader=ids[1],field=ticket.field,revision=ticket.revision,invited=invited==true,ratings=ranked and ticket.ratings or nil,clan=ranked=='clanwar'and ticket.clan or nil}
+    local op={kind='joinGroup',users=ids,tokens=tokens,names=names,levels=levels,clans=clans,friends=friends,group=groupId,leader=ids[1],field=ticket.field,revision=ticket.revision,invited=invited==true,ratings=ranked and ticket.ratings or nil,clan=ranked=='clanwar'and ticket.clan or nil}
     local destination=self.live and self:bucket(op)or (custom and 'room:'..ticket.field or ranked and 'ranked'or 'official')
     local retired={};for _,id in ipairs(ids)do if self.live and self.active[id]and self.locations[id]~=destination then retired[id]={token=self.active[id],bucket=self.locations[id]}end end
     request.tokens=tokens;request.destination=destination
@@ -168,19 +186,19 @@ function M:joinFieldNow(ids,ticket,now,invited,request)
     if ok then for _,id in ipairs(ids)do local t=s.tickets[tostring(id)];if not t or t.token~=tokens[tostring(id)]then accepted=false;break end end end
     if not accepted then
         if not ok then self:deferJoin(request)else request.tokens=nil end
-        if not self:joinValid(request)then return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
+        if not self:joinValid(request)then return false,'파티 상태 바뀜'end
         local solo=#ids==1
-        local messages={gap='랭크 점수 차이가 500점 넘게 나는 친구와는 함께 랭크전에 들어갈 수 없어요.',stale='전장 규칙이 바뀌었어요. 새 카드를 확인해 주세요.',
-            full=custom and (solo and '방이 방금 가득 찼어요. 다른 방을 골라 주세요.'or '파티가 함께 들어갈 자리가 부족해요. 다른 방을 골라 주세요.')or solo and '방금 자리가 다 찼어요. 다른 전장을 골라 주세요.'or '파티가 함께 들어갈 자리가 부족해요. 다른 전장을 골라 주세요.',
-            teamfull=solo and '팀 자리가 방금 다 찼어요. 다른 전장을 골라 주세요.'or '파티가 같은 진영에 들어갈 자리가 부족해요.',locked='출격 준비 중이에요.',private='초대 코드를 입력해 참가해 주세요.',capacity='현재 모집이 가득해요. 잠시 뒤 다시 시도하세요.',party='파티원을 확인하고 함께 다시 참가하세요.'}
+        local messages={gap='랭크 점수 차이 큼',stale='전장 규칙 바뀜',
+            full=custom and (solo and '방 가득'or '파티 자리 부족')or solo and '자리 가득'or '파티 자리 부족',
+            teamfull=solo and '팀 자리 가득'or '파티 자리 부족',locked='출격 준비 중',private='초대 코드 필요',capacity='모집 가득',party='파티원 확인'}
         if ok and messages[s.notice]then return false,messages[s.notice],s.notice end
         local waiting=false;for _,id in ipairs(ids)do if self.active[id]then waiting=true end end
-        return false,waiting and '매칭 연결 확인 중이에요. 현재 대기는 유지돼요.'or '매칭 서버에 연결하지 못했어요. 잠시 뒤 다시 참가해 주세요.'
+        return false,waiting and '매칭 연결 확인 중'or '매칭 연결 실패'
     end
-    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
+    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티 상태 바뀜'end
     local t=s.tickets[tostring(ids[1])]
     local field=t.match and s.matches[t.match]or custom and s.customs[t.field]or ranked and {rules=require(game.ReplicatedStorage.FrontierNative.Core.RankedRules).rules(ranked=='clanwar'and '2v2'or ranked,0)}or (function()for _,f in ipairs(s.fields)do if f.id==t.field then return f end end end)()
-    if not field then self:rollbackJoin(request);return false,'매칭 연결 확인 중이에요. 잠시 뒤 다시 참가해 주세요.'end
+    if not field then self:rollbackJoin(request);return false,'매칭 연결 확인 중'end
     local membership={users=table.clone(ids),leader=ids[1],group=groupId,mode=custom and 'custom'or ranked and 'ranked'or 'pvp',ladder=ranked,field=t.field,joined=now,rules=field.rules}
     for _,id in ipairs(ids)do
         if self.membership[id]and not self.active[id]then self.localQueue:cancel(id,now)end
@@ -188,7 +206,7 @@ function M:joinFieldNow(ids,ticket,now,invited,request)
         self.locations[id]=destination
     end
     for id,old in pairs(retired)do self:retire(id,old.token,old.bucket)end
-    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
+    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티 상태 바뀜'end
     return true
 end
 function M:createCustom(id,rules,now,ids)
@@ -198,19 +216,19 @@ function M:createCustom(id,rules,now,ids)
     return ok,msg
 end
 function M:createCustomNow(id,rules,now,ids,request)
-    ids=ids or {id};if #ids<1 or #ids>5 or ids[1]~=id then return false,'파티 정보를 확인하세요.'end
+    ids=ids or {id};if #ids<1 or #ids>5 or ids[1]~=id then return false,'파티 확인'end
     local tokens,names={},{};for _,uid in ipairs(ids)do
-        if self.active[uid]then return false,'대기를 취소한 뒤 방을 만들어 주세요.'end
-        local p=Players:GetPlayerByUserId(uid);if not p then return false,'파티원이 로비를 떠났어요.'end
+        if self.active[uid]then return false,'대기 취소 먼저'end
+        local p=Players:GetPlayerByUserId(uid);if not p then return false,'파티원 나감'end
         tokens[tostring(uid)]=Http:GenerateGUID(false);names[tostring(uid)]=p.DisplayName
     end
     local guid=Http:GenerateGUID(false);local token=tokens[tostring(id)];local group=#ids>1 and Http:GenerateGUID(false)or nil
     request.tokens=tokens;request.destination='room:custom-'..guid
     local ok,s=self:update({kind='customCreate',userId=id,token=token,users=ids,tokens=tokens,names=names,group=group,customId='custom-'..guid,code=guid:sub(1,8):upper(),rules=rules,name=names[tostring(id)]})
     local t=ok and s.tickets[tostring(id)]
-    if not t or t.token~=token then if not ok then self:deferJoin(request)else request.tokens=nil end;return false,not ok and '매칭 연결을 확인하고 있어요. 잠시 뒤 다시 참가해 주세요.'or s.notice=='rules'and '설정 범위를 확인하세요.'or s.notice=='locked'and '출격 준비 중이에요.'or '열린 방이 있거나 모집이 가득해요.'end
-    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티원 상태가 바뀌었어요. 다시 시도해 주세요.'end
-    local room=s.customs[t.field];if not room then self:rollbackJoin(request);return false,'매칭 연결 확인 중이에요. 잠시 뒤 다시 참가해 주세요.'end
+    if not t or t.token~=token then if not ok then self:deferJoin(request)else request.tokens=nil end;return false,not ok and '매칭 연결 확인 중'or s.notice=='rules'and '설정 확인'or s.notice=='locked'and '출격 준비 중'or '모집 가득'end
+    if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티 상태 바뀜'end
+    local room=s.customs[t.field];if not room then self:rollbackJoin(request);return false,'매칭 연결 확인 중'end
     local membership={users=table.clone(ids),leader=id,group=group,mode='custom',field=t.field,joined=now,rules=room.rules}
     for _,uid in ipairs(ids)do
         if self.membership[uid]and not self.active[uid]then self.localQueue:cancel(uid,now)end
@@ -222,32 +240,40 @@ function M:customCommand(id,kind,value)
     return logged(self,{id},'custom','command',kind,self:customCommandNow(id,kind,value))
 end
 function M:customCommandNow(id,kind,value)
-    if not self.active[id]or self.sending[id]or type(value)~='table'then return false,'커스텀 방을 확인해 주세요.'end
+    if not self.active[id]or self.sending[id]or type(value)~='table'then return false,'방 확인'end
     local ok,s=self:update({kind=kind,userId=id,token=self.active[id],revision=value.revision,rules=value.rules,team=value.team})
-    local messages={stale='규칙이 바뀌었어요. 다시 확인하고 준비해 주세요.',regroup='참가자나 팀이 바뀌었어요. 다시 확인하고 눌러 주세요.',host='방장만 규칙과 출발을 결정할 수 있어요.',rules='설정 범위와 참가 인원을 확인하세요.',ready='모두 준비하면 출발할 수 있어요.',automatic='이 방은 팀을 자동 배정해요.',team='참가할 팀을 다시 확인하세요.',teamfull='선택한 팀이 가득 찼어요.',opponent='상대 팀이 필요해요. 팀을 나누거나 협동 모드를 골라주세요.'}
-    if not ok then return false,'매칭 연결을 확인하고 있어요. 잠시 뒤 다시 참가해 주세요.'end
+    local messages={stale='규칙 바뀜',regroup='참가자 바뀜',host='방장만 가능',rules='설정 확인',ready='모두 준비 필요',automatic='팀 자동 배정',team='팀 확인',teamfull='팀 가득',opponent='상대 팀 필요'}
+    if not ok then return false,'매칭 연결 확인 중'end
     return s.notice==nil,messages[s.notice]
+end
+function M:fieldReady(id,ready)
+    if not self.active[id]or self.sending[id]then return false,'대기 전장 없음'end
+    local ok,s=self:update({kind='fieldReady',userId=id,token=self.active[id],ready=ready})
+    if not ok then return false,'매칭 연결 확인 중'end
+    if s.notice then return false,'전장 바뀜'end
+    if self.telemetry then pcall(function()local t=s.tickets[tostring(id)];self.telemetry:flowUser(id,'queue','ready',{result=ready and 'accepted'or 'cancelled',value=t and t.joined and math.max(0,math.floor(os.time()-t.joined))or nil})end)end
+    return true
 end
 function M:joinCode(id,code,now,ids)
     return logged(self,ids or {id},'custom','joinCode','code',self:withJoin(ids or {id},function(op)return self:joinCodeNow(id,code,now,table.clone(ids or {id}),op)end))
 end
 function M:joinCodeNow(id,code,now,ids,request)
-    if type(code)~='string'or #code>12 then return false,'초대 코드를 확인해 주세요.'end
+    if type(code)~='string'or #code>12 then return false,'코드 확인'end
     code=code:gsub('%s',''):upper()
     if self.live then local ok,f=pcall(function()return self.storage:code(code)end)
-        if not ok then return false,'매칭 연결을 확인하고 있어요. 잠시 뒤 다시 참가해 주세요.'end
+        if not ok then return false,'매칭 연결 확인 중'end
         if f then return self:joinFieldNow(ids,{field=f.id,revision=f.revision},now,true,request)end
-        return false,'초대 코드가 만료되었거나 방을 찾을 수 없어요.'
+        return false,'방 없음'
     end
     self:update({kind='pulse',tokens=self:activeTokens()})
     for _,f in pairs(self.state and self.state.customs or {})do if f.code==code then return self:joinFieldNow(ids,{field=f.id,revision=f.revision},now,true,request)end end
-    return false,'초대 코드가 만료되었거나 방을 찾을 수 없어요.'
+    return false,'방 없음'
 end
 function M:activeTokens()local tokens={};for id,token in pairs(self.active)do tokens[tostring(id)]=token end;return tokens end
 function M:join(ids,mode,now)
     if mode~='pvp'then return self:withJoin(ids,function()return self.localQueue:join(ids,mode,now)end)end
     local d=self:directory();local f=d.fields[1]
-    if not f then return false,'공식 전장 목록을 확인 중이에요.'end
+    if not f then return false,'전장 목록 확인 중'end
     return self:joinField(ids,{field=f.id,revision=f.revision},now)
 end
 function M:cancel(id,now,leaving)
@@ -255,10 +281,10 @@ function M:cancel(id,now,leaving)
     if not self.active[id]then return self.localQueue:cancel(id,now)end
     if self.sending[id]then
         if leaving then self.active[id]=nil;self.locations[id]=nil;self.membership[id]=nil;self.sending[id]=nil;return true end
-        return false,'전장으로 이동 중이에요.'
+        return false,'전장 이동 중'
     end
     local group=self.membership[id];local ids=group and group.users or {id}
-    for _,uid in ipairs(ids)do if self.sending[uid]then return false,'전장으로 이동 중이에요.'end end
+    for _,uid in ipairs(ids)do if self.sending[uid]then return false,'전장 이동 중'end end
     local cancellation={};local tokens={}
     for _,uid in ipairs(ids)do self.cancelling[uid]=cancellation;tokens[uid]=self.active[uid]end
     local token=self.active[id];local ok=self:update({kind='cancel',userId=id,token=token})
@@ -269,7 +295,7 @@ function M:cancel(id,now,leaving)
             self.active[uid]=nil;self.locations[uid]=nil;self.membership[uid]=nil;self.attempts[uid]=nil;self.retryAt[uid]=nil
         end
     end
-    return true,not ok and not leaving and '참가를 취소했어요. 모집 연결은 복구 중이에요.'or nil
+    return true,not ok and not leaving and '참가 취소됨'or nil
 end
 function M:status(id,now)
     if not self.active[id]then return self.localQueue:status(id,now)end
@@ -313,7 +339,7 @@ function M:transfer(id,m,ticket)
     end
     if #players==0 then return end
     for _,uid in ipairs(ids)do if (self.attempts[uid]or 0)>=3 then
-        self:cancel(uid,os.clock());for _,other in ipairs(ids)do if self.telemetry then self.telemetry:flowUser(other,'queue','transferGiveUp',{result='cancelled',reason='network',count=3})end;self:notify(other,'이동 연결이 원활하지 않아 모집을 취소했어요. 다시 참가해 주세요.')end;return
+        self:cancel(uid,os.clock());for _,other in ipairs(ids)do if self.telemetry then self.telemetry:flowUser(other,'queue','transferGiveUp',{result='cancelled',reason='network',count=3})end;self:notify(other,'이동 실패, 모집 취소')end;return
     end end
     for _,uid in ipairs(ids)do self.sending[uid]=os.clock();self.attempts[uid]=(self.attempts[uid]or 0)+1 end
     local attempt=self.attempts[ids[1]]or 1
@@ -322,6 +348,7 @@ function M:transfer(id,m,ticket)
     options:SetTeleportData({toyfrontMatch=ticket.match,queueProtocol=Config.queueProtocol})
     if self.telemetry then for _,member in ipairs(players)do self.telemetry:prepareTransfer(member,ticket.match)end end
     if self.callbacks and self.callbacks.departing and (self.attempts[ids[1]]or 0)<=1 then pcall(self.callbacks.departing,ids)end
+    if self.telemetry and (self.attempts[ids[1]]or 0)<=1 then local n=0;for _ in pairs(m.members or {})do n+=1 end;for _,uid in ipairs(ids)do self.telemetry:flowUser(uid,'queue','depart',{result='accepted',count=n,value=n})end end
     local ok=pcall(function()Teleport:TeleportAsync(Config.matchPlaceId,players,options)end)
     if self.telemetry and not ok then for _,member in ipairs(players)do self.telemetry:emit(member,'transfer_result',{stage='sending',result='failed',reason='network'})end end
     if not ok then for _,uid in ipairs(ids)do self.sending[uid]=nil;self.retryAt[uid]=os.clock()+3 end end
@@ -332,7 +359,7 @@ function M:arrival(p)
     local data=ok and type(join)=='table'and type(join.TeleportData)=='table'and join.TeleportData
     local hint=data and data.toyfrontMatch
     if type(hint)~='string'or #hint==0 or #hint>64 then return end
-    if data.queueProtocol~=Config.queueProtocol then if self.telemetry then self.telemetry:flow(p,'queue','arrival',{result='rejected',reason='stale'})end;self:notify(p.UserId,'경기가 업데이트됐어요. 새 전장에 참가하세요.');return end
+    if data.queueProtocol~=Config.queueProtocol then if self.telemetry then self.telemetry:flow(p,'queue','arrival',{result='rejected',reason='stale'})end;self:notify(p.UserId,'업데이트됨, 새 전장으로');return end
     self.callbacks.arrival(p.UserId,true)
     task.spawn(function()
         local success,s
@@ -341,14 +368,12 @@ function M:arrival(p)
         if m and m.phase=='running'and m.destination==game.JobId and m.members[tostring(p.UserId)]then self.callbacks.arrival(p.UserId,false);return end
         if not m or m.destination~=game.JobId or not m.members[tostring(p.UserId)]or m.phase~='ready'then
             self.callbacks.arrival(p.UserId,false);if self.telemetry then self.telemetry:flow(p,'queue','arrival',{result='rejected',reason=success and 'missing'or 'storage_unavailable'})end
-            self:notify(p.UserId,'이번 모집이 끝났어요. 대전에 다시 참가할 수 있어요.');return
+            self:notify(p.UserId,'모집 끝남');return
         end
         self.arrivals[hint]=self.arrivals[hint]or {since=os.clock(),users={}}
         if self.telemetry then self.telemetry:acceptTransfer(p,hint)end
         self.arrivals[hint].users[p.UserId]=true
         if self.callbacks.claimed then pcall(self.callbacks.claimed,p.UserId,m.rules,m,hint)end
-        local group=m.groups and m.groups[tostring(p.UserId)]
-        self:notify(p.UserId,group and '함께 출발한 친구들의 접속을 기다려요.'or '다른 지휘관들의 접속을 기다려요.')
     end)
 end
 function M:poll()
@@ -398,7 +423,7 @@ function M:poll()
     if not ok then
         for mid,a in pairs(self.arrivals)do if os.clock()-a.since>=60 then
             self.arrivals[mid]=nil
-            for id in pairs(a.users)do self.callbacks.arrival(id,false);self:notify(id,'출발 인원이 접속하지 못했어요. 불이익 없이 로비에서 다시 참가할 수 있어요.')end
+            for id in pairs(a.users)do self.callbacks.arrival(id,false);self:notify(id,'출발 취소, 불이익 없음')end
         end end
         return
     end
@@ -417,14 +442,14 @@ function M:poll()
             end
         end
         if not t or t.token~=token then
-            self.active[id]=nil;self.locations[id]=nil;self.membership[id]=nil;if self.telemetry then self.telemetry:flowUser(id,'queue','seatLost',{result='expired'})end;self:notify(id,'모집 연결이 종료됐어요. 다시 참가해 주세요.')
+            self.active[id]=nil;self.locations[id]=nil;self.membership[id]=nil;if self.telemetry then self.telemetry:flowUser(id,'queue','seatLost',{result='expired'})end;self:notify(id,'모집 연결 끊김')
         elseif m and m.phase=='ready'then self:transfer(id,m,t)
         end
         if self.sending[id]and os.clock()-self.sending[id]>20 then self.sending[id]=nil;self.retryAt[id]=os.clock()+3 end
     end
     for mid,a in pairs(self.arrivals)do
         local m=s.matches[mid]
-        if not m or m.phase~='ready'then for id in pairs(a.users)do self.callbacks.arrival(id,false);self:notify(id,'이번 모집이 끝났어요. 대전에 다시 참가할 수 있어요.')end;self.arrivals[mid]=nil;continue end
+        if not m or m.phase~='ready'then for id in pairs(a.users)do self.callbacks.arrival(id,false);self:notify(id,'모집 끝남')end;self.arrivals[mid]=nil;continue end
         local users={};local expected=0
         for id in pairs(m.members)do expected+=1;if Players:GetPlayerByUserId(tonumber(id))then table.insert(users,tonumber(id))end end
         table.sort(users)
@@ -438,16 +463,17 @@ function M:poll()
                 selection.liveCode=result.matches[mid].code
                 local created=self.callbacks.create(selection)
                 if self.telemetry then for _,id in ipairs(users)do self.telemetry:flowUser(id,'queue','matchStart',{result=created and 'accepted'or 'failed',count=#users,value=os.clock()-a.since})end end
-                if not created then self:update({kind='abort',match=mid});for _,id in ipairs(users)do self:notify(id,'전장을 준비하지 못했어요. 다시 참가해 주세요.')end end
+                if self.telemetry and #users<expected then for _,id in ipairs(users)do self.telemetry:flowUser(id,'queue','matchShort',{result='rejected',reason='missing',count=#users,value=expected-#users})end end
+                if not created then self:update({kind='abort',match=mid});for _,id in ipairs(users)do self:notify(id,'전장 준비 실패')end end
                 self.arrivals[mid]=nil
             elseif late then
                 self:update({kind='abort',match=mid});self.arrivals[mid]=nil
-                for id in pairs(a.users)do self.callbacks.arrival(id,false);if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='capacity',count=#users})end;self:notify(id,m.rules.ranked=='ffa'and '접속한 지휘관이 4명보다 적어 출격을 취소했어요. 다시 참가해 주세요.'or '접속한 인원으로는 양쪽 진영을 채우지 못해 출격을 취소했어요. 다시 참가해 주세요.')end
+                for id in pairs(a.users)do self.callbacks.arrival(id,false);if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='capacity',count=#users})end;self:notify(id,m.rules.ranked=='ffa'and '인원 부족, 출격 취소'or '인원 부족, 출격 취소')end
             end
         elseif late then
             self:update({kind='abort',match=mid});self.arrivals[mid]=nil
             for id in pairs(a.users)do self.callbacks.arrival(id,false)end
-            for _,id in ipairs(users)do if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='disconnected',count=#users})end;self:notify(id,'출발 인원이 접속하지 못했어요. 불이익 없이 로비에서 다시 참가할 수 있어요.')end
+            for _,id in ipairs(users)do if self.telemetry then self.telemetry:flowUser(id,'queue','matchAbort',{result='timeout',reason='disconnected',count=#users})end;self:notify(id,'출발 취소, 불이익 없음')end
         end
     end
 end

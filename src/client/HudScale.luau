@@ -7,6 +7,7 @@ M.POPUP=.70
 M.INFO={'Toast','NetLink','HeadsUp','CommandFeedback','SignalFeed','Hover'}
 M.CARDS={'AllianceRenewal','DiplomacyInbox','Operations','BattleFeedback/UnderAttack','Guide','ActionGuidance'}
 M.MOUSE={'DiplomacyPeek','EventLog','MatchChatWindow','QuickComms','TacticalPanel','MatchSheet','NuclearAim'}
+M.V2={'Operations','Hover','DiplomacyInbox','BattleFeedback/UnderAttack','AllianceRenewal','DiplomacyPeek','QuickComms','EventLog','MatchSheet','NuclearAim','Toast','Guide'}
 function M.new(panel)
     return setmetatable({panel=panel,items={},watched=setmetatable({},{__mode='k'}),w=0,h=0},M)
 end
@@ -94,5 +95,6 @@ function M:apply(w,h,touch)
     local Placement=require(script.Parent.Parent.Core.InterfacePlacement)
     if Placement.desk(w,h,touch)then touch=false end
     each(M.INFO,touch and M.TOUCH or M.POPUP);each(M.CARDS,touch and 1 or M.POPUP);each(M.MOUSE,touch and 1 or M.SCALE)
+    if require(script.Parent.Hud20).ENABLED then each(M.V2,1)end
 end
 return M

@@ -64,16 +64,16 @@ function M:flood(center,predicate)
     return out
 end
 function M:spawn(tile)
-    if self.phase~="spawn" then return false,"이미 시작한 경기예요." end
-    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"지도를 선택하세요." end
+    if self.phase~="spawn" then return false,"이미 시작" end
+    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"지도 선택" end
     local w=self.map.meta.width;local cx,cy=tile%w-.5,math.floor(tile/w)-.5
     local tiles=self:flood(tile,function(t) local dx,dy=t%w-cx,math.floor(t/w)-cy;return dx*dx+dy*dy<=16 end)
     local valid={};for _,t in ipairs(tiles) do local b=self.sim.terrain[t+1];if T.isLand(b) and not T.isImpassable(b) then table.insert(valid,t) end end
-    if #valid==0 then return false,"육지에 시작 위치를 선택하세요." end
+    if #valid==0 then return false,"육지 선택" end
     for _,t in ipairs(valid) do self.sim:conquer(1,t) end
     self:recordOwnership();self.sim.captured={}
     self.spawnTile=tile;self.phase="playing";self:event("새 영토에 정착했어요.")
-    return true,"정착했어요. 주변 중립 땅을 선택하고 확장을 눌러 보세요."
+    return true,"정착"
 end
 function M:economyPlayer()
     local p=self.sim.players[1];local levels,owned=0,{}
@@ -110,7 +110,11 @@ function M:validConstructionTile(tile,owner)
         if x~=w-1 then visit(t+1) end
     end
     local near={}
-    for _,u in ipairs(self.units) do if u.active and U.structures[u.kind] and self:distance2(u.tile,tile)<900 then table.insert(near,{u.tile%w,u.tile//w}) end end
+    local distanceCy=math.floor(tile/w)
+    for _,u in ipairs(self.units)do if u.active and U.structures[u.kind]then
+        local x,y=u.tile%w,math.floor(u.tile/w);local dx,dy=x-cx,y-distanceCy
+        if dx*dx+dy*dy<900 then table.insert(near,{x,y})end
+    end end
     local best,bestDistance=nil,math.huge
     for _,t in ipairs(tiles) do
         local x,y=t%w,t//w;local dx,dy=x-cx,y-cy;local distance=dx*dx+dy*dy
@@ -123,41 +127,41 @@ function M:validConstructionTile(tile,owner)
 end
 function M:build(kind,tile)
     if self.unitSystem then return self.unitSystem:build(1,kind,tile) end
-    if kind~="City" and kind~="DefensePost" then return false,"이 모드에서는 쓸 수 없는 건물이에요." end
-    if self.phase~="playing" then return false,"먼저 시작 위치를 선택하세요." end
+    if kind~="City" and kind~="DefensePost" then return false,"이 모드에선 불가" end
+    if self.phase~="playing" then return false,"시작 위치 먼저" end
     local preview=self:preview(kind,tile);if not preview.valid then return false,preview.reason end
     table.insert(self.orders,{kind=kind,tile=tile});return true,"건설 명령을 보냈어요."
 end
 function M:preview(kind,tile)
     if self.unitSystem then return self.unitSystem:preview(1,kind,tile) end
-    if kind~="City" and kind~="DefensePost" then return {valid=false,reason="아직 준비 중인 건물이에요."} end
+    if kind~="City" and kind~="DefensePost" then return {valid=false,reason="준비 중인 건물"} end
     local cost=E.cost(self.settings,self:economyPlayer(),kind)
     local result={valid=false,cost=B.toString(cost),duration=E.duration(self.settings,kind)/10}
-    if self.phase~="playing" then result.reason="먼저 시작 위치를 선택하세요.";return result end
-    if type(tile)~="number" or tile~=tile or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then result.reason="지도에서 내 영토를 선택하세요.";return result end
+    if self.phase~="playing" then result.reason="시작 위치 먼저";return result end
+    if type(tile)~="number" or tile~=tile or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then result.reason="내 땅 선택";return result end
     local at=self:validConstructionTile(tile);result.tile=at
-    if not at then result.reason="내 영토에 건설하세요. 다른 건물과 15칸 이상 떨어져야 해요."
-    elseif B.compare(self.gold,cost)<0 then result.reason="골드가 부족해요. 필요: "..B.toString(cost)
-    else result.valid=true;result.reason="건설할 수 있어요." end
+    if not at then result.reason="건설 불가  15칸 간격"
+    elseif B.compare(self.gold,cost)<0 then result.reason="골드 부족"
+    else result.valid=true;result.reason="건설 가능" end
     return result
 end
 function M:deleteUnit(id)
-    if self.phase~="playing" then return false,"진행 중인 경기에서만 철거할 수 있어요." end
-    if self.sim.ticks-self.lastDeleteUnitTick<300 then return false,"철거 요청은 30초마다 할 수 있어요." end
-    for _,e in ipairs(self.orders) do if e.kind=="delete" then return false,"철거 요청을 처리 중이에요." end end
+    if self.phase~="playing" then return false,"경기 중에만" end
+    if self.sim.ticks-self.lastDeleteUnitTick<300 then return false,"철거 재사용 대기" end
+    for _,e in ipairs(self.orders) do if e.kind=="delete" then return false,"처리 중" end end
     for _,u in ipairs(self.units) do
         if u.id==id and u.active and U.structures[u.kind] and (u.owner or 1)==1 and not u.deleteAt and self.sim:owner(u.tile)==1 then
-            table.insert(self.orders,{kind="delete",unit=u});return true,"30초 뒤 건물이 철거돼요. 골드는 돌려받지 못해요."
+            table.insert(self.orders,{kind="delete",unit=u});return true,"30초 뒤 철거"
         end
     end
-    return false,"내 영토의 건물을 선택하세요."
+    return false,"내 건물 선택"
 end
 function M:step()
     if self.phase~="playing" then return end
     self.sim:step()
     local tick=self.sim.ticks-1
     for _,u in ipairs(self.units) do
-        if u.active and u.deleteAt and tick>u.deleteAt then u.active=false;self:notify(u.owner or 1,"건물을 철거했어요.","building",u.tile) end
+        if u.active and u.deleteAt and tick>u.deleteAt then u.active=false;self:notify(u.owner or 1,"철거 완료","building",u.tile) end
     end
     for _,e in ipairs(self.construction) do
         if e.active then
@@ -167,7 +171,7 @@ function M:step()
                 local cost=E.cost(self.settings,self:economyPlayer(owner),e.kind)
                 if U.disabled(self.settings,e.kind) then e.active=false;continue end
                 local gold=owner==1 and self.gold or self.resources[owner].gold
-                if not tile or B.compare(gold,cost)<0 then e.active=false;self:notify(owner,"건설 취소: 위치가 겹치거나 골드가 부족해요.","error",e.tile);continue end
+                if not tile or B.compare(gold,cost)<0 then e.active=false;self:notify(owner,"건설 취소","error",e.tile);continue end
                 gold=B.subtract(gold,cost)
                 if owner==1 then self.gold=gold else self.resources[owner].gold=gold end
                 local constructed=owner==1 and self.constructed or self.resources[owner].constructed
@@ -199,11 +203,11 @@ function M:upgrade(id,amount)
     for _,u in ipairs(self.units) do
         if u.id==id and u.active and not u.building and u.kind=="City" then
             local cost=E.cost(self.settings,self:economyPlayer(),u.kind)
-            if B.compare(self.gold,cost)<0 then return false,"골드가 부족해요." end
+            if B.compare(self.gold,cost)<0 then return false,"골드 부족" end
             self.gold=B.subtract(self.gold,cost);u.level+=1;self.constructed[u.kind]=(self.constructed[u.kind] or 0)+1;self:event("도시가 레벨 "..u.level.."이 됐어요.","building");return true,"도시 레벨을 올렸어요."
         end
     end
-    return false,"완공한 도시를 선택하세요."
+    return false,"완공한 도시 선택"
 end
 function M:state(fullOwnership)
     local p=self:economyPlayer();local base=self.sim:snapshot();local count=p.tiles

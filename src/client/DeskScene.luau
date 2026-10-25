@@ -80,4 +80,37 @@ function M.create(parent,meta)
     end
     folder:SetAttribute("Theme","WarRoomV2");return folder
 end
+function M.dropView(folder,on,sea)
+    if not folder or not folder.Parent then return end
+    if on==(folder:GetAttribute("DropHidden")==true)then return end
+    folder:SetAttribute("DropHidden",on)
+    local sheet=folder:FindFirstChild("DropSea")
+    for _,o in ipairs(folder:GetDescendants())do
+        if sheet and(o==sheet or o:IsDescendantOf(sheet))then continue end
+        if o:IsA("BasePart")then
+            o.LocalTransparencyModifier=on and 1 or 0
+            if on then o:SetAttribute("DropShadow",o.CastShadow);o.CastShadow=false
+            elseif o:GetAttribute("DropShadow")~=nil then o.CastShadow=o:GetAttribute("DropShadow");o:SetAttribute("DropShadow",nil)end
+        elseif o:IsA("SurfaceGui")then o.Enabled=not on end
+    end
+    if on and not sheet then
+        sheet=Instance.new("Model");sheet.Name="DropSea"
+        for i=-1,1 do for j=-1,1 do
+            local p=Instance.new("Part");p.Name="Sea";p.Anchored=true;p.CanCollide=false;p.CanTouch=false;p.CanQuery=false;p.CastShadow=false
+            p.Material=Enum.Material.SmoothPlastic;p.Color=rgb(8,19,31);p.Size=Vector3.new(2048,.2,2048);p.CFrame=CFrame.new(i*2048,G.surfaceY-1.1,j*2048);p.Parent=sheet
+            local gui=Instance.new("SurfaceGui");gui.Name="SeaPrint";gui.Face=Enum.NormalId.Top;gui.CanvasSize=Vector2.new(8,8);gui.LightInfluence=0;gui.MaxDistance=10000;gui.Parent=p
+            local fill=Instance.new("Frame");fill.Name="Fill";fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=rgb(8,19,31);fill.Parent=gui
+        end end
+        sheet.Parent=folder
+    end
+    if sheet then
+        for _,p in ipairs(sheet:GetChildren())do
+            if p:IsA("BasePart")then
+                if sea then p.Color=sea end;p.LocalTransparencyModifier=on and 0 or 1
+                local gui=p:FindFirstChild("SeaPrint")
+                if gui then gui.Enabled=on;local fill=gui:FindFirstChild("Fill");if fill and sea then fill.BackgroundColor3=sea end end
+            end
+        end
+    end
+end
 return M

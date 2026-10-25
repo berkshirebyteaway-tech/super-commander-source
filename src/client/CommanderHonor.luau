@@ -2,10 +2,7 @@ local Players=game:GetService("Players")
 local TextService=game:GetService("TextService")
 local UI=require(script.Parent.Theme)
 local L=require(script.Parent.Localization)
-local Outgame=require(script.Parent.Parent.Core.OutgameRules)
-local Maps=require(script.Parent.Parent.Maps.MapLoader)
 local Badge=require(script.Parent.BenefitBadge)
-local TitleStyle=require(script.Parent.TitleStyle)
 local Presentation=require(script.Parent.Parent.Core.OutgamePresentation)
 local C=UI.colors
 local M={}
@@ -19,20 +16,13 @@ local function player(who)
     if id==Players.LocalPlayer.UserId then return Players.LocalPlayer end
     return Players:GetPlayerByUserId(id)
 end
-function M.title(text,format,map)
-    local meta=type(map)=="string"and map~=""and Maps.meta(map)
-    if type(format)=="string"and format~=""and meta then return string.format(L.text(format),L.text(meta.label))end
-    return L.text(text or"")
-end
-function M.titleOf(v)return M.title(v.titleText or v.title,v.titleFormat,v.titleMap)end
 function M.of(who)
     local p=player(who);if not p then return nil end
     local level=p:GetAttribute("CommanderLevel");if type(level)~="number"then return nil end
-    local title=M.title(p:GetAttribute("CommanderTitle"),p:GetAttribute("CommanderTitleFormat"),p:GetAttribute("CommanderTitleMap"))
     local plate=p:GetAttribute("CommanderPlate")
-    return {level=level,title=title,titleTier=p:GetAttribute('CommanderTitleTier')or 0,rank=L.text(select(2,Outgame.rank(level))or""),plate=typeof(plate)=="Color3"and plate or nil,vip=p:GetAttribute('CommanderVIP')==true,permanent=p:GetAttribute('CommanderPermanent')==true,cosmeticTier=p:GetAttribute('CommanderCosmeticTier')or 0}
+    return {level=level,plate=typeof(plate)=="Color3"and plate or nil,vip=p:GetAttribute('CommanderVIP')==true,permanent=p:GetAttribute('CommanderPermanent')==true,cosmeticTier=p:GetAttribute('CommanderCosmeticTier')or 0}
 end
-function M.line(h)return h and((h.permanent and L.text('커맨더 프라임')..'  'or '')..(h.vip and '◆ VIP  'or '')..(h.title~=""and string.format("Lv. %d  %s",h.level,h.title)or string.format("Lv. %d",h.level)))or""end
+function M.line(h)return h and((h.permanent and L.text('커맨더 프라임')..'  'or '')..(h.vip and '◆ VIP  'or '')..string.format("Lv. %d",h.level))or""end
 function M.edge(color)
     local lum=.299*color.R+.587*color.G+.114*color.B
     return lum<.3 and color:Lerp(C.ink,.35)or color
@@ -63,43 +53,37 @@ function M.decorate(gui)
     local level=UI.make("TextLabel",tag,{Name="Level",Position=UDim2.fromOffset(5,5),Size=UDim2.fromOffset(28,28),BackgroundColor3=C.raised,BorderSizePixel=0,Text="",TextSize=14,TextColor3=C.ink,Font=Enum.Font.BuilderSansBold,AutoLocalize=false})
     UI.corner(level,3);UI.display(level,true)
     local n=UI.make("TextLabel",tag,{Name="Commander",BackgroundTransparency=1,Font=Enum.Font.BuilderSansBold,TextSize=14,TextColor3=C.ink,TextXAlignment=Enum.TextXAlignment.Left,Text="",AutoLocalize=false})
-    local t=UI.make("TextLabel",tag,{Name="Worn",BackgroundTransparency=1,Font=Enum.Font.BuilderSansMedium,TextSize=12,TextColor3=C.gold,TextXAlignment=Enum.TextXAlignment.Left,Text="",AutoLocalize=false})
-    for _,o in ipairs({level,n,t})do o:SetAttribute("LocalizationSkip",true)end
+    for _,o in ipairs({level,n})do o:SetAttribute("LocalizationSkip",true)end
     return tag
 end
 local function width(label)return math.ceil(TextService:GetTextSize(label.Text,label.TextSize,label.Font,Vector2.new(4096,64)).X)+2 end
 function M.fill(tag,p,h)
-    local level,n,t=tag:FindFirstChild("Level"),tag:FindFirstChild("Commander"),tag:FindFirstChild("Worn")
-    local worn=h and h.title~=""and h.title~=h.rank
-    local rank,named=h and L.text(h.rank or "")or "",h and L.text(h.title or "")or ""
-    local title=h and(worn and(rank~=""and rank.."  "..named or named)or rank)or ""
+    local level,n=tag:FindFirstChild("Level"),tag:FindFirstChild("Commander")
     local unit=p:GetAttribute("CommanderClan");local shown=type(unit)=="string"and unit~=""and string.format("[%s] %s",unit,p.DisplayName)or p.DisplayName
-    local key=shown.."|"..title.."|"..tostring(h and h.level)..'|'..tostring(h and h.vip)..'|'..tostring(h and h.permanent)..'|'..tostring(h and h.cosmeticTier)..'|'..tostring(h and h.titleTier)
-    TitleStyle.apply(t,worn and h.titleTier or 0,C.muted);if worn and (h.titleTier or 0)==0 then t.TextColor3=C.gold end
+    local key=shown.."|"..tostring(h and h.level)..'|'..tostring(h and h.vip)..'|'..tostring(h and h.permanent)..'|'..tostring(h and h.cosmeticTier)
     if tag:GetAttribute("Layout")~=key then
         tag:SetAttribute("Layout",key)
-        n.Text=shown;t.Text=title;level.Text=h and tostring(h.level)or ""
-        level.Visible=h~=nil;t.Visible=title~=""
-        local x=h and 41 or 10;local height=t.Visible and 38 or 30
-        local wn,wt=math.min(width(n),220),t.Visible and math.min(width(t),220)or 0
-        UI.box(n,x,t.Visible and 3 or 0,wn,t.Visible and 18 or height);UI.box(t,x,21,wt,14)
+        n.Text=shown;level.Text=h and tostring(h.level)or ""
+        level.Visible=h~=nil
+        local x=h and 41 or 10;local height=30
+        local wn=math.min(width(n),220)
+        UI.box(n,x,0,wn,height)
         level.Position=UDim2.fromOffset(5,(height-28)/2)
         local old=tag:FindFirstChild('VIP');if old then old:Destroy()end
         local badge=tag:FindFirstChild('BenefitBadge')
         if badge then badge:Destroy()end
         local glyph=Badge.create(tag);Badge.update(glyph,h and h.permanent,h and h.vip)
-        UI.box(glyph.root,x+wn+5,t.Visible and 3 or math.floor((height-18)/2),glyph.root.Size.X.Offset,18)
+        UI.box(glyph.root,x+wn+5,math.floor((height-18)/2),glyph.root.Size.X.Offset,18)
         local oldDot=tag:FindFirstChild('CosmeticGrade');if oldDot then oldDot:Destroy()end
         local hasGrade=h and (h.cosmeticTier or 0)>=3;local badgeWidth=glyph.root.Visible and Badge.width(glyph)+7 or 0
         if hasGrade then
             local color=({[3]=Color3.fromRGB(173,119,255),[4]=C.gold,[5]=Color3.fromRGB(157,242,235)})[h.cosmeticTier]
             local dot=UI.make('Frame',tag,{Name='CosmeticGrade',BackgroundColor3=color,BorderSizePixel=0});UI.corner(dot,40);UI.box(dot,x+wn+badgeWidth+5,math.floor(height/2)-3,6,6)
         end
-        tag.Size=UDim2.fromOffset(x+math.max(wn+badgeWidth+(hasGrade and 14 or 0),wt)+10,height)
+        tag.Size=UDim2.fromOffset(x+wn+badgeWidth+(hasGrade and 14 or 0)+10,height)
     end
     if h then level.BackgroundColor3=h.plate or C.raised;level.TextColor3=h.plate and M.ink(h.plate)or C.ink end
-    local glow=worn and (h.titleTier or 0)>=4 and TitleStyle.color(h.titleTier)
-    local edge=tag:FindFirstChildOfClass("UIStroke");edge.Color=h and h.plate and M.edge(h.plate)or glow or C.line;edge.Thickness=h and h.plate and 1.5 or glow and 1.5 or 1
+    local edge=tag:FindFirstChildOfClass("UIStroke");edge.Color=h and h.plate and M.edge(h.plate)or C.line;edge.Thickness=h and h.plate and 1.5 or 1
 end
 local function honorLine(player,c)
     local billboard=c:FindFirstChild('CommanderName');if not billboard then return end
@@ -114,7 +98,7 @@ function M.start()
         if M.watchers[player]then return end
         local links={};M.watchers[player]=links
         table.insert(links,player.CharacterAdded:Connect(function(c)c:WaitForChild('HumanoidRootPart',10);task.wait(.5);if M.generation==generation and M.watchers[player]then refresh(player)end end))
-        for _,key in ipairs({'CommanderLevel','CommanderTitle','CommanderTitleMap','CommanderTitleFormat','CommanderTitleTier','CommanderPlate','CommanderClan','CommanderVIP','CommanderPermanent','CommanderCosmeticTier'})do table.insert(links,player:GetAttributeChangedSignal(key):Connect(function()refresh(player)end))end
+        for _,key in ipairs({'CommanderLevel','CommanderPlate','CommanderClan','CommanderVIP','CommanderPermanent','CommanderCosmeticTier'})do table.insert(links,player:GetAttributeChangedSignal(key):Connect(function()refresh(player)end))end
         refresh(player)
     end
     for _,p in ipairs(Players:GetPlayers())do watch(p)end

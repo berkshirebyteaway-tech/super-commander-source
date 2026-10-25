@@ -2,6 +2,7 @@ local Players=game:GetService("Players")
 local RunService=game:GetService("RunService")
 local S=require(script.Parent.Parent.Core.StrideMotion)
 local Vehicle=require(script.Parent.CommanderVehicle)
+local G=require(script.Parent.Parent.Core.CommandGesture)
 local M={range=140,rigs=setmetatable({},{__mode='k'}),enabled=true}
 M.posing=nil;M.holders=setmetatable({},{__mode='k'})
 local gameSettings=nil
@@ -127,9 +128,64 @@ local function turnOwn(rig,c,hrp,hum,dt,reduced)
         local yaw=S.yaw(look.X,look.Z);local new
         new,left=S.turn(yaw,S.yaw(move.X,move.Z),dt)
         if math.abs(new-yaw)>1e-4 then hrp.CFrame=CFrame.new(hrp.Position)*CFrame.Angles(0,new,0)end
+    elseif free and rig.face and not reduced and not(rig.vel and rig.vel.Magnitude>3)then
+        local look=hrp.CFrame.LookVector;local yaw=S.yaw(look.X,look.Z);local new=S.turn(yaw,rig.face.to,dt)
+        if math.abs(new-yaw)>1e-4 then hrp.CFrame=CFrame.new(hrp.Position)*CFrame.Angles(0,new,0)end
     end
     local target=reduced and 0 or math.clamp(left*S.headLead,-S.headMax,S.headMax)
     rig.head,rig.headV=S.spring(rig.head,rig.headV,target,18,.7,dt)
+end
+
+local function face(rig,hrp,dt,reduced)
+    local f=rig.face;if not f then rig.yawOff=0;return end
+    f.t+=dt
+    local moving=rig.vel and rig.vel.Magnitude>3
+    if reduced then f.hold=G.hold elseif moving then f.hold+=dt*4 elseif f.t>=f.dur and not rig.g then f.hold+=dt end
+    local w=math.clamp((G.hold-f.hold)/.3,0,1)
+    if w<=0 then rig.face=nil;rig.yawOff=0;return end
+    local look=hrp.CFrame.LookVector
+    rig.yawOff=S.wrap(G.turnYaw(f.from,f.to,f.t/f.dur)-S.yaw(look.X,look.Z))*w
+end
+local function gesture(rig,dt,reduced)
+    local g=rig.g;local ch=rig.ch
+    if ch then table.clear(ch)end
+    if not g then return nil end
+    if reduced then rig.g=nil;return nil end
+    g.t+=dt;ch=ch or {};rig.ch=ch
+    if not G.sample(g.kind,g.t,ch)then rig.g=nil;return nil end
+    return ch
+end
+local function unposed(rig,key)local e=rig.joints[key];local posing=M.posing;return e and not(posing and posing[e.j])end
+local function pose(rig,ch)
+    local yaw=(rig.yawOff or 0)+(ch and ch.spin or 0)
+    if not ch and math.abs(yaw)<1e-3 then return end
+    local s=rig.legScale or 1
+    local root=CFrame.Angles(0,yaw,0);if ch then root*=CFrame.new(0,(ch.y or 0)*s,-(ch.lunge or 0)*s)end
+    layer(rig,"Root",root)
+    if not ch then return end
+    if unposed(rig,"Waist")and(ch.twist or ch.lean)then layer(rig,"Waist",CFrame.Angles(0,ch.twist or 0,0)*CFrame.Angles(-(ch.lean or 0),0,0))end
+    if unposed(rig,"RightHip")and ch.rHip then layer(rig,"RightHip",CFrame.Angles(ch.rHip,0,0))end
+    if unposed(rig,"LeftHip")and ch.lHip then layer(rig,"LeftHip",CFrame.Angles(ch.lHip,0,0))end
+    local w=G.armWeight(rig.g.kind,rig.g.t);if w<=0 then return end
+    for key,r in pairs({RightShoulder=CFrame.Angles(ch.rSx or 0,0,0)*CFrame.Angles(0,0,ch.rSz or 0),LeftShoulder=CFrame.Angles(ch.lSx or 0,0,0)*CFrame.Angles(0,0,ch.lSz or 0),
+        RightElbow=CFrame.Angles(ch.rE or 0,0,0),LeftElbow=CFrame.Angles(ch.lE or 0,0,0)})do
+        local e=rig.joints[key]
+        if e and e.j.Parent and unposed(rig,key)then
+            local base=e.j.Transform;if rig.base[e.j]==nil then rig.base[e.j]=base end;e.j.Transform=base:Lerp(e.inv*r*e.rot,w)
+        end
+    end
+end
+function M.gesture(c,kind,target)
+    local rig=c and M.rigs[c];local hrp=c and c:FindFirstChild("HumanoidRootPart")
+    if not M.enabled or not rig or not rig.joints or not hrp or not G.kinds[kind]then return false,0 end
+    local prev=rig.g;local at=G.start(kind,prev and prev.kind,prev and prev.t)
+    rig.g={kind=kind,t=at}
+    local d=target and target-hrp.Position
+    if d and d.X*d.X+d.Z*d.Z>1 then
+        local look=hrp.CFrame.LookVector;local now=S.yaw(look.X,look.Z)+(rig.yawOff or 0)
+        rig.face={from=now,to=S.yaw(d.X,d.Z),t=0,dur=at>0 and G.turn.jab or G.turn.time,hold=0}
+    elseif rig.face then rig.face.hold=0 end
+    return true,at
 end
 
 function M.start()
@@ -143,7 +199,7 @@ function M.start()
             local c=player.Character;local hrp=c and c:FindFirstChild("HumanoidRootPart");local hum=c and c:FindFirstChildOfClass("Humanoid")
             local own=player==me
             if not hrp or not hum or hrp.Anchored or hum.Health<=0 or (not own and eye and (hrp.Position-eye).Magnitude>(Vehicle.riders[c]and 180 or M.range))then
-                if c and M.rigs[c]then M.rigs[c].pos=nil end;continue
+                if c and M.rigs[c]then local r=M.rigs[c];r.pos=nil;r.g=nil;r.face=nil end;continue
             end
             local rig=M.rigs[c]
             if rig and rig.retry and os.clock()<rig.retry then continue end
@@ -160,6 +216,7 @@ function M.start()
             if own then turnOwn(rig,c,hrp,hum,dt,reduced)end
             ride(rig,c,hrp,dt,reduced)
             apply(rig)
+            face(rig,hrp,dt,reduced);pose(rig,gesture(rig,dt,reduced))
         end
     end)
 end

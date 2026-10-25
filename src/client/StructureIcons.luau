@@ -7,6 +7,7 @@ local Skin=require(script.Parent.SkinMapStyle)
 local SkinArt=require(script.Parent.SkinMapArt)
 local Looks=require(script.Parent.CosmeticLoadouts)
 local Catalog=require(script.Parent.Parent.Core.CosmeticCatalog)
+local Pop=require(script.Parent.BuildPop)
 local M={};M.__index=M
 M.priority={MissileSilo=6,SAMLauncher=5,Port=4,City=3,Factory=2,DefensePost=1}
 M.letters={MissileSilo="M",SAMLauncher="A",Port="P",City="C",Factory="F",DefensePost="D"}
@@ -117,7 +118,8 @@ function M:update(state,renderer,size,factionKinds,ownColor,hidden,selected)
     local span=renderer.liveW or renderer.view and renderer.view.w or 200
     local camera=workspace.CurrentCamera and workspace.CurrentCamera.CFrame
     local view=renderer.view and string.format('%.3f:%.3f:%.3f',renderer.view.x or 0,renderer.view.y or 0,span)or ''
-    if self.frameKey and self.frameBuilds==self.snapshotBuilds and self.frameCamera==camera and self.frameView==view and self.frameSize==size then return end
+    local popping=Pop.busy or self.popping;self.popping=Pop.busy
+    if not popping and self.frameKey and self.frameBuilds==self.snapshotBuilds and self.frameCamera==camera and self.frameView==view and self.frameSize==size then return end
     self.frameKey=true;self.frameBuilds=self.snapshotBuilds;self.frameCamera=camera;self.frameView=view;self.frameSize=size
     local band,px=M.band(span);px=math.floor(px*M.sizeScale+.5)
     local dots=band=='far'and size.X/math.max(span,1)<M.dotsZoom
@@ -148,6 +150,11 @@ function M:update(state,renderer,size,factionKinds,ownColor,hidden,selected)
         table.insert(slots,e.slot);newSlotOf[u.id]=e.slot
         local b=self:badge(e.slot);local f=b.frame
         f.Visible=true;f.Position=UDim2.fromOffset(p.X,p.Y)
+        local ps=Pop.scale[u.id]or 1
+        if (b.popScale or 1)~=ps then
+            local s=b.uiScale;if not s then s=Instance.new('UIScale');s.Name='BuildPop';s.Parent=f;b.uiScale=s end
+            s.Scale=ps;b.popScale=ps
+        end
         if f.ZIndex~=M.limit+1-e.order then f.ZIndex=M.limit+1-e.order end
         local color=Colors.get(u.owner,factionKinds[u.owner],ownColor)
         local threat=Display.threat(u,factions)

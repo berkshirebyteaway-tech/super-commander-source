@@ -41,15 +41,20 @@ function M.set(show,side,inLobby)
 end
 function M.enter()
     local camera=workspace.CurrentCamera;local c=Players.LocalPlayer.Character
-    rootPart=c and c:FindFirstChild('HumanoidRootPart');hum=c and c:FindFirstChildOfClass('Humanoid')
-    if not rootPart or not hum or camera.CameraType~=Enum.CameraType.Custom then return end
+    local stage=require(script.Parent.LobbyStage);local stand=stage.active and stage.commanderRoot()
+    rootPart=stand or c and c:FindFirstChild('HumanoidRootPart');hum=rootPart and rootPart.Parent:FindFirstChildOfClass('Humanoid')
+    if not rootPart or not hum or not stand and camera.CameraType~=Enum.CameraType.Custom then return end
     M.active=true;saved=camera.CFrame;savedYaw=rootPart.CFrame;autoRotate=hum.AutoRotate;hum.AutoRotate=false
     local look=(saved.Position-rootPart.Position)*Vector3.new(1,0,1)
     if look.Magnitude>.1 then rootPart.CFrame=CFrame.lookAt(rootPart.Position,rootPart.Position+look.Unit)end
+    if stand then stage.hold=rootPart.CFrame end
     rig=lightRig(rootPart.CFrame);focus(true)
     camera.CameraType=Enum.CameraType.Scriptable;from=camera.CFrame;started=os.clock()
     conn=RunService.RenderStepped:Connect(function()
-        if not rootPart.Parent then M.exit(false);return end
+        if not rootPart.Parent then
+            local stage=require(script.Parent.LobbyStage);local r=stage.active and stage.commanderRoot()
+            if r and r.Parent then rootPart=r else M.exit(false);return end
+        end
         local t=math.clamp((os.clock()-started)/.55,0,1);t=t*t*(3-2*t)
         lastCF=from:Lerp(shot(M.side),t);camera.CFrame=lastCF
     end)
@@ -59,6 +64,7 @@ function M.exit(restoreCamera)
     M.active=false;if conn then conn:Disconnect();conn=nil end
     if rig then rig:Destroy();rig=nil end;focus(false)
     if hum and hum.Parent then hum.AutoRotate=autoRotate~=false end
+    require(script.Parent.LobbyStage).hold=nil
     if rootPart and rootPart.Parent and savedYaw and (rootPart.Position-savedYaw.Position).Magnitude<1 then rootPart.CFrame=savedYaw end
     local camera=workspace.CurrentCamera
     if restoreCamera and camera.CameraType==Enum.CameraType.Scriptable and (not lastCF or camera.CFrame==lastCF)then

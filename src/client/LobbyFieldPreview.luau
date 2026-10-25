@@ -143,13 +143,17 @@ function M:ask(key)
     local when=f.remaining and string.format('%d초 후 출발',math.max(0,math.ceil(f.remaining-elapsed)))or '모집 중'
     local special=f.kind=='official'and f.rules.special
     local mode=f.kind=='custom'and '커스텀'or f.rules.mode=='teams'and (special and '공식 특수 팀전'or '공식 팀전')or (special and '공식 특수 개인전'or '공식 개인전')
-    local fill=f.kind=='official'and f.rules.teamFormat=='HumansVsNations'and '사람은 모두 한 팀, 같은 수의 어려운 국가와 싸워요.'or '빈자리는 AI 지휘관이 채워요.'
+    local fill=f.kind=='official'and f.rules.teamFormat=='HumansVsNations'and '사람 한 팀 vs 어려운 국가'or 'AI 채움'
     if special and f.rules.modifiers and #f.rules.modifiers>0 then
         local Official=require(script.Parent.Parent.Core.BattlefieldRules);local list={}
         for _,k in ipairs(Chips.modifierOrder)do if table.find(f.rules.modifiers,k)then table.insert(list,Official.modifierLabels[k]or k)end end
         fill=table.concat(list,', ')..'\n'..fill
     end
-    require(script.Parent.LobbyConfirm).open(l,mode,string.format('%s  %d/%d명  %s\n%s 참가할까요?',mapName,f.count,f.rules.maximum,when,fill),'참가',function()d:join(f.id);l:closePage();l:layout()end,nil,f.rules.map)
+    require(script.Parent.LobbyConfirm).open(l,mode,string.format('%s  %d/%d명  %s',mapName,f.count,f.rules.maximum,when)..'\n'..fill,'참가',function()
+        l:closePage();l:layout();d:render()
+        if d.lookup and d.lookup[f.id]then d:join(f.id)
+        else require(script.Parent.TelemetryStep).step('lobby','previewJoin',{result='rejected',reason=d.width and 'stale'or 'layout'});d:open('official',f.id);l:layout()end
+    end,nil,f.rules.map)
 end
 function M:joinSelected()return false end
 function M:leaveRows()
@@ -184,8 +188,9 @@ function M:layout(x,y,w,visible,portrait,short,maxHeight)
         self:paint(c,'grid:'..cw)
     end
     local grouped=short and not portrait;self.friends.Visible=grouped
-    local mw=math.floor(w*(grouped and .4 or .48));local sw=math.floor((w-mw-(grouped and 24 or 16))/(grouped and 3 or 2))
-    UI.box(self.more,0,bottom+8,mw,44);UI.box(self.solo,mw+8,bottom+8,sw,44);UI.box(self.ranked,mw+16+sw,bottom+8,sw,44)
-    if grouped then UI.box(self.friends,mw+24+sw*2,bottom+8,w-mw-24-sw*2,44)end
+    local rk=require(script.Parent.Parent.Core.HiddenScreens).ranked();self.ranked.Visible=rk;local n=(rk and 2 or 1)+(grouped and 1 or 0)
+    local mw=math.floor(w*(grouped and .4 or .48));local sw=math.floor((w-mw-8*n)/n)
+    UI.box(self.more,0,bottom+8,mw,44);UI.box(self.solo,mw+8,bottom+8,sw,44);if rk then UI.box(self.ranked,mw+16+sw,bottom+8,sw,44)end
+    if grouped then local fx=mw+8*n+sw*(n-1);UI.box(self.friends,fx,bottom+8,w-fx,44)end
 end
 return M

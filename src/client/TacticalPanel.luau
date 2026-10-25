@@ -85,7 +85,7 @@ function M:update(state,factions)
         local n,max=Amount.amount(state,f or {},self.resource,self.ratio,input)
         self.amount=n;self.sendAmount.Text=(self.resource=='gold'and '골드 'or '병력 ')..(self.resource=='gold'and UI.number or UI.troops)(n or 0)..' 보내기'
         local ready=can and f.allied and (self.resource=='gold'and f.canDonateGold or self.resource=='troops'and f.canDonateTroops)and n and n>=1
-        UI.enabled(self.sendAmount,ready==true);self.amountHint.Text=max==0 and '보낼 수 있는 자원이 없어요.'or self.resource=='troops'and ('상대 병력 여유 '..UI.troops(math.max(0,f.cap-f.troops)))or '내 골드 기준, 정확한 수량 입력 가능'
+        UI.enabled(self.sendAmount,ready==true);self.amountHint.Text=max==0 and '보낼 자원 없음'or self.resource=='troops'and ('상대 병력 여유 '..UI.troops(math.max(0,f.cap-f.troops)))or '내 골드 기준, 정확한 수량 입력 가능'
     end
     for kind,b in pairs(self.supportButtons or {})do
         local wait=f and math.ceil(f.donationAvailableIn or 0)or 0
@@ -105,7 +105,7 @@ function M:draw()
         local b=self:button(name,value,y,fn,primary,x,width);b:SetAttribute('Action',true);return b
     end
     local function alliance(kind)self.callbacks.send('alliance',kind,self.targetId)end
-    if not f then text(self.body,'Gone','이 대상은 전장에서 탈락했어요.',2,0,w,44,14,UI.colors.muted);y=52
+    if not f then text(self.body,'Gone','탈락한 대상',2,0,w,44,14,UI.colors.muted);y=52
     elseif self.tab=='support'then
         if not self.screenH or self.screenH>=500 then text(self.body,'Resource',self.resource=='gold'and '골드 지원량'or '병력 지원량',2,y,w,26,14,UI.colors.accent);y+=30 end
         for i,v in ipairs({.1,.25,.5,.75,1})do self:button('Ratio'..i,tostring(v*100)..'%',y,function()require(script.Parent.TelemetryStep).step('match','supportAmount',{item='ratio',value=v*100});self.ratio=v;if self.exactInput then self.exactInput.Text=''end;self:update(self.state,self.factions)end,v==self.ratio,2+(i-1)*w/5,w/5-4)end;y+=S
@@ -135,12 +135,12 @@ function M:draw()
         end;y+=math.ceil(math.min(6,#list)/3)*S
         self:button('Catalog','전체 이모지',y,function()self.callbacks.more('emojiPicker',self.emojiScope=='all'and 0 or self.targetId)end);y+=S
     elseif self.tab=='break'then
-        text(self.body,'Warning','동맹 파기 시 배신 상태와 전투 불이익이 적용돼요.',2,0,w,70,14,UI.colors.danger);y=78
+        text(self.body,'Warning','배신자 표시  전투 불이익',2,0,w,70,14,UI.colors.danger);y=78
         action('ConfirmBreak','동맹 파기',function()require(script.Parent.TelemetryStep).step('match','breakConfirm',{result='accepted'});alliance('break');self.tab='detail';self:draw()end);y+=S
         self:button('CancelBreak','동맹 유지',y,function()require(script.Parent.TelemetryStep).step('match','breakCancel',{result='cancelled'});self.tab='detail';self:draw()end,true);y+=S
     elseif self.tab=='advanced'then
         action('Embargo',f.embargoed and '무역 금수 해제'or '무역 금수',function()self.callbacks.send('support',f.embargoed and 'embargoStop'or 'embargoStart',self.targetId)end);y+=S
-        text(self.body,'Trade',f.embargoedBy and '상대가 교역을 막고 있어요.'or '해상과 철도 교역에 함께 적용돼요.',2,y,w,44,12,UI.colors.muted);y+=S
+        text(self.body,'Trade',f.embargoedBy and '상대 금수 중'or '해상, 철도 교역',2,y,w,44,12,UI.colors.muted);y+=S
         local counts={};for _,u in ipairs(self.state.units or {})do if u.owner==self.targetId then counts[u.kind]=(counts[u.kind]or 0)+1 end end
         local names=require(script.Parent.Parent.Core.UnitRules).names;local lines={};for kind,n in pairs(counts)do table.insert(lines,(names[kind]or kind)..' '..n)end;table.sort(lines)
         text(self.body,'Buildings',#lines>0 and table.concat(lines,', ')or '건물 없음',2,y,w,80,13,UI.colors.muted);y+=84

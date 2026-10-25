@@ -3,20 +3,21 @@ local Challenge=if script then require(script.Parent.SoloChallenge)else require(
 local M={}
 M.medals=60
 M.xp=150
-M.titles={{days=7,id='daily:7',name='당직'},{days=30,id='daily:30',name='현역'},{days=100,id='daily:100',name='말뚝'}}
+M.minutes=10
+M.maxLand=230000
 M.conditions={
-    {id='standard',name='표준 작전',settings={difficulty='Medium',nations=5,bots=120,startingGold=0}},
-    {id='hard',name='강적 출현',settings={difficulty='Hard',nations=7,bots=120,startingGold=0}},
-    {id='crowded',name='인파 속 전장',settings={difficulty='Medium',nations=8,bots=300,startingGold=0}},
-    {id='rich',name='넉넉한 국고',settings={difficulty='Hard',nations=7,bots=120,startingGold=1000000}},
-    {id='lonely',name='개척 경쟁',settings={difficulty='Medium',nations=3,bots=200,startingGold=0}},
+    {id='standard',name='표준 작전',settings={difficulty='Medium',nations=4,bots=60,startingGold=0}},
+    {id='hard',name='강적 출현',settings={difficulty='Hard',nations=4,bots=60,startingGold=0}},
+    {id='crowded',name='인파 속 전장',settings={difficulty='Medium',nations=5,bots=150,startingGold=0}},
+    {id='rich',name='넉넉한 국고',settings={difficulty='Hard',nations=5,bots=60,startingGold=1000000}},
+    {id='lonely',name='개척 경쟁',settings={difficulty='Medium',nations=3,bots=100,startingGold=0}},
 }
 local pool
 local function maps()
     if pool then return pool end
     pool={}
     for _,m in ipairs(Catalog)do
-        if (m.rotationWeight or 0)>0 and m.category~='아케이드'and (m.landTiles or 0)<=400000 and (m.landTiles or 0)>=40000 then table.insert(pool,m.key)end
+        if (m.rotationWeight or 0)>0 and m.category~='아케이드'and (m.landTiles or 0)<=M.maxLand and (m.landTiles or 0)>=40000 then table.insert(pool,m.key)end
     end
     table.sort(pool);return pool
 end
@@ -35,8 +36,8 @@ function M.of(day)
     for _,m in ipairs(Catalog)do if m.key==key then meta=m;break end end
     local settings=Challenge.resolve(meta,cond.settings)
     settings.customAllianceDuration=5;settings.goldMultiplier=1;settings.infiniteGold=false;settings.infiniteTroops=false;settings.instantBuild=false
-    settings.maxTimerValue=20;settings.randomSpawn=true
-    return {day=day,map=key,condition=cond.id,conditionName=cond.name,seed=string.format('daily-%d-%08x',day,h),settings=settings}
+    settings.maxTimerValue=M.minutes;settings.randomSpawn=true
+    return {day=day,map=key,condition=cond.id,conditionName=cond.name,minutes=M.minutes,seed=string.format('daily-%d-%08x',day,h),settings=settings}
 end
 function M.score(event)
     if event.outcome=='won'then return 1000000+math.max(0,3600-math.floor(event.gameSeconds or event.seconds or 0))end
@@ -61,7 +62,7 @@ end
 function M.view(p,now)
     local today=M.day(now);local d=type(p.dailyOp)=='table'and p.dailyOp or {}
     local op=M.of(today)
-    return {day=today,map=op.map,conditionName=op.conditionName,best=d.bestDay==today and d.best or nil,bestLabel=M.label(d.bestDay==today and d.best or nil),
+    return {day=today,map=op.map,conditionName=op.conditionName,minutes=M.minutes,best=d.bestDay==today and d.best or nil,bestLabel=M.label(d.bestDay==today and d.best or nil),
         done=d.paid==today,days=d.days or 0,medals=M.medals,xp=M.xp,resetIn=(today+1)*86400-now}
 end
 function M.current(v,now)

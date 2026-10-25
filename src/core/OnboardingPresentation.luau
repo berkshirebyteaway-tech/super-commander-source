@@ -18,21 +18,22 @@ function M.city(s)
     return {stage=B.compare(B.fromString((s.player or {}).gold or '0'),B.fromString(cost))>=0 and 'ready'or 'saving',cost=cost}
 end
 function M.instruction(stage,ready,rival,touch)
-    if stage=='settle'then return ready and '정착을 눌러 시작하세요.'or '빈 육지에서 시작 위치를 고르세요.'end
+    if stage=='settle'then return ready and '정착'or '빈 땅 고르기'end
     if stage=='expand'or stage=='again'then
-        if ready then return touch and '중앙 공격 버튼 또는 같은 땅을 다시 탭.'or '중앙 공격 버튼 또는 같은 땅을 다시 클릭.'end
-        if stage=='again'then return '병력이 회복됐어요. 다시 국경을 넓혀보세요.'end
-        return rival and '내 국경 옆 상대 영토를 선택하세요.'or '내 국경 옆 빈 땅을 선택하세요.'
+        if ready then return touch and '공격, 또는 한 번 더 탭'or '공격, 또는 한 번 더 클릭'end
+        if stage=='again'then return '병력 회복, 다시 넓히기'end
+        if not touch then return rival and '옆 상대 땅 클릭'or '옆 빈 땅 클릭'end
+        return rival and '옆 상대 땅 고르기'or '옆 빈 땅 고르기'
     end
-    if stage=='grow'then return '↑ 초록: 충원 가속  ↓ 주황: 충원 감속'end
-    return '첫 점령 성공!\n이제 자유롭게 지휘하세요.'
+    if stage=='grow'then return '↑ 초록 충원 가속  ↓ 주황 감속'end
+    return '자유 지휘'
 end
 function M.recruitmentHint(s,trend)
     local p=s.player or {};local ratio=(p.troops or 0)/math.max(1,p.cap or 0)
-    if ratio<.15 then return '병력 부족, 충원 느림\n방어 병력도 남겨두세요.'end
-    if trend and trend.tone=='falling'and ratio>.7 then return '상한 근처, 충원 감속\n확장하되 방어 병력도 남기세요.'end
-    if trend and trend.tone=='falling'then return '↓ 충원 감속\n확장과 방어 병력을 함께 살펴보세요.'end
-    if trend and trend.tone=='rising'then return '↑ 충원 가속\n병력을 모으며 주변을 살펴보세요.'end
-    return '병력이 다시 모이고 있어요.\n충원 속도를 보며 지휘하세요.'
+    if ratio<.15 then return '병력 부족, 충원 느림'end
+    if trend and trend.tone=='falling'and ratio>.7 then return '상한 근처, 충원 감속'end
+    if trend and trend.tone=='falling'then return '↓ 충원 감속'end
+    if trend and trend.tone=='rising'then return '↑ 충원 가속'end
+    return '병력 회복 중'
 end
 return M

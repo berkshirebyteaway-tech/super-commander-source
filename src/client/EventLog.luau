@@ -48,7 +48,64 @@ function M:toggle(on)
     self.open=on==true;if self.open then self.unread=0 end
     self:draw();if self.onToggle then self.onToggle()end
 end
+local function v2()local ok,H=pcall(require,script.Parent.Hud20);return ok and type(H)=='table'and H.ENABLED==true end
+local BAND
+function M:draw20()
+    local K=require(script.Parent.Kit20);local L=require(script.Parent.Localization);local p=self.panel
+    BAND=BAND or {battle=K.colors.danger,diplomacy=K.colors.ally,build=K.colors.muted,fail=K.colors.muted,other=K.colors.line}
+    self.badge.Visible=false
+    K.dot(self.button,'Dot20',self.unread>0 and not self.open,44,4,10)
+    local want=self.open and self.shown==true
+    if want and(not p.Visible or Sheet.closing(p))then Sheet.show20(p)elseif not want and p.Visible and not Sheet.closing(p)then Sheet.hide20(p)end
+    if not want or not self.r then return end
+    local r=self.r;local cw=r.w-26
+    for _,o in ipairs({self.head.title,self.head.sub,self.head.close})do o.Visible=false end
+    Sheet.placeHead20(p,r.w)
+    local t=p:FindFirstChild('Title20')or K.text(p,'Title20','기록',16,K.colors.ink,800);t.ZIndex=p.ZIndex+2;K.box(t,15,0,120,48)
+    for _,o in ipairs(self.chips:GetChildren())do o:Destroy()end
+    local x=0
+    for _,k in ipairs(KINDS)do
+        local b,w=Sheet.chip20(self.chips,'Filter_'..k[1],k[2],self.filter==k[1],12,function()
+            if self.filter==k[1]then return end
+            self.filter=k[1];require(script.Parent.TelemetryStep).step('hud','logFilter',{item=k[1]});self:draw()
+        end)
+        b:place(x,5,w,30);Sheet.fill20(b);x+=w+6
+    end
+    K.box(self.chips,13,54,cw,40);self.chips.ZIndex=p.ZIndex+2
+    local body=self.body;body.ScrollBarThickness=2;K.scrollPad(body,2)
+    K.box(body,9,97,r.w-18,r.h-97-8);body.ZIndex=p.ZIndex+1
+    for _,o in ipairs(body:GetChildren())do if not o:IsA('UIPadding')then o:Destroy()end end
+    local rw=r.w-22;local rowH=r.fmt=='ph'and 40 or 44;local y=0;local shown=0
+    for i,e in ipairs(self.entries)do
+        if self.filter=='all'or e.kind==self.filter then
+            shown+=1
+            local band=BAND[e.kind]or BAND.other
+            local new=i<=(self.fresh or 0)
+            local bar=K.fillBar(body,'Row'..i,{parts={{p=3/rw,color=new and band or band:Lerp(K.colors.panel,.5)}},track=K.colors.panel,r=4})
+            local row=bar.frame;K.box(row,0,y,rw,rowH);row.ZIndex=body.ZIndex+1;row.Active=true
+            local tm=K.num(row,'Time',clock(e.tick),12,K.colors.muted);K.box(tm,15,0,38,rowH);tm.ZIndex=row.ZIndex+1
+            local icon=Hot.create(row,e.icon,15,band);icon.Position=UDim2.fromOffset(63,math.floor((rowH-15)/2));icon.ZIndex=row.ZIndex+1
+            local more=e.tile~=nil
+            local m=K.text(row,'Message',e.message..(e.count>1 and ' ×'..e.count or ''),13,e.kind=='fail'and K.colors.muted or K.colors.ink,700);m.ZIndex=row.ZIndex+1
+            K.box(m,88,0,rw-88-(more and 64 or 12),rowH)
+            if more then
+                local tile=e.tile
+                local b=K.button(row,'Show',{kind='none',text='보기 ›',size=12,weight=800,hit=rowH},function()
+                    if self.callbacks.focus then require(script.Parent.TelemetryStep).step('hud','logFocus',{item=e.kind});self.callbacks.focus(tile)end
+                end)
+                b:place(rw-64,0,64,rowH);b.label.TextColor3=K.colors.accent;b.label.Position=UDim2.new();b.label.Size=UDim2.new(1,-12,1,0);b.label.TextXAlignment=Enum.TextXAlignment.Right
+                b.button.ZIndex=row.ZIndex+2
+            end
+            y+=rowH+4
+        end
+    end
+    if shown==0 then
+        local empty=K.text(body,'Empty',L.text('기록 없음'),14,K.colors.muted,700,Enum.TextXAlignment.Center);empty.ZIndex=body.ZIndex+1;K.box(empty,0,12,rw,48);y=64
+    end
+    body.CanvasSize=UDim2.fromOffset(0,y+4)
+end
 function M:draw()
+    if v2()then return self:draw20()end
     self.badge.Visible=self.unread>0 and not self.open
     self.badge.Text=self.unread>9 and '9+'or tostring(self.unread)
     self.panel.Visible=self.open and self.shown==true
@@ -91,7 +148,7 @@ function M:draw()
         end
     end
     if shown==0 then
-        local empty=UI.label(self.body,'Empty','아직 기록이 없어요\n공격, 동맹, 건설이 여기 남아요.',14,C.muted);empty.TextXAlignment=Enum.TextXAlignment.Center;empty.ZIndex=26;UI.box(empty,0,12,w,48)
+        local empty=UI.label(self.body,'Empty','기록 없음',14,C.muted);empty.TextXAlignment=Enum.TextXAlignment.Center;empty.ZIndex=26;UI.box(empty,0,12,w,48)
         y=64
     end
     self.body.CanvasSize=UDim2.fromOffset(0,y)
@@ -103,6 +160,12 @@ function M:layout(w,h,show,menu,touch)
     self.button.Visible=self.shown;Shortcut.place(self.button,w,h,menu,touch,3)
     UI.box(self.badge,self.button.Size.X.Offset-20,0,20,18)
     local controls=self.button.Parent and self.button.Parent:FindFirstChild('Controls')
+    if v2()then
+        local r=Sheet.rect20(w,h,true);self.r=r;self.touch=Sheet.touch()
+        Sheet.paint20(self.panel,r.portrait);Sheet.place20(self.panel,r);Sheet.motion20(self.panel);self.panel.AnchorPoint=Vector2.zero
+        Sheet.head20(self.panel,function()self:toggle(false)end)
+        self:draw();return
+    end
     local r=Sheet.rect(w,h,Sheet.touch(),controls and controls.Visible and controls.Position.Y.Offset or nil)
     self.r=r;self.touch=Sheet.touch();UI.box(self.panel,r.x,r.y,r.w,r.h);self.panel.AnchorPoint=Vector2.zero
     self:draw()

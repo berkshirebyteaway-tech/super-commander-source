@@ -98,23 +98,23 @@ function M:sync(e)
 end
 function M:prepare(e,kind,payload)
     self.preparing=self.preparing or {};local id=e.player.UserId
-    if self.preparing[id]then return {ok=false,message='잠시 뒤 다시 시도하세요.'}end
+    if self.preparing[id]then return {ok=false,message='다시 시도'}end
     self.preparing[id]=true
     local ok,result=pcall(self.prepareRequest,self,e,kind,payload)
     self.preparing[id]=nil
     if ok then return result end
-    return {ok=false,message='Roblox 채팅을 사용할 수 없어요.'}
+    return {ok=false,message='Roblox 채팅 꺼짐'}
 end
 function M:prepareRequest(e,kind,payload)
-    if not Routing.active(e)or e.room.session.phase~='playing'or type(payload)~='table'or type(payload.target)~='number'or payload.target%1~=0 then return {ok=false,message='진행 중인 경기에서 소통할 수 있어요.'}end
-    local now=os.clock();if now-(self.last[e.player.UserId]or -10)<.35 then return {ok=false,message='잠시 뒤 다시 시도하세요.'}end;self.last[e.player.UserId]=now
+    if not Routing.active(e)or e.room.session.phase~='playing'or type(payload)~='table'or type(payload.target)~='number'or payload.target%1~=0 then return {ok=false,message='경기 중에만'}end
+    local now=os.clock();if now-(self.last[e.player.UserId]or -10)<.35 then return {ok=false,message='다시 시도'}end;self.last[e.player.UserId]=now
     local room=e.room;local s=room.session;local target=actual(e,payload.target);local p=s.sim.players[target]
     local function current()return self.entries[e.player.UserId]==e and e.room==room and Routing.active(e)end
-    if target~=0 and (not p or target==e.faction or p.tiles.size==0)then return {ok=false,message='활동 중인 상대를 선택하세요.'}end
+    if target~=0 and (not p or target==e.faction or p.tiles.size==0)then return {ok=false,message='대상 선택'}end
     local value=payload.value;local text,scope,subject,tile
     if not Vip.allows(kind,value,self:vip(e))then
         if self.telemetry then pcall(self.telemetry.emit,self.telemetry,e.player,'benefit_used',{benefit='comms',result='rejected',reason='subscription_required',sku='club'})end
-        return {ok=false,vip=true,message='VIP 클럽 혜택이에요.'}
+        return {ok=false,vip=true,message='🔒 VIP 클럽'}
     end
     if kind=='emoji'and table.find(Catalog.emojis,value)then text=value;scope=target==0 and 'all'or 'player'
     elseif kind=='target'then text='이 부대를 함께 공격해요.';scope=s.sim.players[e.faction].team and 'team'or 'allies';subject=target
@@ -122,7 +122,7 @@ function M:prepareRequest(e,kind,payload)
         local key=type(value)=='table'and value.key or value;local entry=Comms.catalog[key]
         text=entry and entry.text or Comms.messages[key];scope='player'
         if entry and entry.requiresTarget then
-            if type(value)~='table'or type(value.target)~='number'or value.target%1~=0 then return {ok=false,message='메시지 대상을 선택하세요.'}end
+            if type(value)~='table'or type(value.target)~='number'or value.target%1~=0 then return {ok=false,message='대상 선택'}end
             subject=actual(e,value.target);if not s.sim.players[subject]or s.sim.players[subject].tiles.size==0 then return {ok=false}end
             value={key=key,target=subject}
         end
@@ -131,8 +131,8 @@ function M:prepareRequest(e,kind,payload)
         if not table.find({'player','team','allies','all'},scope)then return {ok=false}end
         if type(value.tile)=='number'and value.tile%1==0 and value.tile>=0 and value.tile<s.map.meta.width*s.map.meta.height then tile=value.tile end
     end
-    if not text then return {ok=false,message='등록된 신호를 선택하세요.'}end
-    if kind=='target'and (target==0 or s:friendly(e.faction,target))then return {ok=false,message='상대를 공동 공격 목표로 선택하세요.'}end
+    if not text then return {ok=false,message='신호 선택'}end
+    if kind=='target'and (target==0 or s:friendly(e.faction,target))then return {ok=false,message='대상 선택'}end
     if e.room.single and (kind=='target'or kind=='emoji'and target==0)then
         local ok,message=command(e.room,e.faction,kind,target,value)
         return {ok=ok,npc=true,message=message}
@@ -144,11 +144,11 @@ function M:prepareRequest(e,kind,payload)
     local recipients={}
     for _,other in pairs(self.entries)do if other~=e and Routing.allowed(e,other,scope,target)then table.insert(recipients,other)end end
     if #recipients==0 then
-        if kind~='signal'and kind~='target'then return {ok=false,message='이 범위에 소통할 참가자가 없어요.'}end
+        if kind~='signal'and kind~='target'then return {ok=false,message='받을 사람 없음'}end
         local key=e.player.UserId..':'..kind..':'..scope..':'..target
-        if now-(self.issued[key]or -60)<(kind=='target'and 15 or 3)then return {ok=false,message='신호 대기시간이 남아 있어요.'}end
+        if now-(self.issued[key]or -60)<(kind=='target'and 15 or 3)then return {ok=false,message='신호 재사용 대기'}end
         self.issued[key]=now
-        local ok,message=true,'신호를 지도에 표시했어요.'
+        local ok,message=true,nil
         if kind=='target'or value.key=='attack'and not s:friendly(e.faction,target)then
             local done,why=command(room,e.faction,'target',target)
             if kind=='target'then ok,message=done,why elseif done then message=why end
@@ -158,15 +158,15 @@ function M:prepareRequest(e,kind,payload)
     end
     local cooldown=kind=='target'and 15 or kind=='emoji'and 5 or 3
     local issueKey=e.player.UserId..':'..kind..':'..scope..':'..target
-    if now-(self.issued[issueKey]or -60)<cooldown then return {ok=false,message='신호 대기시간이 남아 있어요.'}end
+    if now-(self.issued[issueKey]or -60)<cooldown then return {ok=false,message='신호 재사용 대기'}end
     local requester=(scope=='player'or scope=='allies')and e.player or nil
     if requester then
         local ids={};for _,r in ipairs(recipients)do table.insert(ids,r.player.UserId)end
         local ok,allowed=pcall(function()if self.studio and e.player.UserId<=0 then return ids end;return self.chat:CanUsersDirectChatAsync(e.player.UserId,ids)end)
-        if not ok or type(allowed)~='table'then return {ok=false,message='Roblox 소통 권한을 확인할 수 없어요.'}end
+        if not ok or type(allowed)~='table'then return {ok=false,message='Roblox 권한 확인 실패'}end
         local set={};for _,id in ipairs(allowed)do set[id]=true end
         local filtered={};for _,r in ipairs(recipients)do if set[r.player.UserId]then table.insert(filtered,r)end end;recipients=filtered
-        if #recipients==0 then return {ok=false,message=kind=='emoji'and '이 상대에게는 Roblox 설정 때문에 못 보내요. 전체에게 보내 보세요.'or 'Roblox에서 이 참가자와 소통할 수 없어요.'}end
+        if #recipients==0 then return {ok=false,message=kind=='emoji'and 'Roblox 설정으로 불가'or 'Roblox 설정으로 불가'}end
     end
     return self:deliver(e,{kind=kind,scope=scope,target=target,value=value,text=text,subject=subject,tile=tile},recipients,requester~=nil,issueKey,now,current)
 end
@@ -188,7 +188,7 @@ function M:deliver(e,m,recipients,checked,issueKey,now,current)
     local key=type(m.value)=='table'and m.value.key or m.kind=='quickChat'and m.value or nil
     local ok,message
     if m.kind=='signal'then
-        ok,message=true,'신호를 지도에 표시했어요.'
+        ok,message=true,nil
         if key=='attack'and not room.session:friendly(e.faction,m.target)then local done,why=command(room,e.faction,'target',m.target);if done then message=why end end
     else ok,message=command(room,e.faction,m.kind,m.target,m.value)end
     if not ok then return {ok=false,message=message}end

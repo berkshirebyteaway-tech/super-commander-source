@@ -71,7 +71,7 @@ function M:session(p)
  local now=os.clock();s={id=guid(),connection=guid(),actor=hash(tostring(game.GameId)..':'..p.UserId),at=now,phaseAt=now,phase='boot',phaseSeconds={},
   matches=0,context={},funnels={},nativeFunnelSent={},commands=Model.window(now),nativeCounts={},nativeAt=now,clientSeq=0,
   clientBudget=Model.token(Schema.clientBurst,Schema.clientRate,now),nativeBudget=Model.token(40,16/60,now),seen={},order=Model.ring(1024),
-  detail=p.UserId%100<M.sample('telemetryDetail',Config.detailSample)*100,perf=p.UserId%100<M.sample('telemetryPerf',Config.performanceSample)*100}
+  matchServer=game.PrivateServerId~=''and game.PrivateServerOwnerId==0,detail=p.UserId%100<M.sample('telemetryDetail',Config.detailSample)*100,perf=p.UserId%100<M.sample('telemetryPerf',Config.performanceSample)*100}
  self.sessions[p]=s;self:emit(p,'visit_entered',{phase='boot'});self:funnel(p,'Entry','visit',s.id)
  return s
 end
@@ -207,6 +207,7 @@ end
 function M:phase(p,phase)
  local s=self:session(p);if not s or phase==s.phase then return end
  local now=os.clock();self:emit(p,'visit_phase_window',{phase=s.phase,elapsed_seconds=now-s.phaseAt,stage='closed'});s.phaseSeconds[s.phase]=(s.phaseSeconds[s.phase]or 0)+now-s.phaseAt;s.phase=phase;s.phaseAt=now
+ if phase=='lobby'then self:campaignQuit(p,'left')end
 end
 function M:mark(p,name)
  local s=self:session(p)
@@ -471,7 +472,7 @@ function M:matchEnd(room)
  local humans,ai=0,0;for _,q in ipairs(sim.players)do if q.kind=='HUMAN'then humans+=1 elseif q.kind~='BOT'then ai+=1 end end
  local winner=not w and 'none'or w.kind=='HUMAN'and 'human'or 'ai'
  for uid in pairs(room.members)do local p=Players:GetPlayerByUserId(uid);if p and self.sessions[p]then
-  self:flow(p,'match','end',{item=winner,format=session.winnerTeam and 'team'or 'ffa',mode=Schema.enum('mode',room.mode),human_count=humans,ai_count=ai,simulation_seconds=sim.ticks/10,value=room.startedAt and os.time()-room.startedAt or 0,map_key=session.map.meta.key})
+  self:flow(p,'match','end',{item=winner,result=Schema.code(session.winReason)or 'none',format=session.winnerTeam and 'team'or 'ffa',mode=Schema.enum('mode',room.mode),human_count=humans,ai_count=ai,simulation_seconds=sim.ticks/10,value=room.startedAt and os.time()-room.startedAt or 0,map_key=session.map.meta.key})
  end end
 end
 function M:economy(p,delta,balance,transaction,sku,currency)
@@ -511,6 +512,11 @@ function M:flow(p,area,step,data)
  local s=p and self.sessions[p];if not s then return end
  if d.area=='commerce'and d.step=='receipt'and d.result=='granted'and d.sku then s.paid=s.paid or {};s.paid[d.sku]=true
  elseif d.area=='goals'and d.step=='goalClaim'and d.result=='granted'then self:milestone(p,'claim')end
+ if d.area=='campaign'then if d.step=='start'then self:campaignQuit(p,'cancelled');s.campaign={item=d.item,at=os.clock()}elseif d.step=='campaignEnd'then s.campaign=nil end end
+end
+function M:campaignQuit(p,result)
+ local s=p and self.sessions[p];local c=s and s.campaign;if not c then return end
+ s.campaign=nil;self:flow(p,'campaign','quit',{item=c.item,value=os.clock()-c.at,result=result,phase=s.phase})
 end
 function M:benefit(p,sku,item)
  local s=p and self.sessions[p];if not(s and s.paid and s.paid[sku])or s.paid[sku]=='used'then return end
@@ -546,10 +552,11 @@ function M:queueState(p,status)
 end
 function M:leaving(p)
  local s=self.sessions[p];if not s then return end;local journey,where,seconds=Native.exitStage(s,os.clock())
- self:finalNative(p);s.final=true;if s.queueAt then self:queueExit(p,'left')end
+ self:campaignQuit(p,'closed');self:finalNative(p);s.final=true;if s.queueAt then self:queueExit(p,'left')end
  self:emit(p,'visit_phase_window',{phase=s.phase,elapsed_seconds=os.clock()-s.phaseAt,partial=true,stage='closed'})
  if s.phase~='transfer'then pcall(function()
   self:flow(p,'lobby','exit',{item=s.lastScreen or 'none',phase=s.phase,value=os.clock()-s.at,count=s.matches})
+  if journey=='preLobby'or journey=='arrival'then self:flow(p,'lobby','loadExit',{item=journey..'_'..where,value=os.clock()-s.at})end
   local x=self.exitState and self.exitState(p);if x then self:flow(p,'goals','exitBacklog',{count=x.count,value=x.value,available=x.available,result=x.count>0 and 'pending'or 'complete'})end
  end)end
  self:emit(p,s.phase=='transfer'and 'connection_closed'or 'visit_closed',{phase=s.phase,reason=s.phase=='transfer'and 'none'or 'disconnected',elapsed_seconds=os.clock()-s.at,matches=s.matches,journey=journey,where=where,journey_seconds=seconds,marker=s.marker});self:flushCommands(p,true);self.departed[p]=true;self.sessions[p]=nil

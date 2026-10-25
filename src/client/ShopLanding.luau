@@ -27,12 +27,12 @@ local function robux(price)
     return (out:gsub('^,',''))
 end
 local offers={
-    club={color=UI.colors.vip,ribbon='월간 구독 30일',tagline='내 커스텀 게임을 누구나 찾게',value='공개 커스텀 게임 만들기',
+    club={color=UI.colors.vip,ribbon='30일',value='공개 커스텀 게임 만들기',
         cta='월 R$ %s 구독하기',note='30일마다 자동 갱신, 언제든 해지',owned='구독 중',more='구독 중, 혜택 보기  ›',
-        perks={{'custom','누구나 참가 가능'},{'friends','경기 채팅과 음성'},{'cheer','이모지와 모션 전부'},{'daily','매일 뽑기권 1장'},{'xp','계정 XP 2배'},{'watch','다른 경기 관전'}}},
-    permanent={color=UI.colors.prime,ribbon='한 번 구매로 영구 소장',tagline='한 번 사면 평생 커맨더',value='뽑기권 4장 한 번에 지급',
-        cta='R$ %s 평생 소장',note='한 번 결제로 계속 유지',owned='보유 중',more='보유 중, 혜택 보기  ›',
-        perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'wardrobe','스킨 프리셋 +2칸'},{'custom','커스텀 설정 12칸'},{'marshal','프라임 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
+        perks={{'friends','경기 채팅과 음성'},{'cheer','이모지와 모션 전부'},{'daily','매일 뽑기권 1장'},{'xp','계정 XP 2배'},{'watch','다른 경기 관전'}}},
+    permanent={color=UI.colors.prime,ribbon='영구',value='뽑기권 4장 한 번에 지급',
+        cta='R$ %s 평생 소장',owned='보유 중',more='보유 중, 혜택 보기  ›',
+        perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'custom','커스텀 설정 12칸'},{'marshal','프라임 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
 }
 M.offers=offers
 local Tween=game:GetService('TweenService')
@@ -51,18 +51,11 @@ local function rays(card,cx,cy,len,color)
         UI.make('UIGradient',r,{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,.35),NumberSequenceKeypoint.new(1,1)})})
     end
 end
-local function brackets(card,w,h,color)
-    for _,c in ipairs({{0,0,1,1},{1,0,-1,1},{0,1,1,-1},{1,1,-1,-1}})do
-        local x=c[1]*w+(c[3]>0 and 6 or -6);local y=c[2]*h+(c[4]>0 and 6 or -6)
-        UI.box(UI.make('Frame',card,{Name='Bracket',AnchorPoint=Vector2.new(c[1],c[2]),BackgroundColor3=color,BorderSizePixel=0,ZIndex=6}),x,y,18,2)
-        UI.box(UI.make('Frame',card,{Name='Bracket',AnchorPoint=Vector2.new(c[1],c[2]),BackgroundColor3=color,BorderSizePixel=0,ZIndex=6}),x,y,2,18)
-    end
-end
 local function sparkle(card,x,y,s,color,delay)
     local d=UI.make('Frame',card,{Name='Sparkle',AnchorPoint=Vector2.new(.5,.5),Rotation=45,BackgroundColor3=color,BackgroundTransparency=.1,BorderSizePixel=0,ZIndex=3});UI.box(d,x,y,s,s)
     loop(d,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,delay),{BackgroundTransparency=.85})
 end
-M.offerHeight=462
+M.offerHeight=426
 local function shortBody(body)return body.AbsoluteSize.Y>0 and body.AbsoluteSize.Y/require(script.Parent.Theme).scale<330 end
 function M.offerHeightFor(body)return shortBody(body)and M.offerHeight-68 or M.offerHeight end
 function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
@@ -87,12 +80,9 @@ function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
     local name=text(card,'Name',club and Launch.club.name or Launch.permanent.name,pad,ah-34,w-pad*2,32,w>=330 and 27 or 23,UI.colors.ink)
     name.Font=Enum.Font.BuilderSansExtraBold;name.ZIndex=4;name.TextTruncate=Enum.TextTruncate.AtEnd
     UI.make('UIStroke',name,{Color=color:Lerp(UI.colors.bg,.5),Thickness=1.5,Transparency=.2,ApplyStrokeMode=Enum.ApplyStrokeMode.Contextual})
-    local tag=text(card,'Tagline',o.tagline,pad,ah-4,w-pad*2,20,14,color);tag.ZIndex=4;tag.TextTruncate=Enum.TextTruncate.AtEnd
-    local ribbon=UI.pill(card,'Period',o.ribbon,color);UI.box(ribbon,pad,12,club and 120 or 126,24);ribbon.TextSize=13;UI.corner(ribbon,99);ribbon.ZIndex=5
+    local ribbon=UI.pill(card,'Period',o.ribbon,color);UI.box(ribbon,pad,12,56,24);ribbon.TextSize=13;UI.corner(ribbon,99);ribbon.ZIndex=5
     ribbon.Font=Enum.Font.BuilderSansExtraBold
-    local seal=UI.corner(UI.make('Frame',card,{Name='Seal',BackgroundColor3=UI.colors.bg,BackgroundTransparency=.15,BorderSizePixel=0,ZIndex=5}),99);UI.box(seal,w-pad-34,8,34,34);UI.stroke(seal,color,1.5)
-    UI.box(Icons.create(seal,club and 'vip'or 'marshal',20,color),7,7,20,20)
-    local sy=ah+24
+    local sy=ah+14
     local strip=UI.corner(UI.make('Frame',card,{Name='Value',BackgroundColor3=color,BackgroundTransparency=.86,BorderSizePixel=0}),6);UI.box(strip,pad,sy,w-pad*2,34);UI.stroke(strip,color:Lerp(UI.colors.line,.25),1)
     local vx=10
     if club then UI.box(Icons.create(strip,'custom',18,color),10,8,18,18);vx=34
@@ -103,12 +93,7 @@ function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
         vx=16+4*14
     end
     local v=text(strip,'ValueText',o.value,vx,0,w-pad*2-vx-8,34,14,UI.colors.ink);v.Font=Enum.Font.BuilderSansExtraBold;v.TextTruncate=Enum.TextTruncate.AtEnd
-    local gy=sy+44
-    local head=text(card,'IncludesHead','포함 내용',0,gy,w,16,13,color,true);head.Font=Enum.Font.BuilderSansExtraBold
-    for _,side in ipairs({-1,1})do
-        local line=UI.make('Frame',card,{Name='HeadLine',AnchorPoint=Vector2.new(side<0 and 1 or 0,.5),BackgroundColor3=color,BackgroundTransparency=.55,BorderSizePixel=0})
-        UI.box(line,cx+side*40,gy+8,w/2-40-pad,1)
-    end
+    local gy=sy+44-22
     local cw=(w-pad*2)/2
     for i,perk in ipairs(o.perks)do
         local px=pad+((i-1)%2)*cw;local py=gy+22+math.floor((i-1)/2)*28
@@ -138,8 +123,8 @@ function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
     end
     UI.enabled(buy,owned and not options.inPage or (not owned and price~=nil and not shop.busy))
     if owned and options.inPage then buy.TextTransparency=0 end
-    text(card,'Terms',owned and (club and '구독 기간 동안 적용 중'or '영구 적용 중')or o.note,30,by+60,w-60,18,13,UI.colors.muted,true)
-    brackets(card,w,h,color:Lerp(Color3.new(1,1,1),.35))
+    local terms=owned and (club and '구독 기간 동안 적용 중'or '영구 적용 중')or o.note
+    if terms then text(card,'Terms',terms,30,by+60,w-60,18,13,UI.colors.muted,true)end
     if not options.inPage then
         local more=UI.button(card,'More','',function()hub:openPage('benefits')end);more.BackgroundTransparency=1;UI.box(more,0,0,w,by-4);more.ZIndex=0
         local e=more:FindFirstChildOfClass('UIStroke');if e then e.Enabled=false end
@@ -148,6 +133,7 @@ function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
 end
 function M.draw(hub,body,w)
     hub.pageTitle.Text='상점'
+    if require(script.Parent.Lobby20).ENABLED then require(script.Parent.Shop20).draw(hub,body,w);return end
     local a=hub.account or {};local billing=a.billing;local shop=hub.callbacks.shop()
     local Cards=require(script.Parent.ShopCards);local K=require(script.Parent.SkinShopKit)
     local inset=body:FindFirstChild('ContentInset');if inset then inset:Destroy()end
@@ -217,10 +203,10 @@ function M.draw(hub,body,w)
     end
     if not billing.paidRandomAllowed and not billing.testingAvailable then
         require(script.Parent.TelemetryStep).once('paidRestricted','shop','paidRestricted',{reason=billing.policyKnown and 'policy_restricted'or 'not_loaded'})
-        local l=text(body,'PaidRestriction',billing.policyKnown and '이 계정에서는 유료 뽑기를 이용할 수 없어요. 코인 뽑기는 이용할 수 있어요.'or '이용 가능 여부를 확인하지 못했어요. 다시 시도해 주세요.',0,y+8,W,36,13,UI.colors.muted,true);l.TextWrapped=true;y+=48
+        local l=text(body,'PaidRestriction',billing.policyKnown and '유료 뽑기 불가  코인 뽑기 가능'or '확인 실패',0,y+8,W,36,13,UI.colors.muted,true);l.TextWrapped=true;y+=48
     elseif billing.salesOpen==false and not billing.testingAvailable then
         require(script.Parent.TelemetryStep).once('salesClosed','shop','salesClosed',{reason='sales_disabled'})
-        local l=text(body,'SalesClosed','지금은 Robux 판매를 잠시 멈췄어요. 가진 뽑기권과 혜택은 그대로 쓸 수 있어요.',0,y+8,W,36,13,UI.colors.muted,true);l.TextWrapped=true;y+=48
+        local l=text(body,'SalesClosed','Robux 판매 일시 중지',0,y+8,W,36,13,UI.colors.muted,true);l.TextWrapped=true;y+=48
     end
     local dev=script.Parent:FindFirstChild('DevPanel');if dev then y=require(dev).draw(hub,body,W,y+8,shop)end
     body.CanvasSize=UDim2.fromOffset(0,y>H+1 and y+8 or 0)

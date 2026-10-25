@@ -208,6 +208,15 @@ function M.stop()
     for _,o in ipairs(s.cleanup)do if o then o:Destroy()end end
     if stage then stage.Parent=nil end
     for _,key in ipairs({'supplyDelivery','supplySeal','request','supply_normal','supply_rare','supply_epic','supply_legendary','supply_mythic'})do Audio.stop(key)end;Score.stop()
+    task.defer(function()
+        local me=Players.LocalPlayer;if current or me:GetAttribute('FrontierRoom')then return end
+        if require(script.Parent.LobbyIntro).active or require(script.Parent.LobbyShowcase).active then return end
+        local P=require(script.Parent.Parent.Core.PlazaLayout);local cam=workspace.CurrentCamera;if not cam then return end
+        local target=Vector3.new(P.x,P.y+4.5,P.z+P.spawnZ);local hum=me.Character and me.Character:FindFirstChildOfClass('Humanoid')
+        cam.CameraType=Enum.CameraType.Custom;cam.CameraSubject=hum;cam.FieldOfView=60
+        me.CameraMinZoomDistance=26;me.CameraMaxZoomDistance=26;cam.CFrame=CFrame.lookAt(target+Vector3.new(0,6.6,25.1),target);cam.Focus=CFrame.new(target)
+        task.delay(.3,function()if not current then me.CameraMinZoomDistance=P.minZoom;me.CameraMaxZoomDistance=P.maxZoom end end)
+    end)
 end
 
 function M.play(shop,result,item,onDone)
@@ -330,13 +339,15 @@ function M.play(shop,result,item,onDone)
     local gradeLabel=UI.label(gui,'Grade','',34,grades[1]);gradeLabel.AnchorPoint=Vector2.new(.5,1);gradeLabel.Position=UDim2.new(.5,0,.8,0);gradeLabel.Size=UDim2.fromOffset(520,42);gradeLabel.TextXAlignment=Enum.TextXAlignment.Center;gradeLabel.TextTransparency=1;gradeLabel.TextStrokeTransparency=.4
     local nameLabel=UI.label(gui,'ItemName',item.name,20,UI.colors.ink);nameLabel.AnchorPoint=Vector2.new(.5,0);nameLabel.Position=UDim2.new(.5,0,.8,4);nameLabel.Size=UDim2.fromOffset(520,28);nameLabel.TextXAlignment=Enum.TextXAlignment.Center;nameLabel.TextTransparency=1;nameLabel.TextStrokeTransparency=.5
     local hold=UI.make('Frame',gui,{Name='SealGauge',AnchorPoint=Vector2.new(.5,1),Position=UDim2.new(.5,0,.9,0),Size=UDim2.fromOffset(4*58-8,48),BackgroundTransparency=1,Visible=false})
-    local hint=UI.label(hold,'Hint','길게 눌러 봉인 해제, 탭하면 자동',13,UI.colors.ink);UI.box(hint,-60,0,4*58-8+120,20);hint.TextXAlignment=Enum.TextXAlignment.Center;hint.TextStrokeTransparency=.5
+    local hint=UI.label(hold,'Hint','길게 눌러 열기',13,UI.colors.ink);UI.box(hint,-60,0,4*58-8+120,20);hint.TextXAlignment=Enum.TextXAlignment.Center;hint.TextStrokeTransparency=.5
     local fills={}
     for i=1,4 do
         local slot=UI.corner(UI.make('Frame',hold,{Name='Seal'..i,BackgroundColor3=rgb(30,37,47),BorderSizePixel=0}),2);UI.box(slot,(i-1)*58,30,50,8);UI.stroke(slot,UI.colors.line,1)
         fills[i]=UI.corner(UI.make('Frame',slot,{Name='Fill',BackgroundColor3=UI.colors.ink,BorderSizePixel=0,Size=UDim2.fromScale(0,1)}),2)
     end
     local skip=UI.button(gui,'Skip','건너뛰기',function()if current==s then s.skipRequested=true end end);skip.AnchorPoint=Vector2.new(1,0);skip.Position=UDim2.new(1,-16,0,16);skip.Size=UDim2.fromOffset(104,40);skip.TextSize=13;skip.BackgroundTransparency=.35;skip.Visible=false
+    local hud=player.PlayerGui:FindFirstChild('FrontierNativeUI');hud=hud and hud:FindFirstChild('Main');hud=hud and hud:FindFirstChildOfClass('UIScale')
+    for _,o in ipairs({caption,gradeLabel,nameLabel,hold,skip})do UI.make('UIScale',o,{Name='Scale20',Scale=math.max(1,hud and hud.Scale or UI.scale or 1)})end
     local edges={}
     if has.vignette then for i,spec in ipairs({{0,0,1,.18,90},{0,1,1,.18,-90},{0,0,.12,1,0},{1,0,.12,1,180}})do
         local f=UI.make('Frame',gui,{Name='GradeEdge',AnchorPoint=Vector2.new(spec[1],spec[2]),Position=UDim2.fromScale(spec[1],spec[2]),Size=UDim2.fromScale(spec[3],spec[4]),BackgroundColor3=grades[1],BackgroundTransparency=1,BorderSizePixel=0,ZIndex=0})

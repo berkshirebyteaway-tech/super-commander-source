@@ -15,7 +15,7 @@ function M.new(config,callbacks,dependencies)
     local a=dependencies or adapter(config)
     local self=setmetatable({a=a,callbacks=callbacks,rows={},readAt=-math.huge,published={},sending={}},M)
     if a.failed then a.failed:Connect(function(p,_,_,place)
-        if place==a.place and self.sending[p.UserId]then self.sending[p.UserId]=nil;self.callbacks.notify(p.UserId,'관전할 경기에 들어가지 못했어요. 끝났거나 자리가 없어요.')end
+        if place==a.place and self.sending[p.UserId]then self.sending[p.UserId]=nil;self.callbacks.notify(p.UserId,'관전 불가')end
     end)end
     return self
 end
@@ -64,13 +64,13 @@ function M:mine(rooms,userId)
     return Model.mine(rows,userId,now)
 end
 function M:send(p,id)
-    if not self.a.live then return false,'이 경기는 이미 끝났어요.'end
+    if not self.a.live then return false,'끝난 경기'end
     local row;for _,r in ipairs(self.rows)do if r.id==id then row=r;break end end
-    if not row or type(row.code)~='string'or (row.updated or 0)+Model.ttl<self.a.time()then return false,'이 경기는 이미 끝났어요.'end
+    if not row or type(row.code)~='string'or (row.updated or 0)+Model.ttl<self.a.time()then return false,'끝난 경기'end
     if self.sending[p.UserId]and self.a.time()-self.sending[p.UserId]<20 then return false,'경기로 이동 중이에요.'end
     self.sending[p.UserId]=self.a.time()
     local ok=pcall(self.a.send,p,row.code,id)
-    if not ok then self.sending[p.UserId]=nil;return false,'관전할 경기에 들어가지 못했어요. 잠시 뒤 다시 시도하세요.'end
+    if not ok then self.sending[p.UserId]=nil;return false,'관전 실패'end
     return true,'관전하러 가는 중…'
 end
 function M:leaving(id)self.sending[id]=nil end

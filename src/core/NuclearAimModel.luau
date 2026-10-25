@@ -53,20 +53,20 @@ end
 function M.plan(w,owner,kind,tile,up)
     local width,height=w.map.meta.width,w.map.meta.height;local tick=w.sim.ticks
     local p=w.sim.players[owner];local r={kind=kind,target=tile,up=up~=false,tick=tick,path={},sams={},breaks={},valid=false}
-    if not p or not U.nukes[kind]or kind=='MIRVWarhead'or type(tile)~='number'or tile%1~=0 or tile<0 or tile>=width*height then r.reason='유효한 목표를 선택하세요.';return r end
+    if not p or not U.nukes[kind]or kind=='MIRVWarhead'or type(tile)~='number'or tile%1~=0 or tile<0 or tile>=width*height then r.reason='목표 선택';return r end
     r.cost=B.toString(w.unitSystem:cost(owner,kind));local id=w.sim:owner(tile);local q=w.sim.players[id]
     local reason
-    if w.phase~='playing'or p.tiles.size==0 then reason='진행 중인 전장에서 조준하세요.'
-    elseif tick<(w.settings.spawnImmunityDuration or 50)then reason='시작 보호 시간이 남아 있어요.'
-    elseif T.isImpassable(w.sim.terrain[tile+1])or U.disabled(w.settings,kind)then reason='발사할 수 없는 목표예요.'
-    elseif kind=='MIRV'and id==0 then reason='다탄두 로켓은 상대 영토를 선택해야 해요.'
-    elseif p.team and q and p.team==q.team then reason='같은 팀의 영토는 공격할 수 없어요.'end
+    if w.phase~='playing'or p.tiles.size==0 then reason='경기 중에만'
+    elseif tick<(w.settings.spawnImmunityDuration or 50)then reason='보호 시간'
+    elseif T.isImpassable(w.sim.terrain[tile+1])or U.disabled(w.settings,kind)then reason='발사할 수 없는 목표'
+    elseif kind=='MIRV'and id==0 then reason='상대 영토 선택'
+    elseif p.team and q and p.team==q.team then reason='같은 팀'end
     if p.team and kind~='MIRV'then local _,outer=U.magnitude(kind)
-        for _,u in ipairs(w.units)do if u.active~=false and U.structures[u.kind]and w.sim.players[u.owner]and w.sim.players[u.owner].team==p.team and distance(u.tile,tile,width)<=outer*outer then reason='폭발 범위에 같은 팀의 건물이 있어요.';break end end
+        for _,u in ipairs(w.units)do if u.active~=false and U.structures[u.kind]and w.sim.players[u.owner]and w.sim.players[u.owner].team==p.team and distance(u.tile,tile,width)<=outer*outer then reason='범위에 같은 팀 건물';break end end
     end
     local silo=M.readySilo(w,owner,tile)
     if not silo then
-        reason=reason or '준비된 미사일 사일로가 필요해요.'
+        reason=reason or '사일로 필요'
         local best=math.huge;for _,v in ipairs(w.units)do if v.active~=false and v.owner==owner and v.kind=='MissileSilo'and not v.building then local d=manhattan(v.tile,tile,width);if d<best then best=d;silo=v end end end
         if not silo then r.reason=reason;return r end
     end
@@ -87,8 +87,8 @@ function M.plan(w,owner,kind,tile,up)
             end
         end;table.insert(r.sams,item)
     end end
-    if B.compare(w:getGold(owner),B.fromString(r.cost))<0 then reason='골드가 부족해요.'end
-    r.valid=reason==nil;r.reason=reason or (r.risk and '요격 위험이 있지만 발사할 수 있어요.'or kind=='MIRV'and '분리 후 탄두가 요격될 수 있어요.'or '현재 경로에 요격 위험이 감지되지 않았어요.')
+    if B.compare(w:getGold(owner),B.fromString(r.cost))<0 then reason='골드 부족'end
+    r.valid=reason==nil;r.reason=reason or (r.risk and '요격 위험'or kind=='MIRV'and '탄두 요격 위험'or '요격 위험 없음')
     return r
 end
 function M.fromState(state,map,owners)

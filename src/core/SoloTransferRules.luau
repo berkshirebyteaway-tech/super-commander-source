@@ -22,6 +22,7 @@ end
 function M.claim(ticket,userId,privateId,job,now)
     if type(ticket)~='table'or ticket.schema~=1 or ticket.userId~=userId or ticket.privateId~=privateId or not text(job)or not finite(ticket.expires)or not finite(now)or now>=ticket.expires then return nil end
     if ticket.goal~=nil and type(ticket.goal)~='boolean'then return nil end
+    if ticket.quick~=nil and(type(ticket.quick)~='boolean'or ticket.goal or ticket.intro or ticket.daily~=nil or ticket.campaign~=nil)then return nil end
     if ticket.goal and(ticket.rewardMode~='single'or ticket.intro or ticket.daily~=nil)then return nil end
     if ticket.phase~='waiting'and not(ticket.phase=='claimed'and ticket.destination==job)then return nil end
     if ticket.campaign~=nil and(ticket.goal or ticket.rewardMode~='single')then return nil end

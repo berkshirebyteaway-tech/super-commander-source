@@ -1,51 +1,113 @@
-local UI=require(script.Parent.ToyUI)
+local K=require(script.Parent.Kit20)
+local S=require(script.Parent.Sheet20)
 local Rows=require(script.Parent.SettingsRows)
+local Step=require(script.Parent.TelemetryStep)
+local C=K.colors
 local M={}
-function M.draw(hub,body,w)
-    hub.pageTitle.Text='설정'
-    local shop=hub.callbacks.shop();local a=hub.account or {};local p=a.preferences or {};local y=0
-    local function saved(r)if r and r.ok~=false and shop.notify then shop.notify('저장됨',false)end end
-    y=Rows.heading(body,'화면',y,w)
-    for _,v in ipairs({{'reducedEffects','간소한 이펙트',p.reducedEffects==true},{'cameraShake','화면 흔들림',p.cameraShake~=false},{'mapFlashes','지도 섬광',p.mapFlashes~=false}})do
-        y=Rows.toggle(body,v[1],v[2],v[3],y,w,function(on)require(script.Parent.TelemetryStep).step('settings','toggle',{item=v[1],result=on and 'active'or 'inactive'});shop:run(function()saved(shop:request('preference',v[1],on))end)end,a.ready==true and not shop.busy)
-    end
-    local opacityLabel=UI.label(body,'HudOpacity','경기 패널 배경',14);UI.box(opacityLabel,8,y,w-16,24);y+=32
-    for i,v in ipairs({1,.75,.5,.25})do
-        local b=UI.button(body,'HudOpacity'..i,(v*100)..'%',function()require(script.Parent.TelemetryStep).step('settings','hudOpacity',{value=v*100});shop:run(function()saved(shop:request('preference','hudOpacity',v))end)end,(p.hudOpacity or 1)==v)
-        UI.box(b,(i-1)*(w+6)/4,y,(w-18)/4,48);UI.enabled(b,a.ready==true and not shop.busy)
-    end;y+=60
-    y=Rows.heading(body,'음성 채팅',y+10,w)
-    local VipLock=require(script.Parent.VipLock)
-    y=Rows.toggle(body,'voiceTeamOnly','경기 중 팀끼리만 듣기',p.voiceTeamOnly~=false,y,w,function(on)
-        if not VipLock.allows('voice')then VipLock.open('voice');hub:drawPage();return end
-        require(script.Parent.TelemetryStep).step('settings','toggle',{item='voiceTeamOnly',result=on and 'active'or 'inactive'})
-        shop:run(function()saved(shop:request('preference','voiceTeamOnly',on))end)
-    end,a.ready==true and not shop.busy)
-    if not VipLock.allows('voice')then
-        local row=body:FindFirstChild('voiceTeamOnlyRow')
-        if row then
-            for _,o in ipairs(row:GetDescendants())do if o:IsA('TextLabel')then o.TextColor3=UI.colors.muted end;if o.Name=='Switch'then o.BackgroundTransparency=.6 end end
-            local tag=VipLock.tag(row,w-4-52-16-30,19);tag.ZIndex=row.ZIndex+5
+function M.draw(hub,body,_w)
+    for _,o in ipairs(body:GetChildren())do if o:IsA('GuiObject')then o:Destroy()end end
+    local root,W,H,fmt=K.screenRoot(hub,body,'Page20')
+    local pt,ph=fmt=='pt',fmt=='ph'
+    local shop=hub.callbacks.shop();local a=hub.account or {};local p=a.preferences or {}
+    local on=a.ready==true and not shop.busy
+    local function saved(r)if r and r.ok==false and shop.notify then shop.notify('설정을 저장할 수 없어요.',true)end end
+    local VipLock=require(script.Parent.VipLock);local voiceOk=VipLock.allows('voice')
+    local hitPos,hitSize=UDim2.fromOffset(0,ph and -2 or 0),UDim2.new(1,0,1,ph and 4 or 0)
+    local function toggle(key,value,apply,locked)
+        return function(row,w,h,pad)
+            local sw,sh,kn,ins=pt and 46 or ph and 40 or 48,pt and 28 or ph and 22 or 26,pt and 20 or ph and 16 or 20,pt and 4 or 3
+            local s=S.switch(row,'Switch',value,sw,sh,kn,ins,locked~=nil);K.box(s.frame,w-pad-sw,(h-sh)/2,sw,sh)
+            if not locked and not on then s.frame.BackgroundTransparency=.5;s.knob.BackgroundTransparency=.5 end
+            local hit=K.make('TextButton',row,{Name=key,Text='',BackgroundTransparency=1,AutoButtonColor=false,BorderSizePixel=0,Position=hitPos,Size=hitSize,ZIndex=3})
+            hit:SetAttribute('On',value==true);if locked then hit:SetAttribute('Locked',true)end
+            hit.Activated:Connect(function()
+                if locked then K.refuse(s.frame);locked(s.frame);return end
+                if not on then K.refuse(s.frame,nil,true);return end
+                require(script.Parent.ToyAudio).play('click');value=not value;s.set(value,true);apply(value)
+            end)
         end
     end
-    y=Rows.heading(body,'사운드',y+10,w)
-    local label=UI.label(body,'Volume','효과음 음량',14);UI.box(label,8,y,w-16,24);y+=32
-    for i,v in ipairs({{'off','끔'},{.5,'작게'},{1,'보통'},{1.5,'크게'}})do
-        local on=v[1]=='off'and p.soundsMuted==true or v[1]~='off'and p.soundsMuted~=true and (p.sfxVolume or 1)==v[1]
-        local b=UI.button(body,'Volume'..i,v[2],function()require(script.Parent.TelemetryStep).step('settings','volume',{item=v[1]=='off'and 'off'or 'on',value=v[1]=='off'and 0 or v[1]*100});shop:run(function()
-            if v[1]=='off'then saved(shop:request('preference','soundsMuted',true))
-            else saved(shop:request('preference','sfxVolume',v[1]));require(script.Parent.ToyAudio).play('confirm')end
-        end)end,on);UI.box(b,(i-1)*(w+6)/4,y,(w-18)/4,48);UI.enabled(b,a.ready==true and not shop.busy)
-    end;y+=60
-    y=Rows.heading(body,'언어',y,w)
-    local me=game.Players.LocalPlayer;local locale=me:GetAttribute('ToyfrontLocale')or 'auto'
-    for i,v in ipairs({{'auto','자동'},{'ko-kr','한국어'},{'en-us','English'}})do
-        local b=UI.button(body,'Language'..i,v[2],function()require(script.Parent.TelemetryStep).step('settings','language',{item=(v[1]:gsub('-','_'))});me:SetAttribute('ToyfrontLocale',v[1]~='auto'and v[1]or nil);if a.ready==true then shop:run(function()shop:request('preference','language',v[1])end)end;hub:drawPage()end,locale==v[1]);UI.box(b,(i-1)*(w+6)/3,y,(w-12)/3,48)
-    end;y+=60
-    y=Rows.heading(body,'도움말',y,w)
-    for _,v in ipairs({{'Help','조작 도움말',hub.callbacks.help},{'Tutorial','첫 작전 다시 하기',function()require(script.Parent.LobbyConfirm).open(hub,'첫 작전','5분 연습 경기로 점령과 병력 기초를 다시 배워요. 참가 대기 중이면 먼저 취소해 주세요.','시작',function()hub:closePage();hub.callbacks.learn()end,'preferences')end},{'Credits','크레딧',hub.callbacks.credits}})do
-        local b=UI.button(body,v[1],v[2],v[3]);UI.box(b,2,y,w-4,48);y+=56
+    local function seg(key,items,value,apply,width)
+        return function(row,w,h,pad)
+            local sw,sh=width or (pt and 170 or ph and 180 or 240),pt and 34 or ph and 30 or 38
+            local sg=S.segment(row,key,items,value,function(v)apply(v)end,{size=pt and 12 or ph and 11 or 14,guard=function()return on end})
+            sg:place(w-pad-sw,(h-sh)/2,sw,sh)
+        end
     end
-    body.CanvasSize=UDim2.fromOffset(0,y+8)
+    local function link(key,value,fn)
+        return function(row,w,h,pad)
+            local cs=pt and 14 or ph and 14 or 16;local fs=pt and 13 or ph and 12 or 14
+            local chev=K.icon(row,'chev',cs,C.muted,'Chevron');K.box(chev,w-pad-cs,(h-cs)/2,cs,cs)
+            if value and value~=''then local v=K.text(row,'Value',value,fs,C.muted,pt and 700 or 600,Enum.TextXAlignment.Right);K.box(v,w-pad-cs-(pt and 4 or 6)-160,0,160,h)end
+            local hit=K.make('TextButton',row,{Name=key,Text='',BackgroundTransparency=1,AutoButtonColor=false,BorderSizePixel=0,Position=hitPos,Size=hitSize,ZIndex=3})
+            hit.Activated:Connect(function()require(script.Parent.ToyAudio).play('click');fn(hit)end)
+        end
+    end
+    local function pref(key,value)shop:run(function()saved(shop:request('preference',key,value))end)end
+    local me=game.Players.LocalPlayer;local locale=me:GetAttribute('ToyfrontLocale')or 'auto'
+    local LANG={auto='자동',['ko-kr']='한국어',['en-us']='English'}
+    local vol=p.soundsMuted==true and 'off'or (p.sfxVolume or 1)
+    local groups={
+        {'화면','screen',{
+            {'reducedEffects','간소한 이펙트',toggle('reducedEffects',p.reducedEffects==true,function(v)Step.step('settings','toggle',{item='reducedEffects',result=v and 'active'or 'inactive'});pref('reducedEffects',v)end)},
+            {'cameraShake','화면 흔들림',toggle('cameraShake',p.cameraShake~=false,function(v)Step.step('settings','toggle',{item='cameraShake',result=v and 'active'or 'inactive'});pref('cameraShake',v)end)},
+            {'mapFlashes','지도 섬광',toggle('mapFlashes',p.mapFlashes~=false,function(v)Step.step('settings','toggle',{item='mapFlashes',result=v and 'active'or 'inactive'});pref('mapFlashes',v)end)},
+            {'HudOpacity','경기 패널 배경',seg('HudOpacity',{{1,'100'},{.75,'75'},{.5,'50'},{.25,'25'}},p.hudOpacity or 1,function(v)Step.step('settings','hudOpacity',{value=v*100});pref('hudOpacity',v)end)},
+        }},
+        {'소리','vol',{
+            {'Volume','효과음',seg('Volume',{{'off','끔'},{.5,'작게'},{1,'보통'},{1.5,'크게'}},vol,function(v)
+                Step.step('settings','volume',{item=v=='off'and 'off'or 'on',value=v=='off'and 0 or v*100})
+                shop:run(function()if v=='off'then saved(shop:request('preference','soundsMuted',true))else saved(shop:request('preference','sfxVolume',v));require(script.Parent.ToyAudio).play('confirm')end end)end)},
+            {'Music','배경음',seg('Music',{{0,'끔'},{.5,'작게'},{1,'보통'},{1.5,'크게'}},p.musicVolume or 1,function(v)Step.step('settings','musicVolume',{value=v*100});pref('musicVolume',v)end)},
+            {'voiceTeamOnly','팀끼리만 음성',toggle('voiceTeamOnly',p.voiceTeamOnly~=false,function(v)Step.step('settings','toggle',{item='voiceTeamOnly',result=v and 'active'or 'inactive'});pref('voiceTeamOnly',v)end,
+                not voiceOk and function(a)VipLock.open('voice',false,a)end or nil),lock=not voiceOk and 'VIP'or nil},
+        }},
+        {'기타','more',{
+            {'Language','언어',link('Language',LANG[locale]or '자동',function(anchor)
+                local items={}
+                for _,v in ipairs({{'auto','자동'},{'ko-kr','한국어'},{'en-us','English'}})do
+                    table.insert(items,{text=v[2],check=locale==v[1],fn=function()
+                        Step.step('settings','language',{item=(v[1]:gsub('-','_'))});me:SetAttribute('ToyfrontLocale',v[1]~='auto'and v[1]or nil)
+                        if a.ready==true then shop:run(function()shop:request('preference','language',v[1])end)end;hub:drawPage()end})
+                end
+                S.menu(hub,anchor,items,{width=180})
+            end)},
+            {'Help','도움말',link('Help','',function(anchor)
+                S.menu(hub,anchor,{{text='조작 도움말',fn=function()hub.callbacks.help()end},
+                    {text='조작 연습 다시 하기',fn=function()require(script.Parent.LobbyConfirm).open(hub,'조작 연습','튜토리얼','시작',function()hub:closePage();hub.callbacks.learn()end,'preferences')end}},{width=180})
+            end)},
+            {'Restore','구매 복원',link('Restore','',function()Step.step('settings','restore',{});shop:run(function()shop:request('restore')end)end)},
+            {'Credits','크레딧',link('Credits','',function()hub.callbacks.credits()end)},
+        }},
+    }
+    local top,bottom
+    if pt then
+        local head=S.head(root,fmt,W,'설정',function()hub:closePage()end)
+        local lift=0;local d=hub.deployment;if hub.data and hub.data.queue and d and d.bar and d.bar.Visible then lift=(d.barHeight or 48)+8 end
+        local _,cb=S.band(H,lift);top=head.y+head.h+8;bottom=cb
+    else top=ph and 54 or 80;bottom=H-(ph and 8 or 24)end
+    local cw=pt and W-32 or ph and math.floor((W-40)/2)or 620
+    local x0=pt and 16 or ph and 16 or math.floor((W-cw)/2)
+    local listW=ph and W-32 or cw
+    local scroll=S.scroll(root,'Settings',x0,top,listW,bottom-top)
+    local rows={}
+    local function column(list,x)
+        local y=ph and 2 or pt and 0 or 8
+        for _,g in ipairs(list)do
+            y=Rows.heading20(scroll,fmt,x,y,cw,g[1],g[2])
+            for _,r in ipairs(g[3])do
+                local row,h,pad=Rows.row20(scroll,r[1],fmt,x,y,cw,r[2],r.lock)
+                r[3](row,cw,h,pad);table.insert(rows,row)
+                y+=h+(pt and 0 or ph and 4 or 6)
+            end
+        end
+        return y
+    end
+    local height
+    if ph then height=math.max(column({groups[1],groups[3]},0),column({groups[2]},cw+8))
+    else height=column(groups,0)end
+    S.canvas(scroll,height)
+    local first=hub.first20=='preferences';hub.first20=nil
+    S.stagger(rows,first)
 end
 return M

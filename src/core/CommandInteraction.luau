@@ -1,18 +1,59 @@
 local M={};M.__index=M
 M.labels={attack='공격',transport='상륙',build='건설',upgrade='강화',spawn='정착',moveWarship='군함 이동',moveWarships='군함 이동',retaliate='반격',cancelTransport='복귀',alliance='외교',support='지원'}
-local diagonal,hex=math.sqrt(.5),math.sqrt(3)/2
-M.factionSlots={{'Confirm',0,0},{'SupportTroops',0,0},{'Details',0,-1},{'Transport',1,0},{'Alliance',0,1},{'Rockets',-1,0},{'SupportGold',-1,0},{'Signals',-diagonal,diagonal},{'Emojis',diagonal,diagonal}}
-M.minorSlots={Signals=true,Emojis=true}
+local hex=math.sqrt(3)/2
+local function at(deg)return math.cos(math.rad(deg)),math.sin(math.rad(deg))end
+local c55,s55=at(55);local c125,s125=at(125)
+M.factionSlots={{'Confirm',0,0},{'SupportTroops',0,0},{'Alliance',0,-1},{'Transport',1,0},{'Rockets',-1,0},{'SupportGold',-1,0},{'Details',c55,s55},{'Emojis',0,1},{'Signals',c125,s125}}
+M.minorSlots={Details=true,Signals=true,Emojis=true}
+M.neutralSlots={{'Confirm',0,0},{'Transport',1,0},{'Rockets',-1,0},{'Empty',0,-1}}
+function M.fixedSlots(kind,g,flipX,flipY)
+    local out={}
+    for _,s in ipairs(kind=='nation'and M.factionSlots or M.neutralSlots)do
+        local k=M.minorSlots[s[1]]and g.low/g.radius or 1
+        table.insert(out,{s[1],s[2]*k*(flipX and -1 or 1),s[3]*k*(flipY and -1 or 1)})
+    end
+    return out
+end
+local function blockedAt(r,sx,sy,blocks,w,h)
+    local x,y=r.x+sx,r.y+sy
+    if x<4 or y<4 or x+r.w>w-4 or y+r.h>h-4 then return true end
+    for _,b in ipairs(blocks)do if x<b.x+b.w and b.x<x+r.w and y<b.y+b.h and b.y<y+r.h then return true end end
+    return false
+end
+function M.ringShift(cells,blocks,w,h,limit)
+    local bx,by,bestHits=0,0,math.huge
+    for _=1,2 do
+        local xs,ys={bx},{by}
+        local function add(list,v)v=v>0 and math.ceil(v)or math.floor(v);if math.abs(v)<=limit and not table.find(list,v)then table.insert(list,v)end end
+        for _,c in ipairs(cells)do if blockedAt(c,bx,by,blocks,w,h)then
+            local x,y=c.x+bx,c.y+by
+            add(xs,bx+4-x);add(xs,bx+w-4-x-c.w);add(ys,by+4-y);add(ys,by+h-4-y-c.h)
+            for _,b in ipairs(blocks)do if x<b.x+b.w and b.x<x+c.w and y<b.y+b.h and b.y<y+c.h then
+                add(xs,bx+b.x+b.w-x);add(xs,bx+b.x-x-c.w);add(ys,by+b.y+b.h-y);add(ys,by+b.y-y-c.h)
+            end end
+        end end
+        local tries={}
+        for _,sx in ipairs(xs)do for _,sy in ipairs(ys)do table.insert(tries,{sx,sy,sx*sx+sy*sy})end end
+        table.sort(tries,function(a,b)return a[3]<b[3]end)
+        for _,t in ipairs(tries)do
+            local n=0;for _,c in ipairs(cells)do if blockedAt(c,t[1],t[2],blocks,w,h)then n+=1 end end
+            if n<bestHits then bx,by,bestHits=t[1],t[2],n end
+            if n==0 then return bx,by,0 end
+        end
+    end
+    return bx,by,bestHits
+end
 M.landSlots={{'Confirm',0,-1},{'Alliance',-1,0},{'BuildCity',0,-1},{'BuildPost',-1,0},{'Demolish',-1,0},{'SupportGold',-1,0},{'SupportTroops',0,1},{'Transport',1,0},{'OpenBuild',1,0},{'Rockets',-1,0},{'UpgradeMax',0,1},
     {'RingCity',0,-1},{'RingFactory',hex,-.5},{'RingPort',hex,.5},{'RingDefensePost',0,1},{'RingMissileSilo',-hex,.5},{'RingSAMLauncher',-hex,-.5},{'RingWarship',0,0}}
 M.ringKinds={'City','Factory','Port','DefensePost','MissileSilo','SAMLauncher'}
 function M.radialGeometry(width,height)
-    local short=height<400;local compact=width<600 or height<500
-    local size=short and 44 or compact and 52 or 58
-    local big=short and 56 or compact and 60 or 66
-    local radius=short and 78 or compact and 86 or 96
-    return {size=size,big=big,radius=radius,diameter=radius*2+size+8,closeX=diagonal,closeY=-diagonal,
-        icon=math.floor(size*.53),bigIcon=math.floor(big*.58),minor=math.max(44,math.floor(size*.8))}
+    local compact=width<600 or height<500
+    local size=compact and 44 or 52
+    local big=compact and 64 or 84
+    local radius=compact and 62 or 82
+    local low=compact and 78 or 84
+    return {size=size,face=compact and 40 or 52,big=big,radius=radius,diameter=math.max(radius*2+size,low*2+44)+8,closeX=0,closeY=0,
+        icon=compact and 17 or 22,bigIcon=compact and 22 or 28,minor=44,minorFace=compact and 36 or 44,low=low}
 end
 function M.sameTarget(a,b)
     if not a or not b or a.tile==nil or b.tile==nil or a.kind~=b.kind or a.owner~=b.owner or a.allied~=b.allied or a.unit~=b.unit or a.mode~=b.mode then return false end

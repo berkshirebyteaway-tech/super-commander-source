@@ -27,12 +27,12 @@ end
 function M:failed(id,key)
     local op=self.pending[id];if not op or op.key~=key then return end
     self.pending[id]=nil;self.callbacks.waiting(id,false)
-    self.callbacks.notify(id,'전장으로 이동하지 못했어요. 다시 시도해 주세요.')
+    self.callbacks.notify(id,'이동 실패')
     self.a.spawn(function()pcall(self.a.remove,key)end)
 end
 function M:depart(p,selection,settings)
-    local a=self.a;if not a.live then return false,'모든 전장이 사용 중이에요. 잠시 뒤 다시 참가하세요.'end
-    if self.pending[p.UserId]then return false,'전장으로 이동 중이에요.'end
+    local a=self.a;if not a.live then return false,'전장 가득'end
+    if self.pending[p.UserId]then return false,'전장 이동 중'end
     local op={key=a.guid()};self.pending[p.UserId]=op;self.callbacks.waiting(p.UserId,true)
     a.delay(25,function()if self.pending[p.UserId]==op then self:failed(p.UserId,op.key)end end)
     local ok=pcall(function()
@@ -40,13 +40,14 @@ function M:depart(p,selection,settings)
         if self.pending[p.UserId]~=op or not a.player(p.UserId)then return end
         local ticket=assert(Rules.new(p.UserId,privateId,selection.map,settings,selection.intro,a.time(),selection.rewardMode,selection.daily and selection.daily.day,selection.campaign),'Invalid solo transfer')
         ticket.goal=selection.goal==true or nil
+        ticket.quick=selection.quick==true or nil
         if self.telemetry then ticket.telemetry=self.telemetry:prepareTransfer(p,op.key)end
         a.write(op.key,ticket)
         if self.pending[p.UserId]~=op or not a.player(p.UserId)then a.remove(op.key);return end
         op.sent=true;a.send(p,code,op.key)
     end)
-    if not ok then self:failed(p.UserId,op.key);return false,'경기를 준비하지 못했어요. 다시 참가하세요.'end
-    return self.pending[p.UserId]==op,'전장으로 이동 중이에요.'
+    if not ok then self:failed(p.UserId,op.key);return false,'경기 준비 실패'end
+    return self.pending[p.UserId]==op,'전장 이동 중'
 end
 function M:arrival(p)
     local a=self.a;if not a.live or a.privateId==''then return false end
@@ -54,7 +55,7 @@ function M:arrival(p)
     if type(key)~='string'or #key>64 or not key:match('^[%x%-]+$')then return false end
     if self.arriving[p.UserId]or self.used[key]then return true end
     local op={};self.arriving[p.UserId]=op;self.callbacks.waiting(p.UserId,true)
-    a.delay(30,function()if self.arriving[p.UserId]==op then self.arriving[p.UserId]=nil;self.callbacks.waiting(p.UserId,false);self.callbacks.notify(p.UserId,'경기를 준비하지 못했어요. 다시 참가하세요.')end end)
+    a.delay(30,function()if self.arriving[p.UserId]==op then self.arriving[p.UserId]=nil;self.callbacks.waiting(p.UserId,false);self.callbacks.notify(p.UserId,'경기 준비 실패')end end)
     a.spawn(function()
         local ticket
         for attempt=1,3 do
@@ -65,13 +66,13 @@ function M:arrival(p)
         if self.arriving[p.UserId]~=op then return end
         self.arriving[p.UserId]=nil
         if not ticket or ticket.destination~=a.job or not a.player(p.UserId)then
-            self.callbacks.waiting(p.UserId,false);self.callbacks.notify(p.UserId,'경기를 준비하지 못했어요. 다시 참가하세요.');return
+            self.callbacks.waiting(p.UserId,false);self.callbacks.notify(p.UserId,'경기 준비 실패');return
         end
         self.used[key]=true
         if self.telemetry then self.telemetry:acceptTransfer(p,key,ticket.telemetry)end
         self.callbacks.waiting(p.UserId,false)
         local made,created=pcall(self.callbacks.create,p.UserId,ticket)
-        if not made or not created then self.callbacks.notify(p.UserId,'경기를 준비하지 못했어요. 다시 참가하세요.')end
+        if not made or not created then self.callbacks.notify(p.UserId,'경기 준비 실패')end
         pcall(a.remove,key)
     end)
     return true

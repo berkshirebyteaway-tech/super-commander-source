@@ -83,7 +83,7 @@ function M.state(s)
  if not M.readyAt and not s.loading then task.defer(function()
   if M.readyAt then return end;M.readyAt=os.clock();M.emit('boot_stage',{stage='client_ready',result='ok',duration_ms=(M.readyAt-M.startedAt)*1000})
   task.spawn(function()for _=1,60 do local v=game.Players.LocalPlayer:GetAttribute('LoadCoverStages');if type(v)=='string'then
-   local loaded,total,ui,capped=v:match('^(%d+),(%d+),(%d),(%d)$');if total then M.step('lobby','loadCover',{value=tonumber(total)/1000,duration_ms=tonumber(loaded),result=capped=='1'and 'timeout'or ui=='0'and 'failed'or 'ok'})end;return end;task.wait(.5)end end)
+   local loaded,total,ui,capped=v:match('^(%d+),(%d+),(%d),(%d)$');if total then local r=capped=='1'and 'timeout'or ui=='0'and 'failed'or 'ok';M.step('lobby','loadCover',{value=tonumber(total)/1000,duration_ms=tonumber(loaded),result=r});M.step('lobby','loadGame',{value=tonumber(loaded)/1000,result=r})end;return end;task.wait(.5)end end)
  end)end
 end
 function M.sent(id,action,version)

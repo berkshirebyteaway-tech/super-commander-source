@@ -22,7 +22,7 @@ function M.apply(label,text,transparency,right)
         if p then
             local chip=chipWords[p]==true;local bold=i==1 or chip
             local font=bold and Enum.Font.BuilderSansBold or Enum.Font.BuilderSansMedium
-            local pw=TextService:GetTextSize(L.text(p),size,font,Vector2.new(1000,h)).X+(chip and 12 or 0)
+            local pw=TextService:GetTextSize(L.text(p),size,font,Vector2.new(1000,h)).X+(chip and 12 or 2)
             if not o then o=UI.label(holder,'Piece'..i,'',size,color);o.TextWrapped=false;UI.corner(o,3)end
             o.Text=p;o.Font=font;o.TextSize=size;o.TextColor3=color;o.TextTransparency=transparency or 0
             o.TextXAlignment=chip and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left

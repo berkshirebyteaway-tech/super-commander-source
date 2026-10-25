@@ -20,7 +20,7 @@ M.modes={
     {id='fields',name='전장 고르기',hint='공식, 커스텀 전장 선택'},
     {id='campaign',name='캠페인',hint='쉬움부터 불지옥까지 30작전',icon='campaign'},
     {id='solo',name='혼자 하기',hint='AI 상대 / 자유 설정'},
-    {id='daily',name='오늘의 작전',hint='같은 지도 / 오늘의 순위'},
+    {id='daily',name='오늘의 도전',hint='같은 지도 / 오늘의 순위'},
     {id='custom',name='커스텀 방',hint='친구와 내 규칙으로'},
     {id='ranked',name='랭크',hint='1대1, 2대2, 개인전'},
     {id='watch',name='경기 관전',hint='진행 중 공식전 관전'},
@@ -75,10 +75,10 @@ function M.new(lobby)
     self.noticeKicker=line(self.notice,'Kicker','공지',12,UI.colors.accent);self.noticeIcon=Icons.create(self.notice,'notice',14,UI.colors.accent)
     self.noticeText=UI.label(self.notice,'Text','',13,UI.colors.ink);self.noticeText.TextWrapped=true;self.noticeText.TextTruncate=Enum.TextTruncate.AtEnd
     self.noticeText.TextYAlignment=Enum.TextYAlignment.Top
-    self.daily=glass(UI.button(f,'DailyEvent','',function()local op=Daily.current((lobby.account.progress or {}).dailyOp,os.time());if op then require(script.Parent.LobbyConfirm).open(lobby,'오늘의 작전',((Maps.meta(op.map)or {}).label or op.map)..'\n'..op.conditionName,'출전',function()self.mode='daily';if lobby.firstLesson then lobby.skipIntro=true;lobby:refresh()end;lobby:closePage();self:refresh();self:go()
+    self.daily=glass(UI.button(f,'DailyEvent','',function()local op=Daily.current((lobby.account.progress or {}).dailyOp,os.time());if op then require(script.Parent.LobbyConfirm).open(lobby,'오늘의 도전',((Maps.meta(op.map)or {}).label or op.map)..'\n'..op.conditionName,'출전',function()self.mode='daily';if lobby.firstLesson then lobby.skipIntro=true;lobby:refresh()end;lobby:closePage();self:refresh();self:go()
     self.mode='quick';self:refresh()end,nil,op.map)end end),.25)
     self.dailyStrip=require(script.Parent.EdgeMask).fit(UI.make('Frame',self.daily,{Name='Strip',BackgroundColor3=UI.colors.gold,BorderSizePixel=0}))
-    self.dailyKicker=line(self.daily,'Kicker','오늘의 작전',12,UI.colors.gold);self.dailyIcon=Icons.create(self.daily,'daily',14,UI.colors.gold)
+    self.dailyKicker=line(self.daily,'Kicker','오늘의 도전',12,UI.colors.gold);self.dailyIcon=Icons.create(self.daily,'daily',14,UI.colors.gold)
     self.dailyTitle=line(self.daily,'Title','',16,UI.colors.ink)
     self.dailySub=line(self.daily,'Sub','',12,UI.colors.muted,true)
     self.dailyReward=UI.make('Frame',self.daily,{Name='Reward',BackgroundTransparency=1,BorderSizePixel=0})
@@ -128,7 +128,13 @@ function M.new(lobby)
     return self
 end
 local FOOTER={solo=true,custom=true,customRules=true,room=true,joinCode=true,maps=true,motions=true,missions=true}
-M.FULL={wardrobe=true,shop=true,missions=true}
+M.WHOLE={wardrobe=true,shop=true,missions=true,records=true,preferences=true,clan=true,supply=true}
+if require(script.Parent.Lobby20).ENABLED then M.WHOLE.benefits=true end
+M.SHEET={friends=true,custom=true,customRules=true,customCode=true,joinCode=true,watch=true}
+M.SCREEN={room=true}
+M.TWO={friends=true,custom=true,customRules=true,customCode=true,joinCode=true,watch=true,room=true,records=true,preferences=true}
+M.FULL={}
+for _,t in ipairs({M.WHOLE,M.SHEET,M.SCREEN})do for k in pairs(t)do M.FULL[k]=true end end
 function M:fit()
     local l=self.lobby;if not l.page or FOOTER[l.page]or M.FULL[l.page]or not self.pageMax then return end
     local pw,ph,w,h=self.pageMax[1],self.pageMax[2],self.pageMax[3],self.pageMax[4]
@@ -138,6 +144,7 @@ end
 function M:available(id)
     local p=self.lobby.account.progress or {}
     if id=='daily'then return p.dailyOp~=nil and (p.basicsComplete==true or p.tutorial==false or next(p.history or {})~=nil)end
+    if id=='ranked'then return require(script.Parent.Parent.Core.HiddenScreens).ranked()end
     return true
 end
 function M:refresh()
@@ -150,7 +157,7 @@ function M:refresh()
     do local p=l.account.progress or {};local streak=p.login and p.login.streak or 0
         l.medals.Text=UI.number(p.medals or 0)..(streak>0 and '  🔥'..streak or '');l.medals.TextWrapped=false end
     FreeDraw.dot(l.navButtons.shop,FreeDraw.ready(l.account.billing))
-    if l.firstLesson and not q then title,sub='첫 작전','5분, 점령과 병력 기초'
+    if l.firstLesson and not q then title,sub='첫 작전','튜토리얼, 점령과 병력 기초'
     elseif q then
         local left=q.remaining and math.max(0,q.remaining-(os.clock()-(l.queueUpdated or os.clock())))
         title=q.mode=='custom'and '방 보기'or q.phase=='transferring'and '이동 중'or '대기 중'
@@ -161,7 +168,7 @@ function M:refresh()
     elseif mode=='quick'then
         local pick=d and d:quickPick()
         local where=pick and (Maps.meta(pick.rules.map)or {}).label or pick and pick.rules.map;local kind=pick and (pick.rules.special and '특수 'or '')..(pick.rules.mode=='teams'and '팀전'or '개인전')
-        sub=pick and (party and #party.users>1 and pick.rules.mode=='ffa'and string.format('%s / 같은 경기에서 각자 경쟁',where)or pick.remaining and string.format('%s / %s / 출발 %s',where,kind,clock(pick.remaining-elapsed))or string.format('%s / %s / 빈자리는 AI',where,kind))or party and #party.users>1 and '파티 전장 보기 / 협동도 준비할 수 있어요'or '전장을 찾는 중…'
+        sub=pick and (party and #party.users>1 and pick.rules.mode=='ffa'and string.format('%s / 각자 경쟁',where)or pick.remaining and string.format('%s / %s / 출발 %s',where,kind,clock(pick.remaining-elapsed))or string.format('%s / %s / AI 채움',where,kind))or party and #party.users>1 and '파티 전장 보기 / 협동도 준비할 수 있어요'or '전장을 찾는 중…'
     elseif mode=='fields'then local n=d and d.fields and #d.fields or 0;sub=n>0 and string.format('열린 전장 %d곳',n)or '전장을 찾는 중…'
     elseif mode=='solo'then title='시작';sub=(Maps.meta(l.map)or Maps.catalog[1]).label..' / '..difficulty[(l.settings or {}).difficulty or 'Medium']
     elseif mode=='campaign'then local Campaign=require(script.Parent.Parent.Core.CampaignRules);local cv=(l.account.progress or {}).campaign or {}
@@ -193,7 +200,7 @@ function M:refresh()
         require(script.Parent.TelemetryStep).change('dailyOp','lobby','dailyOpShown',{map_key=op.map,item=op.done and 'done'or 'open',result=op.done and 'complete'or 'shown'})
         self.dailyTitle.Text=((Maps.meta(op.map)or {}).label or op.map)..' / '..op.conditionName
         local chips=not op.done and Icons.available(self.rewardMedalIcon)and Icons.available(self.rewardXPIcon)
-        self.dailySub.Text=op.done and string.format('오늘 완료 / 내 기록 %s / %d일째',op.bestLabel,op.days)or chips and '첫 완료'or string.format('첫 완료 +%d 코인 / +%d XP',op.medals,op.xp)
+        self.dailySub.Text=op.done and string.format('오늘 완료 / 내 기록 %s',op.bestLabel)or chips and '첫 완료'or string.format('첫 완료 +%d 코인 / +%d XP',op.medals,op.xp)
         self.dailyChips=chips;self.rewardMedal.Text='+'..op.medals;self.rewardXP.Text='+'..op.xp
     end
     local pack=script.Parent.Parent;local boost=tonumber(pack:GetAttribute('LiveXPBoost'))or 1
@@ -202,8 +209,8 @@ function M:refresh()
     text=type(text)=='string'and text or ''
     self.noticeOperator=text~=''
     self.noticeText:SetAttribute('LocalizationSkip',text~='');self.noticeText.AutoLocalize=false
-    if boost>1 then self.noticeKicker.Text=string.format('이벤트 / 경기 XP x%s',(string.format('%.1f',boost):gsub('%.0$','')))
-        if text==''then text='지금 경기를 하면 XP를 더 받아요';self.noticeText:SetAttribute('LocalizationSkip',false)end
+    if boost>1 then local x=(string.format('%.1f',boost):gsub('%.0$',''));self.noticeKicker.Text='이벤트'
+        if text==''then text=string.format('경기 XP x%s',x);self.noticeText:SetAttribute('LocalizationSkip',false)else self.noticeKicker.Text=string.format('이벤트 / 경기 XP x%s',x)end
     else self.noticeKicker.Text='공지'end
     if self.noticeText.Text~=text then self.noticeText.Text=text end
     local had=self.noticeOn;self.noticeOn=text~=''
@@ -221,23 +228,26 @@ function M:refresh()
     local invites=s and s.invites and #s.invites or 0;local playing=0
     for _,friend in ipairs(l.onlineFriends or {})do if friend.PlaceId==game.PlaceId and not Players:GetPlayerByUserId(friend.VisitorId)then playing+=1 end end
     local waitText=wait and wait.name and ({inMatch='%s님 경기 중 / 끝나면 같은 파티',queued='%s님 대기 중 / 취소하면 같은 파티',joining='%s님 파티에 합류하는 중…',notHere='%s님을 이 서버에서 찾는 중…'})[wait.reason]
-    self.partyCaption.Text=waitText and string.format(waitText,wait.name)or #users>1 and string.format('파티 %d/5 / 준비 %d',#users,Party.readyCount(party))or invites>0 and '초대 도착'or playing>0 and string.format('친구 %d명 플레이 중',playing)or '친구 초대 / 전우 보너스 XP +10%'
+    self.partyCaption.Text=waitText and string.format(waitText,wait.name)or #users>1 and string.format('파티 %d/5 / 준비 %d',#users,Party.readyCount(party))or invites>0 and '초대 도착'or playing>0 and string.format('친구 %d명 플레이 중',playing)or '친구 초대 / XP +10%'
     self.partyCaption.TextColor3=(invites>0 or waitText)and UI.colors.gold or (playing>0 or #users>1)and UI.colors.accent or UI.colors.muted
     UI.enabled(self.partyCoop,enabled and not follower);UI.enabled(self.partyHard,enabled and not follower)
     Icons.set(self.partyIcon,invites>0 and 'invite'or 'friends');self.partyIcon.ImageColor3=self.partyCaption.TextColor3
     self.fieldPreview:refresh()
+    require(script.Parent.Kit20).reduced=reduced==true
+    require(script.Parent.Lobby20).refresh(self)
 end
 function M:go()
     local l=self.lobby;local d=l.deployment;local s=l.data;local q=s and s.queue;local party=s and s.party
     self.listOpen=false
     if l.busy or l.loading then require(script.Parent.TelemetryStep).step('lobby','deploy',{result='rejected',reason=l.loading and 'loading'or 'busy'});return end
     if l.firstLesson and not q and self.mode~='daily'then l:closePage();l.callbacks.learn();return end
-    if q then if q.mode=='custom'then l:openPage('room')elseif q.mode=='ranked'then l:openPage('ranked')else d:open('all',q.field)end;l:layout();return end
+    if q then if q.mode=='custom'then l:openPage('room')elseif q.room and l.matchRoom then l.matchRoom:restore()elseif q.mode=='ranked'then l:openPage('ranked')else d:open('all',q.field)end;l:layout();return end
     if party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId then l:request('ready');return end
     if self.mode=='quick'and not(s and s.rejoin)and self.fieldPreview:joinSelected()then require(script.Parent.TelemetryStep).step('lobby','deploy',{item='row_'..tostring(self.fieldPreview.selected)});l:layout();return end
     local m=self.mode;require(script.Parent.TelemetryStep).step('lobby','deploy',{item=(s and s.rejoin and m=='quick')and 'rejoin'or m})
     if s and s.rejoin and m=='quick'then l:request('rejoin');return end
-    if m=='quick'then if d:quickPick()then d:quickJoin()else d:open('official')end
+    if m=='quick'and require(script.Parent.LobbyHomeB).START_FLOW then d:open('all')
+    elseif m=='quick'then if d:quickPick()then d:quickJoin()else d:open('official')end
     elseif m=='fields'then d:open('all')
     elseif m=='solo'then d.callbacks.solo()
     elseif m=='daily'then if not Commands.soloLoading(l)then l:closePage();l.callbacks.daily()end
@@ -269,11 +279,12 @@ function M:layout(w,h)
     local l=self.lobby;local d=l.deployment;local short=h<500;local narrow=w<600
     local open=d~=nil and d.expanded and not l.page;local menu=l.inMenu~=false;local home=menu and not open
     local show=menu and l.page=='motions';if l.page then home=false end
-    local full=menu and l.page~=nil and M.FULL[l.page]==true
+    local full=menu and l.page~=nil and M.WHOLE[l.page]==true
     local covered=short and not narrow and l.page~=nil and not show and not full
     local q=l.data and l.data.queue;local lift=q and ((d and d.barHeight or 48)+8)or 0
     local docked=q~=nil and home
-    if d then d.barDocked=docked;d.bar.Visible=q~=nil and not docked end
+    if d then d.barDocked=docked;d.barHidden=menu and l.page=='room';d.bar.Visible=q~=nil and not docked and not d.barHidden end
+    if l.page=='room'and menu then lift=0 end
     if docked then lift=0 end
     self.top.Visible=menu and not(short and open);self.left.Visible=home and not narrow;self.bottom.Visible=home
     UI.box(self.top,0,0,w,short and 72 or 120);UI.box(self.left,0,0,short and 320 or 460,h);UI.box(self.bottom,0,h-(narrow and 320 or 160),w,narrow and 320 or 160)
@@ -392,7 +403,7 @@ function M:layout(w,h)
         if fits then UI.box(self.motionIcon,(mw-mt-22)/2-22,mh/2-9,18,18)end end
     l.copyright.Visible=not open and not l.page
     if narrow then UI.box(l.copyright,6,h-56-lift-30,216,28)elseif short then UI.box(l.copyright,6,h-40-lift,216,38)end
-    l.overlay.BackgroundTransparency=show and 1 or .25
+    if not self.dimTween then l.overlay.BackgroundTransparency=show and 1 or .25 end
     if show then
         local pw=narrow and w-24 or math.min(420,math.floor(w*.42))
         local ph=narrow and math.floor(h*.48)or math.min(h-(short and 72 or 120),500)
@@ -400,7 +411,8 @@ function M:layout(w,h)
         UI.box(l.pageTitle,18,8,pw-84,42);UI.box(l.pageClose,pw-56,7,44,44);UI.box(l.pageBody,14,62,pw-28,ph-74)
         l.copyright.Visible=false
     end
-    l.pageTitle.Visible=not full;l.pageClose.Visible=not full;l.pageBody.ScrollingEnabled=not(full and (l.page=='wardrobe'or l.page=='missions'))
+    local two=menu and l.page~=nil and M.TWO[l.page]==true
+    l.pageTitle.Visible=not full and not two;l.pageClose.Visible=not full and not two;l.pageBody.ScrollingEnabled=not(full and (l.page=='wardrobe'or l.page=='missions'))and not two
     do local edge=l.pageCard:FindFirstChildOfClass('UIStroke');if edge then edge.Enabled=not full end end
     for _,o in ipairs({l.header,l.profile})do o.ZIndex=full and 31 or 1 end
     if full and narrow then l.header.Visible=false;l.profile.Visible=false end
@@ -411,10 +423,12 @@ function M:layout(w,h)
             if menu then pcall(function()game:GetService('TextChatService').ChatWindowConfiguration.Enabled=not full end)end end end
     if full then
         local top=narrow and math.max(8,(l.topbarHeight or 0)+4)or 60;local bottom=narrow and 64+lift or 8;local side=w>=1000 and 24 or 12
+        if require(script.Parent.Lobby20).ENABLED then top,bottom=require(script.Parent.Lobby20).insets(w,h,lift)end
         l.overlay.BackgroundTransparency=0;l.overlay.BackgroundColor3=UI.colors.bg;l.pageCard.BackgroundTransparency=1
         UI.box(l.pageCard,side,top,w-side*2,h-top-bottom);UI.box(l.pageBody,0,0,w-side*2,h-top-bottom)
         l.copyright.Visible=false
     else l.overlay.BackgroundColor3=Color3.fromRGB(4,7,11)end
+    self:sheet20(w,h,lift,full)
     self.select.Visible=false;self.list.Visible=false;self.quick.Visible=false;self.listOpen=false
     local entryW=narrow and w-24 or short and w-24 or math.min(780,w-350)
     entryW=math.max(math.min(w-24,420),entryW)
@@ -440,15 +454,132 @@ function M:layout(w,h)
             UI.box(l.copyright,6,h-28-lift,216,28)
         end
     end
-    if home then require(script.Parent.LobbyHomeB).layout(self,w,h,short,q,lift,narrow)else require(script.Parent.LobbyHomeB).hide(self)end
-    self:dockQueue(docked and self.start.Visible,q)
+    local L20=require(script.Parent.Lobby20)
+    if home and L20.ENABLED then L20.home(self,w,h,short,q,lift,narrow)
+    elseif home then require(script.Parent.LobbyHomeB).layout(self,w,h,short,q,lift,narrow)
+    else require(script.Parent.LobbyHomeB).hide(self);L20.hide(self)end
+    if not L20.ENABLED then self:dockQueue(docked and self.start.Visible,q)end
     self.uiToggle:apply(w,h,home,lift,self.toggleSpot)
-    if l.page and not show and not full then local size=l.pageCard.Size;self.pageMax={size.X.Offset,size.Y.Offset,w,h,l.pageCard.Position.Y.Offset};self:fit()end
+    if l.page and not show and not full and not two then local size=l.pageCard.Size;self.pageMax={size.X.Offset,size.Y.Offset,w,h,l.pageCard.Position.Y.Offset};self:fit()end
     if l.page~=self.shownPage then
-        if l.page and not self.reduced then local scale=l.pageCard:FindFirstChild('EntryScale')or UI.make('UIScale',l.pageCard,{Name='EntryScale',Scale=1})
+        local scale=l.pageCard:FindFirstChild('EntryScale')
+        if two then if scale then scale.Scale=1 end;l.first20=l.page;self:enter20(self.shownPage,w,h)
+        elseif l.page and not self.reduced then scale=scale or UI.make('UIScale',l.pageCard,{Name='EntryScale',Scale=1})
             scale.Scale=.96;Tween:Create(scale,TweenInfo.new(.2,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Scale=1}):Play()end
         self.shownPage=l.page
     end
     require(script.Parent.LobbyShowcase).set(show,narrow and 'up'or 'right',menu)
+    if L20.ENABLED then L20.chrome(self,w,h,lift);self:chrome20(w,h)end
+end
+
+function M:sheet20(w,h,lift,full)
+    local l=self.lobby;local page=l.page;local menu=l.inMenu~=false
+    local S=require(script.Parent.Sheet20)
+    local d=l.deployment
+    if d then d.barHidden=menu and page=='room';d.barRaised=menu and page~=nil and (M.SHEET[page]or M.SCREEN[page])==true end
+    if not menu or not page then return end
+    local card=l.pageCard;local edge=card:FindFirstChildOfClass('UIStroke')
+    local corner=card:FindFirstChildOfClass('UICorner')
+    local fmt=S.format(w,h);local screen=M.SCREEN[page]==true
+    local bar=lift>0 and not screen and lift or 0
+    if M.TWO[page]then
+        local key=page..':'..math.floor(w)..'x'..math.floor(h)..':'..bar
+        if self.drawn20~=key then local was=self.drawn20;self.drawn20=key
+            if was and was:match('^[^:]+')==page then task.defer(function()if l.page==page then l:drawPage()end end)end end
+    end
+    if not(M.SHEET[page]or M.SCREEN[page])then
+        l.overlay.ZIndex=25;if self.outside then self.outside.Visible=false end
+        if corner and not full then corner.CornerRadius=UDim.new(0,3)end
+        if not full then card.BackgroundColor3=UI.colors.panel end
+        l.pageBody.ScrollBarThickness=M.TWO[page]and 0 or 3
+        if M.TWO[page]then l.soloStart.Visible=false;l.pageSecondary.Visible=false end
+        return
+    end
+    local x,y,sw,sh
+    if screen or fmt=='pt'then x,y,sw,sh=0,0,w,h else x,y,sw,sh=S.rect(page,w,h,fmt,bar)end
+    local dimColor=(screen or fmt=='pt')and S.PAGE or S.DIM
+    local dimAlpha=screen and .04 or fmt=='pt'and .05 or .28
+    l.overlay.ZIndex=(fmt=='pt'and not screen)and 28 or 40
+    l.overlay.BackgroundColor3=dimColor
+    if l.overlay:GetAttribute('Dim20')~=dimAlpha then l.overlay:SetAttribute('Dim20',dimAlpha);if not self.dimTween then l.overlay.BackgroundTransparency=dimAlpha end end
+    if not self.dimTween then l.overlay.BackgroundTransparency=dimAlpha end
+    if not self.glow20 then
+        self.glow20=UI.make('Frame',l.overlay,{Name='Glow20',BackgroundColor3=Color3.fromRGB(16,46,58),BorderSizePixel=0,Size=UDim2.fromScale(1,.4),ZIndex=0,Active=false})
+        UI.make('UIGradient',self.glow20,{Rotation=90,Transparency=NumberSequence.new(.45,1)})
+    end
+    self.glow20.Visible=screen
+    if not self.outside then
+        self.outside=UI.make('TextButton',l.overlay,{Name='Outside20',Text='',BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,Size=UDim2.fromScale(1,1),ZIndex=0})
+        self.outside.Activated:Connect(function()if M.SHEET[l.page]and not(l.pageCard:GetAttribute('Moving20')=='in')then l:back()end end)
+    end
+    self.outside.Visible=not screen and fmt~='pt'
+    local sheetCard=not screen and fmt~='pt'
+    card.BackgroundColor3=S.BG;card.BackgroundTransparency=sheetCard and 0 or 1
+    if corner then corner.CornerRadius=UDim.new(0,sheetCard and 8 or 0)end
+    if edge then edge.Enabled=sheetCard;edge.Color=UI.colors.line;edge.Transparency=0;edge.Thickness=1 end
+    local goal=UDim2.fromOffset(x,y)
+    if card:GetAttribute('Moving20')then card:SetAttribute('Home20',goal)else card.Position=goal end
+    card.Size=UDim2.fromOffset(sw,sh)
+    UI.box(l.pageBody,0,0,sw,sh);l.pageBody.ScrollingEnabled=false;l.pageBody.ScrollBarThickness=0;l.pageBody.CanvasSize=UDim2.fromOffset(0,0)
+    l.pageTitle.Visible=false;l.pageClose.Visible=false;l.soloStart.Visible=false;l.pageSecondary.Visible=false
+    l.copyright.Visible=false
+end
+function M:enter20(from,w,h)
+    local l=self.lobby;local K=require(script.Parent.Kit20);local S=require(script.Parent.Sheet20)
+    local card=l.pageCard;local fmt=S.format(w,h)
+    if from and M.TWO[from]and l.overlay.Visible then
+        task.defer(function()local root=l.pageBody:FindFirstChild('Page20');if root and not K.reduced then K.rehome(root);root:SetAttribute('Shown20',false);K.appear(root,{dx=fmt=='pt'and 0 or 24,dy=fmt=='pt'and 24 or 0,t=.16,noFade=true})end end)
+        return
+    end
+    if K.reduced then K.fade(card,true,.12);return end
+    card:SetAttribute('Moving20',nil);card:SetAttribute('Shown20',false);K.rehome(card);card.Visible=true
+    local move={dx=fmt=='pt'and 0 or 24,dy=fmt=='pt'and 24 or 0,t=fmt=='pt'and .16 or .18,noFade=true}
+    if M.WHOLE[l.page]then
+        task.defer(function()local root=l.pageBody:FindFirstChild('Page20');if root then K.rehome(root);root:SetAttribute('Shown20',false);K.appear(root,move)end end)
+        return
+    end
+    local alpha=l.overlay:GetAttribute('Dim20')or .28
+    l.overlay.BackgroundTransparency=1;self.dimTween=true
+    local t=Tween:Create(l.overlay,TweenInfo.new(.12,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundTransparency=alpha});t:Play()
+    t.Completed:Once(function()self.dimTween=nil end)
+    K.appear(card,move)
+end
+function M:leave20(page)
+    local l=self.lobby;local K=require(script.Parent.Kit20);local S=require(script.Parent.Sheet20)
+    if not page or not M.TWO[page]or K.reduced or not l.overlay.Visible then return false end
+    local w,h=l.root.AbsoluteSize.X/Theme.scale,l.root.AbsoluteSize.Y/Theme.scale;local fmt=S.format(w,h)
+    local card=l.pageCard;local pt=fmt=='pt'
+    self.dimTween=true
+    Tween:Create(l.overlay,TweenInfo.new(pt and .10 or .12,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{BackgroundTransparency=1}):Play()
+    K.rehome(card)
+    K.leave(card,{dx=pt and 0 or 24,dy=pt and 24 or 0,t=pt and .10 or .12,noFade=true},function()
+        self.dimTween=nil;card.Visible=true
+        if not l.page then l.overlay.Visible=false end
+    end)
+    return true
+end
+function M:chrome20(w,h)
+    local l=self.lobby;local c=self.c20;if not c or l.inMenu==false or not l.frame.Visible then return end
+    local page=l.page;local d=l.deployment;local board=d~=nil and d.expanded and not page
+    local fmt=require(script.Parent.Lobby20).format(w,h)
+    local all={c.bar,c.thumb,c.logo,c.profile,c.gear.button,c.mark};for _,t in ipairs(c.tabs)do table.insert(all,t.button)end
+    if page and M.SCREEN[page]then for _,o in ipairs(all)do o.Visible=false end;return end
+    local sheet=page~=nil and M.SHEET[page]==true or board
+    local lightPlay=sheet or (fmt=='pt'and page~=nil and (M.WHOLE[page]and (page=='records'or page=='preferences')))
+    if not sheet and not lightPlay then return end
+    if sheet then
+        c.bar.Visible=fmt~='pt';c.thumb.Visible=fmt=='pt';c.logo.Visible=fmt=='pc';c.profile.Visible=true;c.gear.button.Visible=true
+        for _,t in ipairs(c.tabs)do t.button.Visible=true end
+    end
+    if lightPlay then
+        for i,t in ipairs(c.tabs)do local on=i==1
+            t.icon.ImageColor3=on and UI.colors.accent or UI.colors.muted;t.word.TextColor3=on and UI.colors.ink or UI.colors.muted
+            local K=require(script.Parent.Kit20);t.word.FontFace=K.fonts[on and 800 or 600]or t.word.FontFace
+        end
+        local b=c.tabs[1].button;local tw=b.Size.X.Offset;local mw=math.floor(tw*(fmt=='pt'and .4 or .44)+.5)
+        c.mark.Visible=true;c.mark.Size=UDim2.fromOffset(mw,3)
+        c.mark.Position=UDim2.fromOffset(math.floor(b.Position.X.Offset+(tw-mw)/2+.5),fmt=='pt'and b.Position.Y.Offset or c.bar.Size.Y.Offset-3)
+        c.markLit=nil
+    end
 end
 return M

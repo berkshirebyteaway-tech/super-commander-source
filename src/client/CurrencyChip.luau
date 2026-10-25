@@ -31,7 +31,7 @@ local function explain(button,kind)
     UI.corner(tip,3);UI.stroke(tip,UI.colors.line,1);UI.box(tip,x,y,w,h)
     local icon=Icons.create(tip,kind=='medal'and 'coin'or kind,18,kind=='xp'and UI.colors.ice or UI.colors.gold);UI.box(icon,12,10,18,18)
     local title=UI.label(tip,'Title',kind=='xp'and '경험치'or '코인',14);UI.box(title,38,5,w-50,28);title.ZIndex=81
-    local l=UI.label(tip,'Text',kind=='xp'and '레벨과 명예 보상을 해금해요.'or '플레이로 획득, 스킨 뽑기에 사용',13,UI.colors.muted);UI.box(l,12,35,w-24,34);l.ZIndex=81
+    local l=UI.label(tip,'Text',kind=='xp'and '레벨업'or '스킨 뽑기',13,UI.colors.muted);UI.box(l,12,35,w-24,34);l.ZIndex=81
     M.current=tip;M.owner=button
     if not M.reduced then tip.Position=UDim2.fromOffset(x,y+6);M.animation=Tween:Create(tip,TweenInfo.new(.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{GroupTransparency=0,Position=UDim2.fromOffset(x,y)});M.animation:Play()end
     task.delay(4,function()if M.current==tip then M.dismiss()end end)

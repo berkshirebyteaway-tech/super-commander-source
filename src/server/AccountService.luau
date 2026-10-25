@@ -23,12 +23,12 @@ local Sale=require(pack.Core.LaunchSale)
 local Guards=require(pack.Core.AbuseGuards)
 local S={};S.__index=S
 local messages={
-    ["busy"]="저장 중이에요. 잠시 뒤 다시 시도하세요.",
-    ["storage-unavailable"]="저장에 연결하지 못했어요. 바뀐 건 없으니 다시 시도하세요.",
-    ["profile-not-loaded"]="보관함을 불러오지 못했어요. 복원을 눌러 다시 연결하세요.",
-    ["already-owned"]="이미 보유한 스킨이에요.",
-    ["sales-disabled"]="판매 준비 중이에요. 아직 Robux로 구매할 수 없어요.",
-    ["ownership-unavailable"]="보유권을 확인하지 못했어요. 복원 후 다시 시도하세요.",
+    ["busy"]="저장 중",
+    ["storage-unavailable"]="저장 연결 실패",
+    ["profile-not-loaded"]="불러오기 실패  복원",
+    ["already-owned"]="보유 중",
+    ["sales-disabled"]="판매 준비 중",
+    ["ownership-unavailable"]="보유권 확인 실패",
 }
 local function newRemote(class,name) local r=Instance.new(class);r.Name=name;r.Parent=pack;return r end
 function S.new(onChanged)
@@ -52,9 +52,11 @@ function S.new(onChanged)
     self.changed=newRemote("RemoteEvent","AccountChanged")
     self.request=newRemote("RemoteFunction","AccountRequest")
     self.request.OnServerInvoke=function(player,action,value,extra) local r=self:requestAction(player,action,value,extra);pcall(function()self.analytics:request(player,'account',action,r,value)end);return r end
-    Players.PlayerAdded:Connect(function(p) task.spawn(function() self:load(p) end) end)
+    self.comeback=require(script.Parent.ComebackNotify).new(require(script.Parent.MultiplayerConfig),function(result,_,kind)pcall(function()self.analytics:emit(nil,'service_operation',{operation='comeback_notify',stage='sending',result=result=='sent'and 'ok'or result=='none'and 'skipped'or 'failed',reason=kind})end)end)
+    self.comeback:start()
+    Players.PlayerAdded:Connect(function(p) self.comeback:arrived(p.UserId);task.spawn(function() self:load(p) end) end)
     Players.PlayerRemoving:Connect(function(p)
-        local a=self.accounts[p];if a then a.departed=true end
+        local a=self.accounts[p];if a then a.departed=true;if a.ready and a.profile then self.comeback:leaving(p.UserId,a.profile.outgame)end end
         task.spawn(function()pcall(self.seasonBoard.leave,self.seasonBoard,p.UserId)end)
         task.spawn(function()
             local deadline=os.clock()+20
@@ -215,7 +217,7 @@ end
 function S:reportRecruit(player)
     local a=self.accounts[player];if not Session.current(self,player,a,Players)then return end
     local r=a.profile.outgame.recruit
-    if type(r)~='table'or not r.paid or r.reported or type(r.by)~='number'then return end
+    if not O.career.recruitReady(r)or r.reported or type(r.by)~='number'then return end
     local id=player.UserId
     local ok=pcall(function()self.referrals:UpdateAsync(tostring(r.by),function(cur)
         cur=type(cur)=='table'and type(cur.ids)=='table'and cur or {ids={}}
@@ -234,7 +236,7 @@ function S:snapshot(player)
         products[id]={passId=passId or 0,forSale=false}
     end
     return {loading=a.loading,ready=a.ready,localMode=self.localMode,owned=table.clone(a.owned),products=products,checkIn=a.checkIn,recruited=a.recruited,
-        collectionSeen=O.copy(a.profile.outgame.collectionSeen or {}),preferences=table.clone(a.profile.preferences),flag=a.profile.flag,commanderStandard=P.effectiveStandard(a.profile),cosmetics=P.effective(a.profile,a.owned),progress=O.view(a.profile.outgame,os.time()),billing=self.billing:snapshot(a),
+        collectionSeen=O.copy(a.profile.outgame.collectionSeen or {}),preferences=table.clone(a.profile.preferences),flag=nil,commanderStandard=P.effectiveStandard(a.profile),cosmetics=P.effective(a.profile,a.owned),progress=O.view(a.profile.outgame,os.time()),billing=self.billing:snapshot(a),
         status=a.loading and "보관함을 불러오는 중" or not a.ready and "저장 연결 실패, 복원을 눌러주세요" or self.localMode and "Studio 테스트, 정지하면 보유와 설정이 초기화돼요" or a.unverified and "일부 보유권 확인 실패, 복원 필요" or "Roblox 보유권 확인, 설정 저장 연결됨"}
 end
 function S:sessionView(player,withProgress)
@@ -259,7 +261,7 @@ function S:publish(player,a)
     for slot,id in pairs(snapshot.cosmetics or {})do player:SetAttribute('CommanderCosmetic_'..slot,id);tier=math.max(tier,C.get(id).tier or 0)end
     player:SetAttribute('CommanderCosmeticTier',tier)
     local pr=snapshot.progress
-    if pr then player:SetAttribute('CommanderLevel',pr.level);player:SetAttribute('CommanderTitle',pr.titleText or '');player:SetAttribute('CommanderTitleMap',pr.titleMap or '');player:SetAttribute('CommanderTitleFormat',pr.titleFormat or '');player:SetAttribute('CommanderTitleTier',pr.titleTier or 0)
+    if pr then player:SetAttribute('CommanderLevel',pr.level)
         player:SetAttribute('CommanderPlate',pr.plate and Color3.fromRGB(pr.plate[1],pr.plate[2],pr.plate[3])or nil)end
     self.changed:FireClient(player,snapshot)
     self.onChanged(player,snapshot)
@@ -276,15 +278,15 @@ function S:equipNow(player,id,slot)
     if self.closing or a.loading then return {ok=false,message=messages.busy} end
     if os.clock()-(a.lastEquip or -10)<.4 then return {ok=false,message=messages.busy} end
     a.lastEquip=os.clock()
-    if player:GetAttribute('FrontierRoom') then return {ok=false,message='스킨은 로비에서 바꿀 수 있어요.'}end
+    if player:GetAttribute('FrontierRoom') then return {ok=false,message='로비에서만'}end
     local list=type(slot)=='table'and slot or slot~=nil and {slot}or nil
     if list and (#list<1 or #list>4)then return {ok=false,message="스킨 항목이 올바르지 않아요."} end
     for _,s in ipairs(list or {})do if not C.validSlot(s)then return {ok=false,message="스킨 항목이 올바르지 않아요."} end end
-    if type(id)~='string'or not C.styles[id]then return {ok=false,message="보유한 스킨만 장착할 수 있어요."} end
-    for _,s in ipairs(list or {false})do if not O.owns(a.profile.outgame,a.owned,id,s or nil)then return {ok=false,message="보유한 스킨만 장착할 수 있어요."} end end
+    if type(id)~='string'or not C.styles[id]then return {ok=false,message="미보유"} end
+    for _,s in ipairs(list or {false})do if not O.owns(a.profile.outgame,a.owned,id,s or nil)then return {ok=false,message="미보유"} end end
     local changes=list and {} or C.loadout(id);for _,s in ipairs(list or {})do changes[s]=id end
     local profile,err=self.repo:save(tostring(player.UserId),{loadout=changes})
-    if not profile then return {ok=false,message=messages[err] or "저장 형식을 확인하지 못했어요. 바뀐 건 없어요."} end
+    if not profile then return {ok=false,message=messages[err] or "저장 실패"} end
     a.profile=profile;self:publish(player,a)
     self.analytics:emit(player,'cosmetic_equipped',{result='ok',stage='accepted'})
     return {ok=true,id=id,cosmetics=P.effective(profile,a.owned),account=self:snapshot(player)}
@@ -306,7 +308,7 @@ function S:updateProgress(id,fn,transaction,sku)
         local after=profile.outgame
         if after.medals~=before.medals then self.analytics:economy(player,after.medals-before.medals,after.medals,transaction or 'Gameplay',sku or 'match')end
         local l0,l1=O.level(before.xp),O.level(after.xp)
-        if l1>l0 then local _,name=O.rank(l1);self.analytics:progression(player,l1,name)end
+        if l1>l0 then self.analytics:progression(player,l1)end
         if l1>l0 then for _,item in ipairs(require(pack.Core.CommanderStandardRules).items)do if item.level>l0 and item.level<=l1 then self.analytics:emit(player,'unlock_granted',{kind='other',level=item.level,result='granted'},{context={unlock_id=item.id,unlock_kind='flag'}})end end end
         if after.xp>before.xp then
             local paid=0;for key,r in pairs(after.receipts)do paid+=math.max(0,(r.paidXP or 0)-(before.receipts[key]and before.receipts[key].paidXP or 0))end
@@ -329,15 +331,22 @@ function S:applyProgress(id,event,unpaid)
     local observedAt=os.clock()
     local boost=self.live.xpBoost()
     if boost>1 and type(event)=='table'then event=table.clone(event);event.boost=boost end
+    local supplied,goalPaid
     local saved,err=self:updateProgress(id,function(p)
+        supplied,goalPaid=nil,nil
         if Retention.sealed(p.outgame,event)then return p end
         local out,err=O.apply(p.outgame,event);if not out then return nil,err end
+        local r=out.receipts[event.id];local was=p.outgame and p.outgame.receipts and p.outgame.receipts[event.id]
+        supplied=r and r.supply and not(was and was.supply)and r.supply or nil
+        goalPaid=ResultPresentation.goalPaid(out,p.outgame,event)
         out=Benefits.apply(out,p.outgame,event)
         p.outgame=ResultPresentation.tally(out,p.outgame,event);Retention.compact(p.outgame,event);Retention.prune(p.outgame,os.time(),unpaid);return p
     end,'Gameplay','match')
     local actor=Players:GetPlayerByUserId(id)
     self.analytics:emit(actor,'reward_commit_result',{operation='profile_mutate',result=saved and 'ok'or 'failed',reason=saved and 'none'or require(pack.Core.TelemetrySchema).reason(err),duration_ms=(os.clock()-observedAt)*1000},
         {id='reward:'..self.analytics.key(tostring(id)..':'..tostring(event and event.id)..':'..tostring(event and event.revision))..':'..(saved and 'ok'or 'failed'),context={actor_key=self.analytics.actorKey(id)}})
+    if saved and supplied and actor then local steps=O.dailySupply.steps;pcall(self.analytics.flow,self.analytics,actor,'goals','dailySupply',{item='step'..supplied,position=supplied,total=#steps,value=steps[supplied],result='granted'})end
+    if saved and goalPaid and actor then pcall(self.analytics.flow,self.analytics,actor,'goals','goalClaim',{item='auto',value=goalPaid.medals,amount=goalPaid.xp,result='granted'})end
     if saved and type(event)=='table'and type(event.daily)=='number'and Daily.score(event)then
         local player=Players:GetPlayerByUserId(id);if player then self.analytics:custom(player,'DailyOpCleared',event.map,event.outcome,1)end
     end
@@ -364,20 +373,20 @@ function S:requestAction(player,action,value,extra)
     if action=="profile" then
         if not a then return {ok=false}end
         a.readBudget=a.readBudget or {}
-        if not Guards.take(a.readBudget,'profile',os.clock(),3,1)then return {ok=false,busy=true,message="잠시 뒤 다시 시도하세요."}end
+        if not Guards.take(a.readBudget,'profile',os.clock(),3,1)then return {ok=false,busy=true,message="다시 시도"}end
         local target=type(value)=='number'and Players:GetPlayerByUserId(value)or nil
         local t=target and self.accounts[target]
-        if not(t and t.ready and t.profile)then return {ok=false,message="지금은 이 지휘관의 전적을 볼 수 없어요."}end
+        if not(t and t.ready and t.profile)then return {ok=false,message="전적 비공개"}end
         local ladders=nil;if self.rankedOf then local ok,v=pcall(self.rankedOf,value);ladders=ok and v or nil end
         return {ok=true,profile=require(pack.Core.PublicProfile).build(value,O.view(t.profile.outgame,os.time()),ladders)}
     end
     if action=="dailyBoard" then
-        if os.clock()-((a and a.lastBoard)or -10)<3 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end
+        if os.clock()-((a and a.lastBoard)or -10)<3 then return {ok=false,message="다시 시도"}end
         if a then a.lastBoard=os.clock()end
         local board=self.dailyBoard:board(player.UserId,os.time());board.op=Daily.of(board.day);board.ok=true;return board
     end
     if action=="seasonBoard" then
-        if os.clock()-((a and a.lastSeasonBoard)or -10)<3 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end
+        if os.clock()-((a and a.lastSeasonBoard)or -10)<3 then return {ok=false,message="다시 시도"}end
         if a then a.lastSeasonBoard=os.clock()end
         local s=require(pack.Core.SeasonRules).at(os.time());if not s then return {ok=false}end
         local cur=a and a.profile and type(a.profile.outgame.season)=='table'and a.profile.outgame.season.id==s.id and a.profile.outgame.season
@@ -385,9 +394,9 @@ function S:requestAction(player,action,value,extra)
     end
     if not a or a.loading or self.closing or self.repo.busy[tostring(player.UserId)] then return {ok=false,message=messages.busy} end
     if own then
-        a.limits=a.limits or {};if os.clock()-(a.limits[own]or -10)<.3 then return {ok=false,message="잠시 뒤 다시 시도하세요."}end;a.limits[own]=os.clock()
+        a.limits=a.limits or {};if os.clock()-(a.limits[own]or -10)<.3 then return {ok=false,message="다시 시도"}end;a.limits[own]=os.clock()
     else
-        if os.clock()-(a.lastRequest or -10)<.6 then return {ok=false,message="잠시 뒤 다시 시도하세요."} end
+        if os.clock()-(a.lastRequest or -10)<.6 then return {ok=false,message="다시 시도"} end
         a.lastRequest=os.clock()
     end
     if table.find({'billingPurchase','supplyDraw','equipSupply','savePreset','supplyTestGrant'},action)then return self.billing:request(player,a,action,value)end
@@ -409,28 +418,28 @@ function S:requestAction(player,action,value,extra)
             local seen=Inbox.ack(p.outgame.collectionSeen,inventory,category,type(value)=='table'and value.keys or nil);if not seen then return nil,'invalid-request'end
             p.outgame.collectionSeen=seen;return p
         end)
-        return {ok=result~=nil,account=self:snapshot(player),message=err and (messages[err]or '변경하지 못했어요. 다시 시도하세요.')or nil}
+        return {ok=result~=nil,account=self:snapshot(player),message=err and (messages[err]or '변경 실패')or nil}
     end
     if action=='claimGoal'then
         if not a.ready then return {ok=false,message=messages['profile-not-loaded']}end
-        if type(value)~='string'or #value>64 then return {ok=false,message='요청을 확인하세요.'}end
+        if type(value)~='string'or #value>64 then return {ok=false,message='잘못된 요청'}end
         local mult=self.billing:benefits(a).xpMultiplier or 1
         local profile,got,err=require(script.Parent.GoalClaimDelivery).claim(self,player.UserId,value,os.time(),mult)
         if profile and got then local left=0;for _ in pairs(profile.outgame.goalClaims or {})do left+=1 end;self.analytics:flow(player,'goals','goalClaim',{item=value=='all'and 'all'or 'one',count=got.count,value=got.medals,amount=got.xp,total=left,result='granted'})
             if (got.paidXP or 0)>0 then self.analytics:emit(player,'benefit_used',{benefit='xp',amount=got.paidXP,result='granted',multiplier=mult})end
         elseif err~='unchanged'then pcall(function()self.analytics:flow(player,'goals','goalClaim',{item=value=='all'and 'all'or 'one',result='failed',reason=require(pack.Core.TelemetrySchema).reason(err)})end)end
         return {ok=profile~=nil,account=self:snapshot(player),claimed=got and {xp=got.xp+(got.paidXP or 0),medals=got.medals,count=got.count,bonusXP=got.paidXP}or nil,
-            message=err and err~='unchanged'and (messages[err]or '받지 못했어요. 다시 시도하세요.')or nil}
+            message=err and err~='unchanged'and (messages[err]or '받기 실패')or nil}
     end
     if action=='exchange'or action=='saveLoadout'or action=='useLoadout'or action=='tutorial'or action=='mode'or action=='career'or action=='group' then
-        if action=='exchange'then for _,item in ipairs(O.shop)do if item.id==value and item.style then return {ok=false,message='스킨은 보급 상자에서 획득할 수 있어요.'}end end end
+        if action=='exchange'then for _,item in ipairs(O.shop)do if item.id==value and item.style then return {ok=false,message='보급 상자 전용'}end end end
         if action=='tutorial'and player:GetAttribute('FrontierUnrecorded')then return {ok=true,temporary=true}end
         if not a.ready then return {ok=false,message=messages['profile-not-loaded']}end
-        if player:GetAttribute('FrontierRoom')and action~='tutorial'and action~='career'and action~='group'then return {ok=false,message='로비에서 사용할 수 있어요.'}end
+        if player:GetAttribute('FrontierRoom')and action~='tutorial'and action~='career'and action~='group'then return {ok=false,message='로비에서만'}end
         if action=='group'then
-            if os.clock()-(a.lastGroup or -30)<15 then return {ok=false,message='잠시 뒤 다시 확인하세요.'}end
+            if os.clock()-(a.lastGroup or -30)<15 then return {ok=false,message='잠시 뒤 다시'}end
             a.lastGroup=os.clock();local member=self:checkGroup(player)
-            return {ok=member,account=self:snapshot(player),message=not member and '그룹 가입이 아직 확인되지 않았어요.'or nil}
+            return {ok=member,account=self:snapshot(player),message=not member and '그룹 미가입'or nil}
         end
         local profile,err=self:updateProgress(player.UserId,function(p)
             local o=p.outgame
@@ -457,13 +466,13 @@ function S:requestAction(player,action,value,extra)
             self.analytics:emit(player,'preset_action',{stage=action=='saveLoadout'and 'save'or 'load',result=profile and 'ok'or 'failed'});self.analytics:flow(player,'cosmetics',action=='saveLoadout'and 'presetSave'or 'presetUse',{value=value,result=profile and 'ok'or 'failed',reason=profile and 'none'or require(pack.Core.TelemetrySchema).reason(err)})
             if profile and value>2 then self.analytics:emit(player,'benefit_used',{benefit='loadout_slots',sku='permanent',result='ok'})end
         end
-        return {ok=profile~=nil,account=self:snapshot(player),message=err and ({['insufficient-medals']='코인이 조금 더 필요해요.',['locked-reward']='아직 열리지 않은 보상이에요.',['empty-loadout']='현재 스킨을 먼저 저장하세요.'})[err]or err and messages[err]or err and '변경하지 못했어요. 다시 시도하세요.'or nil}
+        return {ok=profile~=nil,account=self:snapshot(player),message=err and ({['insufficient-medals']='코인 부족',['locked-reward']='🔒 보상',['empty-loadout']='스킨 저장 먼저'})[err]or err and messages[err]or err and '변경 실패'or nil}
     elseif action=="restore" then
-        if os.clock()-(a.lastRestore or -30)<10 then return {ok=false,message="보유권을 방금 확인했어요. 잠시 뒤 다시 복원하세요."} end
+        if os.clock()-(a.lastRestore or -30)<10 then return {ok=false,message="복원 재사용 대기"} end
         a.lastRestore=os.clock()
         self:load(player);local snapshot=self:snapshot(player);return {ok=snapshot.ready==true,account=snapshot,message=not snapshot.ready and messages['storage-unavailable']or nil}
     elseif action=="purchase" then
-        return {ok=false,message='스킨은 보급 상자에서 획득할 수 있어요.'}
+        return {ok=false,message='보급 상자 전용'}
     elseif action=="testUnlock" then
         if not Run:IsStudio() or not self.localMode or not a.ready or type(value)~="string" or not Config.passes[value] then return {ok=false,message="Studio 테스트에서만 사용할 수 있어요."} end
         self.testOwned[player.UserId]=self.testOwned[player.UserId] or {};self.testOwned[player.UserId][value]=true
@@ -482,26 +491,26 @@ function S:requestAction(player,action,value,extra)
         return {ok=profile~=nil,account=self:snapshot(player),message=profile and 'Studio 테스트 레벨 100, 정지 시 초기화'or messages[err]}
     elseif action=='commanderStandard'then
         if not a.ready then return {ok=false,message=messages['profile-not-loaded']}end
-        if player:GetAttribute('FrontierRoom')then return {ok=false,message='스킨은 로비에서 바꿀 수 있어요.'}end
+        if player:GetAttribute('FrontierRoom')then return {ok=false,message='로비에서만'}end
         local Flags=require(pack.Core.CommanderStandardRules);local c=a.profile.commerce
         if type(value)~='string'or not Flags.owns(value,O.level(a.profile.outgame.xp),type(c)=='table'and c.owned or nil)then
-            local f=type(value)=='string'and Flags.find(value);return {ok=false,message=f and f.supply and '보급 상자에서 얻으면 장착할 수 있어요.'or '해금 레벨에 도달하면 장착할 수 있어요.'}end
+            local f=type(value)=='string'and Flags.find(value);return {ok=false,message=f and f.supply and '미보유'or '🔒 레벨'}end
         local profile,err=self.repo:save(tostring(player.UserId),{commanderStandard=value})
-        if not profile then return {ok=false,message=messages[err]or '깃발을 저장하지 못했어요.'}end
+        if not profile then return {ok=false,message=messages[err]or '저장 실패'}end
         a.profile=profile;self:publish(player,a);self.analytics:flow(player,'cosmetics','standardEquip',{item=require(script.Parent.TelemetryProgress).code(value),result='accepted'});return {ok=true,account=self:snapshot(player)}
     elseif action=="flag" then
-        if not a.ready or not (value==false or type(value)=="string") then return {ok=false,message="국기를 저장할 수 없어요."} end
-        if player:GetAttribute('FrontierRoom')then return {ok=false,message='스킨은 로비에서 바꿀 수 있어요.'}end
+        if not a.ready or not (value==false or type(value)=="string") then return {ok=false,message="저장 실패"} end
+        if player:GetAttribute('FrontierRoom')then return {ok=false,message='로비에서만'}end
         local profile,err=self.repo:save(tostring(player.UserId),{flag=value})
-        if not profile then return {ok=false,message=messages[err] or "국기를 저장하지 못했어요."} end
+        if not profile then return {ok=false,message=messages[err] or "저장 실패"} end
         a.profile=profile;self:publish(player,a);return {ok=true,account=self:snapshot(player)}
     elseif action=="preference" then
-        if not a.ready or (value~="reducedEffects" and value~="soundsMuted" and value~="cameraShake"and value~='mapFlashes'and value~='voiceTeamOnly'and value~="sfxVolume"and value~='emojiFavorites'and value~='motionLoadout'and value~='hudOpacity'and value~='language') or type(extra)~=((value=='emojiFavorites'or value=='motionLoadout')and 'table'or (value=="sfxVolume"or value=='hudOpacity')and "number"or value=='language'and 'string'or "boolean") then pcall(function()self.analytics:flow(player,'settings','preference',{item='invalid',result='rejected',reason=a.ready and 'invalid'or 'not_loaded'})end);return {ok=false,message="설정을 저장할 수 없어요."} end
+        if not a.ready or (value~="reducedEffects" and value~="soundsMuted" and value~="cameraShake"and value~='mapFlashes'and value~='voiceTeamOnly'and value~="sfxVolume"and value~='musicVolume'and value~='emojiFavorites'and value~='motionLoadout'and value~='hudOpacity'and value~='language') or type(extra)~=((value=='emojiFavorites'or value=='motionLoadout')and 'table'or (value=="sfxVolume"or value=='hudOpacity'or value=='musicVolume')and "number"or value=='language'and 'string'or "boolean") then pcall(function()self.analytics:flow(player,'settings','preference',{item='invalid',result='rejected',reason=a.ready and 'invalid'or 'not_loaded'})end);return {ok=false,message="저장 실패"} end
         local profile,err=self.repo:save(tostring(player.UserId),{preferences=value=='sfxVolume'and {sfxVolume=extra,soundsMuted=false}or {[value]=extra}})
         self.analytics:flow(player,'settings','preference',{item=value,active=type(extra)=='boolean'and extra or nil,value=type(extra)=='number'and extra or nil,result=profile and 'ok'or 'failed'})
-        if not profile then return {ok=false,message=messages[err] or "설정을 저장하지 못했어요."} end
+        if not profile then return {ok=false,message=messages[err] or "저장 실패"} end
         a.profile=profile;self:publish(player,a);return {ok=true,account=self:snapshot(player)}
     end
-    return {ok=false,message="지원하지 않는 요청이에요."}
+    return {ok=false,message="불가"}
 end
 return S

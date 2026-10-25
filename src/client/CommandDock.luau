@@ -4,6 +4,8 @@ local Icons=require(script.Parent.HotbarIcons)
 local Hints=require(script.Parent.Parent.Core.CommandPresentation)
 local Style=require(script.Parent.HudStyle)
 local M={};M.__index=M
+local C=UI.colors
+local K
 local short={City="도시",DefensePost="요새",Port="항구",Factory="철도",MissileSilo="발사",SAMLauncher="방공",Warship="군함",AtomBomb="원자",HydrogenBomb="수소",MIRV="다탄두"}
 local icons={Warship="⚓",AtomBomb="☢",HydrogenBomb="☢",MIRV="✦"}
 function M.new(parent,choose,cancel)
@@ -64,6 +66,18 @@ function M:deny(kind)
     local b=self.buttons[kind];if not b then return end
     local Tween=game:GetService("TweenService");local root=b.root
     local base=root:GetAttribute("DenyBase") or root.Position;root:SetAttribute("DenyBase",base)
+    if self.v2 then
+        K=K or require(script.Parent.Kit20)
+        if b.priceTween then b.priceTween:Cancel()end
+        local back=b.cost.TextColor3;b.cost.TextColor3=C.danger
+        b.priceTween=Tween:Create(b.cost,TweenInfo.new(.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{TextColor3=back});b.priceTween:Play()
+        if K.reduced then root:SetAttribute("DenyBase",nil);return end
+        task.spawn(function()
+            for _,dx in ipairs({-3,3,-2,2,0})do root.Position=base+UDim2.fromOffset(dx,0);task.wait(.035)end
+            root.Position=base;root:SetAttribute("DenyBase",nil)
+        end)
+        return
+    end
     if self.bar then
         b.cost.BackgroundColor3=Style.colors.priceOff:Lerp(UI.colors.ink,.35)
         Tween:Create(b.cost,TweenInfo.new(.3,Enum.EasingStyle.Quad),{BackgroundColor3=Style.colors.priceOff}):Play()
@@ -101,6 +115,7 @@ function M:barLayout(x,y,width)
     local small=phone or h<60;local flat=h<44;local icon=math.min(flat and 20 or small and 22 or 26,cell-18);local strip=flat and 15 or small and 17 or 19
     local reach=phone and self.reach and self.reach>h and self.reach-h or 0
     for kind,b in pairs(self.buttons)do
+        b.root.AnchorPoint=Vector2.zero;M.unfeel(b)
         local index=table.find(list,kind);b.root.Visible=index~=nil;b.name.Visible=false;b.cost.Visible=index~=nil
         if index and self.coverX and x+start+(index-1)*(cell+gap)+cell>self.coverX then b.root.Visible=false;index=nil end
         if index then
@@ -153,16 +168,119 @@ function M:paintBar(kind,b,unavailable,chosen)
     if b.buildLine then b.buildLine.Visible=p~=nil;if p then b.buildLine.Size=UDim2.new(p,0,0,2);b.buildLine.Position=UDim2.fromOffset(0,0)end end
     local n=tonumber(b.count.Text)or 0
     if b.lastCount and n>b.lastCount then
-        b.punchUntil=os.clock()+.26;b.count.TextSize=18
-        game:GetService("TweenService"):Create(b.count,TweenInfo.new(.24,Enum.EasingStyle.Back),{TextSize=self:barSize()}):Play()
+        b.punchUntil=os.clock()+.26;require(script.Parent.Kit20).punch(b.count,1.2,.24)
         Style.pulse(b.edge,UI.colors.accent)
     end
     b.lastCount=n
 end
+local OFF=Color3.fromRGB(20,27,36);local CHOSEN=Color3.fromRGB(18,58,56)
+function M:layout2(x,y,width)
+    K=K or require(script.Parent.Kit20)
+    local v=self.v2;local list=U.buildable;local kind=v.kind
+    local open=kind~='pt'or v.open
+    local rows=kind=='pt'and 2 or 1
+    UI.box(self.frame,x,y,width,open and (v.ch*rows+(rows-1)*v.gap)or 0)
+    self.armsTab.Visible=false
+    local tab=self.buildTab;tab.Visible=kind=='pt'
+    if kind=='pt'then
+        local t=v.toggle;tab.Parent=self.frame.Parent;tab.Text='';UI.box(tab,t.x,t.y,t.w,t.h);tab.ZIndex=6
+        K.round(tab,8);tab.BackgroundColor3=C.raised;tab.BackgroundTransparency=0
+        local st=tab:FindFirstChildOfClass('UIStroke');if st then st.Color=v.open and C.accent or C.line;st.Thickness=v.open and 2 or 1;st.Transparency=0 end
+        self.tabIcon=self.tabIcon or Icons.create(tab,'City',15,C.ink);self.tabIcon.Name='BuildIcon';UI.box(self.tabIcon,18,5,15,15);Icons.tint(self.tabIcon,v.open and C.accent or C.ink);self.tabIcon.ZIndex=7
+        self.tabWord=self.tabWord or K.text(tab,'Word','건설',11,C.ink,800,Enum.TextXAlignment.Center);UI.box(self.tabWord,0,21,t.w,13);self.tabWord.ZIndex=7
+        self:readyMark(self.ready and not v.open and t.w or nil)
+    end
+    for kindName,b in pairs(self.buttons)do
+        local index=table.find(list,kindName);b.root.Visible=index~=nil and open
+        if b.reach then b.reach.Visible=false end
+        if index and open then
+            local col=(index-1)%v.cols;local row=(index-1)//v.cols
+            local cx=math.floor(col*(v.cw+v.gap)+.5);local cw=math.floor((col+1)*(v.cw+v.gap)-v.gap+.5)-cx
+            local ax,ay=math.floor(cw/2),math.floor(v.ch/2)
+            b.root.AnchorPoint=Vector2.new(ax/cw,ay/v.ch);UI.box(b.root,cx+ax,row*(v.ch+v.gap)+ay,cw,v.ch)
+            K.round(b.root,kind=='ph'and 7 or 8);self:feel2(kindName,b)
+            b.key.Visible=kind=='pc'and not v.touch;b.name.Visible=kind=='pt';b.cost.Visible=true
+            for _,l in ipairs({b.key,b.cost,b.count})do if K.fonts.num then l.FontFace=K.fonts.num end;l.BackgroundTransparency=1 end
+            local pc=b.cost:FindFirstChildOfClass('UICorner');if pc then pc.CornerRadius=UDim.new(0,0)end
+            if kind=='pc'then
+                UI.box(b.key,6,4,10,15);b.key.TextSize=10;b.key.TextXAlignment=Enum.TextXAlignment.Left
+                UI.box(b.art,math.floor((cw-15)/2),3,15,15)
+                UI.box(b.cost,0,19,cw,15);b.cost.TextSize=10;b.cost.TextXAlignment=Enum.TextXAlignment.Center
+                local n=tonumber(b.count.Text)or 0;b.count.Visible=n>=1;b.count.TextSize=11;UI.box(b.count,cw-14,4,10,15);b.count.TextXAlignment=Enum.TextXAlignment.Right
+            elseif kind=='ph'then
+                local pw=math.min(cw-30,K.width(b.cost.Text,10,b.cost)+2);local gx=math.floor((cw-(15+3+pw))/2)
+                UI.box(b.art,gx,math.floor((v.ch-15)/2),15,15);UI.box(b.cost,gx+18,math.floor((v.ch-15)/2),pw,15);b.cost.TextSize=10;b.cost.TextXAlignment=Enum.TextXAlignment.Left
+                local n=tonumber(b.count.Text)or 0;b.count.Visible=n>=1;b.count.TextSize=11;UI.box(b.count,cw-12,1,10,12);b.count.TextXAlignment=Enum.TextXAlignment.Right
+            else
+                UI.box(b.art,math.floor((cw-17)/2),2,17,17)
+                b.name.TextSize=11;b.name.Font=Enum.Font.BuilderSansBold;b.name.TextXAlignment=Enum.TextXAlignment.Center;UI.box(b.name,0,20,cw,13)
+                UI.box(b.cost,0,34,cw,16);b.cost.TextSize=11;b.cost.TextXAlignment=Enum.TextXAlignment.Center
+                local n=tonumber(b.count.Text)or 0;b.count.Visible=n>=1;b.count.TextSize=11;UI.box(b.count,cw-14,3,10,13);b.count.TextXAlignment=Enum.TextXAlignment.Right
+            end
+            if self.state then self:paint2(kindName,b)end
+        end
+    end
+    self.frame:SetAttribute('Compact',kind=='pt'and not v.open);self.frame:SetAttribute('NoScroll',true);self.frame:SetAttribute('Category','all');self.frame:SetAttribute('CellWidth',v.cw)
+end
+local Tween=game:GetService('TweenService')
+function M:feel2(kindName,b)
+    if b.feel then return end
+    local s=K.make('UIScale',b.root,{Name='Press20'});b.feel=s
+    local function to(v,t,style)
+        if b.feelTween then b.feelTween:Cancel();b.feelTween=nil end
+        if K.reduced then s.Scale=1;return end
+        b.feelTween=Tween:Create(s,TweenInfo.new(t,style or Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Scale=v});b.feelTween:Play()
+    end
+    local function live()return self.v2~=nil and b.root.Visible and b.root:GetAttribute('Enabled')~=false end
+    local function press(i)return i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch end
+    local function repaint()if self.v2 then self:paint2(kindName,b)end end
+    b.root.MouseEnter:Connect(function()
+        if not live()or require(script.Parent.InputMode).touch()then return end
+        b.hover=true;if not b.down then to(1.02,.08)end;repaint()
+    end)
+    b.root.MouseLeave:Connect(function()local was=b.hover or b.down;b.hover=false;b.down=false;if was then to(1,.08);repaint()end end)
+    b.root.InputBegan:Connect(function(i)
+        if not press(i)or not live()then return end
+        b.down=true;to(.96,.05);repaint()
+    end)
+    b.root.InputEnded:Connect(function(i)
+        if not press(i)or not b.down then return end
+        b.down=false;repaint()
+        if K.reduced then s.Scale=1;return end
+        if b.feelTween then b.feelTween:Cancel()end;s.Scale=1.02;to(b.hover and 1.02 or 1,.12,Enum.EasingStyle.Back)
+    end)
+end
+function M.unfeel(b)
+    if b.feel then b.feel.Scale=1 end;b.hover=false;b.down=false
+    local tint=b.root:FindFirstChild('PressFeedback');if tint then tint.Visible=true end
+end
+function M:paint2(kindName,b)
+    K=K or require(script.Parent.Kit20)
+    local unavailable=b.root:GetAttribute('Affordable')==false;local chosen=kindName==self.selected
+    b.root.AutoButtonColor=false;local tint=b.root:FindFirstChild('PressFeedback');if tint then tint.Visible=false end
+    local fill=chosen and CHOSEN or unavailable and OFF or C.raised
+    if b.down then fill=fill:Lerp(Color3.new(1,1,1),.08)end
+    b.root.BackgroundColor3=fill;b.root.BackgroundTransparency=0
+    local edge=chosen and C.accent or b.hover and C.muted or C.line
+    local st=K.stroke(b.root,edge,chosen and 2 or 1,(not chosen and unavailable and not b.hover)and .4 or 0,true)
+    if b.edge and b.edge~=st then b.edge.Enabled=false end
+    local dim=K.colors.dim
+    Icons.tint(b.art,unavailable and not chosen and dim or C.ink);if b.art:IsA('ImageLabel')then b.art.ImageTransparency=0 end
+    b.cost.TextColor3=unavailable and not chosen and dim or C.gold
+    b.name.TextColor3=unavailable and not chosen and dim or C.ink
+    b.key.TextColor3=chosen and C.accent or C.muted
+    b.count.TextColor3=unavailable and dim or C.ink
+    if chosen and b.wasChosen~=true then K.punch(b.art,1.08,.1)end
+    b.wasChosen=chosen
+    local n=tonumber(b.count.Text)or 0
+    if b.lastCount and n>b.lastCount then K.punch(b.art,1.08,.14)end
+    b.lastCount=n
+end
 function M:layout(x,y,width,touch)
     self.x=x;self.y=y;self.width=width;self.touch=touch
+    if self.v2 then return self:layout2(x,y,width)end
     if self.bar then return self:barLayout(x,y,width)end
-    for _,b in pairs(self.buttons)do b.key.Visible=false;b.count.Visible=false;b.name.Visible=true;b.cost.Visible=true;if b.reach then b.reach.Visible=false end end
+    for _,b in pairs(self.buttons)do b.root.AnchorPoint=Vector2.zero;M.unfeel(b);b.key.Visible=false;b.count.Visible=false;b.name.Visible=true;b.cost.Visible=true;if b.reach then b.reach.Visible=false end end
     if self.tip then self.tip.Visible=false end
     UI.box(self.frame,x,y,width,self:height(width,touch))
     self.armsTab.Visible=false;self.buildTab.TextSize=14
@@ -230,7 +348,8 @@ function M:update(state,selected)
         for _,o in ipairs(b.art:GetDescendants())do if o:IsA("ViewportFrame")then o.ImageTransparency=short and .55 or 0 end end
         if b.art:IsA("ViewportFrame")then b.art.ImageTransparency=short and .55 or 0 end
         UI.enabled(b.root,state.phase=="playing" and not state.paused and not U.disabled(state.settings,kind))
-        if self.bar then self:paintBar(kind,b,unavailable,kind==selected)
+        if self.v2 then self.selected=selected;self:paint2(kind,b)
+        elseif self.bar then self:paintBar(kind,b,unavailable,kind==selected)
         else
         if b.edge then b.edge.Enabled=false end
         if b.sansCost then b.sansCost=nil;UI.display(b.cost,true);UI.display(b.key,true)end

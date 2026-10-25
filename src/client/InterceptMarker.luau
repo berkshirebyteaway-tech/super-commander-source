@@ -1,5 +1,4 @@
 local TweenService=game:GetService("TweenService")
-local L=require(script.Parent.Localization)
 local M={}
 local danger,white,ink=Color3.fromRGB(255,82,82),Color3.fromRGB(245,248,250),Color3.fromRGB(16,22,30)
 local tones={
@@ -22,7 +21,7 @@ local function ring(parent,name,color,thickness)
     local s=Instance.new("UIStroke");s.Color=color;s.Thickness=thickness;s.Parent=f;return f,s
 end
 local function label(mark)
-    return L.text(mark.text)..(mark.count>1 and " ×"..mark.count or "")
+    return mark.count>1 and "×"..mark.count or ""
 end
 local function play(mark,reduced)
     mark.epoch+=1;local epoch=mark.epoch

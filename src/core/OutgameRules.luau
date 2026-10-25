@@ -3,6 +3,7 @@ local C=if script then require(script.Parent.CosmeticCatalog) else require('./Co
 local Career=if script then require(script.Parent.CareerRules) else require('./CareerRules')
 local Season=if script then require(script.Parent.SeasonRules) else require('./SeasonRules')
 local Daily=if script then require(script.Parent.DailyOperation) else require('./DailyOperation')
+local Supply=if script then require(script.Parent.DailySupply)else require('./DailySupply')
 local Records=if script then require(script.Parent.MatchRecords) else require('./MatchRecords')
 local Campaign=if script then require(script.Parent.CampaignRules) else require('./CampaignRules')
 local M={version=1,presetVersion='toy-1'}
@@ -26,16 +27,8 @@ M.levelCost=LevelCurve.cost
 M.career=Career
 M.season=Season
 M.dailyOperation=Daily
+M.dailySupply=Supply
 M.campaign=Campaign
-M.ranks={
-    {level=1,name='훈련병'},{level=5,name='이병'},{level=10,name='상병'},{level=20,name='병장'},
-    {level=30,name='하사'},{level=40,name='중사'},{level=50,name='소위'},{level=60,name='중위'},
-    {level=70,name='대위'},{level=80,name='소령'},{level=90,name='중령'},{level=95,name='대령'},{level=100,name='원수'},
-}
-function M.rank(level)
-    local index=1;for i,r in ipairs(M.ranks)do if level>=r.level then index=i end end
-    local nextRank=M.ranks[index+1];return index,M.ranks[index].name,nextRank and nextRank.level or nil,nextRank and nextRank.name or nil
-end
 M.conquestSteps={
     {id='played',name='참전',test=function(m)return m.games>=1 end},
     {id='firstWin',name='첫 승리',test=function(m)return m.wins>=1 end},
@@ -100,7 +93,7 @@ function M.decode(raw)
     if p.firstWinDays~=nil and type(p.firstWinDays)~='table'then return nil,'invalid-outgame'end
     if p.conquestPaid~=nil and type(p.conquestPaid)~='table'then return nil,'invalid-outgame'end
     if p.tactics~=nil and type(p.tactics)~='table'then return nil,'invalid-outgame'end
-    for _,k in ipairs({'weekPool','comradeDays','equipped','season','seasonRewards','recruit','recruits','dailyOp','pruned','record','goalClaims','voided','sets','campaign'})do if p[k]~=nil and type(p[k])~='table'then p[k]=nil end end
+    for _,k in ipairs({'weekPool','comradeDays','equipped','season','seasonRewards','recruit','recruits','dailyOp','dailySupply','pruned','record','goalClaims','voided','sets','campaign'})do if p[k]~=nil and type(p[k])~='table'then p[k]=nil end end
     if p.groupMember~=nil and p.groupMember~=true then p.groupMember=nil end
     if p.activeLoadout~=nil and (type(p.activeLoadout)~='number'or p.activeLoadout%1~=0 or p.activeLoadout<1 or p.activeLoadout>12)then p.activeLoadout=nil end
     p.login.claims=integer(p.login.claims,integer(p.login.streak))
@@ -132,6 +125,13 @@ local function pend(p,key,source,id,xp,medals)
     p.goalClaims[key]={source=source,id=id,xp=xp or 0,medals=medals or 0}
 end
 M.pend=pend
+local function settle(p,receipt)
+    for k,c in pairs(type(p.goalClaims)=='table'and p.goalClaims or {})do
+        local xp,medals=integer(c.xp,0,1e6),integer(c.medals,0,1e6);p.xp+=xp;p.medals+=medals;p.goalClaims[k]=nil
+        Career.part(receipt,(c.source=='weekly'or c.source=='achievement')and c.source or 'daily',xp,medals)
+    end
+end
+M.settle=settle
 function M.claimGoals(raw,key,now,mult)
     local p,err=M.decode(raw);if not p then return nil,err end
     local list=type(p.goalClaims)=='table'and p.goalClaims or {};local got={xp=0,medals=0,count=0,keys={}}
@@ -163,7 +163,8 @@ function M.checkIn(raw,now)
     login.claims=(login.claims or 0)+1
     local step=(login.claims-1)%#M.streakRewards+1
     local medals=M.streakRewards[step];p.medals+=medals;login.reward=medals
-    return p,{streak=streak,claims=login.claims,rewardStep=step,medals=medals,unlocked=M.award(p)}
+    local unlocked=M.award(p);settle(p,{})
+    return p,{streak=streak,claims=login.claims,rewardStep=step,medals=medals,unlocked=unlocked}
 end
 function M.level(xp)
     local level,used=1,0;while level<M.maxLevel do local nextXP=M.levelCost(level);if xp<used+nextXP then break end;used+=nextXP;level+=1 end
@@ -273,6 +274,7 @@ function M.apply(raw,event)
         local finished=(event.outcome=='won'or event.outcome=='lost')and (event.seconds or 0)>=120
         if eligible then p.xp+=Career.applyMatch(p,event,receipt,delta,M.day(event.time or 0),M.week(event.time or 0),finished);Career.applyRecruit(p,finished,receipt)end
         if eligible then local paid=receipt.daily;Daily.apply(p,event,receipt);if receipt.daily and not paid then part(receipt,'dailyOp',Daily.xp,Daily.medals)end end
+        if eligible then local _,coins=Supply.apply(p,event,receipt);if coins then part(receipt,'supply',0,coins)end end
         if eligible and event.campaign~=nil then Campaign.apply(p,event,function(kind,x,m)part(receipt,kind,x,m)end,receipt)end
         if eligible and type(event.boost)=='number'and event.boost>1 then local boost=math.floor(delta*(math.min(3,event.boost)-1)+1e-8);p.xp+=boost;part(receipt,'boost',boost)end
         p.xp+=delta;p.medals+=math.max(0,medals-prior.medals);receipt.xp=math.max(xp,prior.xp);receipt.medals=math.max(medals,prior.medals)
@@ -315,8 +317,9 @@ function M.apply(raw,event)
             end
         end
     end
+    settle(p,receipt)
     local medals=p.medals;Season.add(p,p.xp-startXP,event.time or 0);part(receipt,'season',0,p.medals-medals)
-    p.receipts[event.id]=receipt;medals=p.medals;M.award(p);part(receipt,'achievement',0,p.medals-medals)
+    p.receipts[event.id]=receipt;medals=p.medals;M.award(p);part(receipt,'achievement',0,p.medals-medals);settle(p,receipt)
     if event.time then prune(p,tonumber(M.day(event.time)))end
     return p
 end
@@ -346,7 +349,6 @@ function M.view(p,now)
     local level,current,nextXP=M.level(p.xp);local today=M.day(now);local week=M.week(now)
     local daily=p.daily[today]or {seconds=0,cities=0,finished=0,paid={}};local weekly=p.weekly[week]or {seconds=0,paid=false}
     local done=0;for _,m in ipairs(M.onboarding)do if p.onboarding[m.id]then done+=1 end end
-    local rankIndex,title,nextRankLevel,nextRankName=M.rank(level)
     local tactics,tacticTiers={},0
     for _,def in ipairs(M.tactics)do local b=(p.tactics or {})[def.id]or {n=0,tier=0};tacticTiers+=b.tier
         table.insert(tactics,{id=def.id,name=def.name,detail=def.detail,count=b.n,tier=b.tier,next=def.tiers[b.tier+1]})end
@@ -360,25 +362,22 @@ function M.view(p,now)
     local login={day=p.login.day,streak=(p.login.day or -1)>=tonumber(today)-1-Career.streakGrace and p.login.streak or 0,best=p.login.best,reward=p.login.reward,claimedAt=p.login.claimedAt}
     login.claims=p.login.claims or p.login.streak or 0;login.rewardStep=login.claims>0 and (login.claims-1)%#M.streakRewards+1 or 0
     login.nextReward=M.streakRewards[login.claims%#M.streakRewards+1]
-    local titles,plates=Career.unlocked(p,level)
-    local equippedTitle,titleId=Career.titleOf(p,level,title);local plate,plateId=Career.plateOf(p,level)
+    local plates=Career.unlocked(p,level)
+    local plate,plateId=Career.plateOf(p,level)
     local total=0;for l=1,M.maxLevel-1 do total+=M.levelCost(l)end
     local service=p.xp>=total and {stars=math.floor((p.xp-total)/Career.serviceXP),current=(p.xp-total)%Career.serviceXP,next=Career.serviceXP}or nil
     local pool=type(p.weekPool)=='table'and p.weekPool.week==week and p.weekPool.used or 0
-    local career={next=nil,titles={},plates={},equipped={title=titleId,plate=plateId},comradeDays=(p.comradeDays and p.comradeDays.count)or 0,
+    local career={next=nil,plates={},equipped={plate=plateId},comradeDays=(p.comradeDays and p.comradeDays.count)or 0,
         weeklyPoolLeft=Career.weeklyPool-pool,weeklyPool=Career.weeklyPool,firstMatchReady=(p.firstMatchDay or -1)<tonumber(today),service=service,
-        groupMember=p.groupMember==true,recruits=(type(p.recruits)=='table'and p.recruits.count)or 0,recruitCap=Career.recruitCap,recruitMedals=Career.recruitMedals,
+        groupMember=p.groupMember==true,recruits=(type(p.recruits)=='table'and p.recruits.count)or 0,recruitCap=Career.recruitCap,recruitMedals=Career.recruitMedals,comradeMedals=Career.comradeMedals,recruitPending=type(p.recruit)=='table'and not p.recruit.paid or nil,
         recruitPending=type(p.recruit)=='table'and not p.recruit.paid or nil}
     for l=level+1,M.maxLevel do if Career.track[l]then career.next={level=l,reward=copy(Career.track[l])};break end end
-    for id,v in pairs(titles)do table.insert(career.titles,type(v)=='table'and {id=id,format=v.format,map=v.map,tier=Career.titleTier(id)}or {id=id,name=v,tier=Career.titleTier(id)})end
     for id,v in pairs(plates)do table.insert(career.plates,{id=id,name=v.name,color=copy(v.color)})end
-    table.sort(career.titles,function(a,b)return a.id<b.id end);table.sort(career.plates,function(a,b)return a.id<b.id end)
+    table.sort(career.plates,function(a,b)return a.id<b.id end)
     for map,m in pairs(p.mastery)do if (m.mx or 0)>0 then career.mastery=career.mastery or {};career.mastery[map]=m.mx end end
-    local titleText,titleFormat,titleMap=equippedTitle,nil,nil
-    if type(equippedTitle)=='table'then titleText=nil;titleFormat=equippedTitle.format;titleMap=equippedTitle.map end
     career.season=Season.view(p,now)
     career.goals=Career.goals({career=career,tactics=tactics,nextXP=nextXP,currentXP=current})
-    return {career=career,dailyOp=Daily.view(p,now),campaign=Campaign.view(p),titleText=titleText,titleTier=Career.titleTier(titleId),titleFormat=titleFormat,titleMap=titleMap,plate=plate and copy(plate.color)or nil,tactics=tactics,tacticTiers=tacticTiers,tacticTierMax=#M.tactics*3,rank=rankIndex,nextRankLevel=nextRankLevel,nextRankName=nextRankName,maxLevel=M.maxLevel,conquest=conquest,conquestSteps=steps,mapsConquered=conquered,achievementList=list,achievementsUnlocked=unlocked,mastery=copy(p.mastery),login=login,firstWinToday=p.firstWinDay==today,firstWin=copy(M.firstWin),
-        records=Records.view(p),voided=type(p.voided)=='table'and copy(p.voided)or nil,goalClaims=copy(type(p.goalClaims)=='table'and p.goalClaims or {}),lifetime=copy(p.lifetime),xp=p.xp,medals=p.medals,level=level,title=title,currentXP=current,nextXP=nextXP,onboarding=copy(p.onboarding),onboardingDone=done,daily=copy(daily),weekly=copy(weekly),dailyReset=(tonumber(today)+1)*86400,weeklyReset=(tonumber(week)+1)*604800-3*86400,unlocks=copy(p.unlocks),ownedSlots=copy(p.ownedSlots),loadouts=copy(p.loadouts),activeLoadout=p.activeLoadout,history=copy(p.history),stats=copy(p.stats),achievements=copy(p.achievements),single=copy(p.single),lastMode=p.lastMode,tutorial=p.tutorial,basicsComplete=p.basicsComplete==true}
+    return {career=career,dailyOp=Daily.view(p,now),dailySupply=Supply.view(p,now),campaign=Campaign.view(p),plate=plate and copy(plate.color)or nil,tactics=tactics,tacticTiers=tacticTiers,tacticTierMax=#M.tactics*3,maxLevel=M.maxLevel,conquest=conquest,conquestSteps=steps,mapsConquered=conquered,achievementList=list,achievementsUnlocked=unlocked,mastery=copy(p.mastery),login=login,firstWinToday=p.firstWinDay==today,firstWin=copy(M.firstWin),
+        records=Records.view(p),voided=type(p.voided)=='table'and copy(p.voided)or nil,goalClaims=copy(type(p.goalClaims)=='table'and p.goalClaims or {}),lifetime=copy(p.lifetime),xp=p.xp,medals=p.medals,level=level,currentXP=current,nextXP=nextXP,onboarding=copy(p.onboarding),onboardingDone=done,daily=copy(daily),weekly=copy(weekly),dailyReset=(tonumber(today)+1)*86400,weeklyReset=(tonumber(week)+1)*604800-3*86400,unlocks=copy(p.unlocks),ownedSlots=copy(p.ownedSlots),loadouts=copy(p.loadouts),activeLoadout=p.activeLoadout,history=copy(p.history),stats=copy(p.stats),achievements=copy(p.achievements),single=copy(p.single),lastMode=p.lastMode,tutorial=p.tutorial,basicsComplete=p.basicsComplete==true}
 end
 return M

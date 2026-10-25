@@ -11,7 +11,8 @@ function M:command(action,value,now)
     if action=='spawn'then self.spawnedAt=now end
     if action=='nuclear'then self.tactics.nukes+=1;if value=='MIRV'then self.tactics.mirv=(self.tactics.mirv or 0)+1 end;self.dirty=true
     elseif action=='transport'then self.tactics.transports+=1;self.dirty=true
-    elseif action=='upgrade'then self.tactics.upgrades+=1;self.dirty=true end
+    elseif action=='upgrade'then self.tactics.upgrades+=1;self.dirty=true
+    elseif action=='support'and value=='embargoStart'or action=='embargoAll'and value==true then self.tactics.embargoes=(self.tactics.embargoes or 0)+1;self.dirty=true end
     if action=='attack'then self.triedExpansion=true end
     if action=='cancelAttack'then self.milestones.front=true;self.dirty=true end
     if action=='support'and (value=='gold'or value=='troops')then
@@ -37,7 +38,7 @@ function M:step(s,id,dt,now,connected,paused)
     local r=s.resources[id]
     if r then
         local gold=r.goldEarned and tonumber(B.toString(r.goldEarned))or 0
-        for key,value in pairs({gold=gold,alliances=r.alliancesMade or 0,intercepts=r.intercepts or 0})do
+        for key,value in pairs({gold=gold,alliances=r.alliancesMade or 0,intercepts=r.intercepts or 0,trainGold=r.trainGold or 0,allyTrainGold=r.allyTrainGold or 0,tradeGold=r.tradeGold or 0,tradeCaptures=r.tradeCaptures or 0,betrayals=r.betrayals or 0})do
             if value~=(self.tactics[key]or 0)then self.tactics[key]=value;self.dirty=true end
         end
     end
@@ -61,6 +62,9 @@ function M:step(s,id,dt,now,connected,paused)
         local since=now-self.spawnedAt
         if since<=180 then self.tactics.earlyShare=math.max(self.tactics.earlyShare or 0,self.currentShare)end
         if since>=60 then self.tactics.minShare=math.min(self.tactics.minShare or 1,self.currentShare)end
+        if not paused and dt>0 and s.maxTroops then local cap=s:maxTroops(id);local ratio=p.troops/math.max(1,cap)
+            self.growthSeconds=(self.growthSeconds or 0)+dt;if ratio>=.25 and ratio<=.65 then self.greenSeconds=(self.greenSeconds or 0)+dt end
+            local pct=math.floor(100*(self.greenSeconds or 0)/math.max(1,self.growthSeconds));if pct~=self.tactics.growthGreen then self.tactics.growthGreen=pct;self.dirty=true end end
         if self.triedExpansion and p.tiles.size>self.initialTiles+12 then self.milestones.expand=true end
         if not self.milestones.front and (#(p.incoming or {})>0 or self.incoming)then
             local incoming=nil;for _,a in ipairs(p.incoming or {})do incoming=incoming or {};incoming[a]=true end
@@ -100,7 +104,7 @@ function M:finish(outcome,now,final)
 end
 function M:event(now)
     self.revision+=1;self.dirty=false
-    return {id=self.id,revision=self.revision,mode=self.mode,map=self.map,humans=self.humans,seconds=math.floor(self.seconds),peak=self.peak,cities=self.cities,supports=self.supports,party=self.party==true,tactics=Rules.copy(self.tactics),days=Rules.copy(self.days),weeks=Rules.copy(self.weeks),weeklyActions=Rules.copy(self.weeklyActions),milestones=Rules.copy(self.milestones),outcome=self.outcome,final=self.final,basicsComplete=self.basicsComplete==true,daily=self.daily,campaign=self.campaign,gameSeconds=self.gameSeconds,time=self.time or now,
+    return {id=self.id,revision=self.revision,mode=self.mode,map=self.map,humans=self.humans,seconds=math.floor(self.seconds),peak=self.peak,cities=self.cities,supports=self.supports,party=self.party==true,tactics=Rules.copy(self.tactics),days=Rules.copy(self.days),weeks=Rules.copy(self.weeks),weeklyActions=Rules.copy(self.weeklyActions),milestones=Rules.copy(self.milestones),outcome=self.outcome,final=self.final,basicsComplete=self.basicsComplete==true,daily=self.daily,campaign=self.campaign,official=self.official==true or nil,gameSeconds=self.gameSeconds,time=self.time or now,
         place=self.place,field=self.total,ranked=self.ranked==true or nil}
 end
 return M

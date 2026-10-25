@@ -26,29 +26,36 @@ local function apply(b,shown)
         b:SetAttribute('PendingWas',b:GetAttribute('Enabled')~=false)
         b:SetAttribute('PendingAuto',b.AutoButtonColor);if b:IsA('TextButton')then b:SetAttribute('PendingText',b.TextTransparency)end
         b.Active=false;b.AutoButtonColor=false;if b:IsA('TextButton')then b.TextTransparency=.5 end;b:SetAttribute('Enabled',false)
+        b:SetAttribute('PendingInteract',b.Interactable);b.Interactable=false
     end
-    local veil=b:FindFirstChild('PressPending')
+    local face=b:FindFirstChild('Face');local src=face and face:IsA('GuiObject')and face or b
+    local veil=(face or b):FindFirstChild('PressPending')
     if not veil then
-        veil=Instance.new('Frame');veil.Name='PressPending';veil.BorderSizePixel=0;veil.Active=false;veil.ZIndex=60
-        veil.Size=UDim2.fromScale(1,1);veil.BackgroundColor3=b.BackgroundColor3;veil.BackgroundTransparency=1;veil:SetAttribute('AllowOverlap',true)
-        local corner=b:FindFirstChildOfClass('UICorner');if corner then corner:Clone().Parent=veil end
+        veil=Instance.new('Frame');veil.Name='PressPending';veil.BorderSizePixel=0;veil.Active=false;veil.ZIndex=face and face.ZIndex+5 or 60
+        veil.Size=UDim2.fromScale(1,1);veil.BackgroundColor3=src.BackgroundColor3;veil.BackgroundTransparency=1;veil:SetAttribute('AllowOverlap',true)
+        local corner=src:FindFirstChildOfClass('UICorner');if corner then corner:Clone().Parent=veil end
         local pad=b:FindFirstChildOfClass('UIPadding')
         if pad then veil.Position=UDim2.fromOffset(-pad.PaddingLeft.Offset,-pad.PaddingTop.Offset);veil.Size=UDim2.new(1,pad.PaddingLeft.Offset+pad.PaddingRight.Offset,1,pad.PaddingTop.Offset+pad.PaddingBottom.Offset)end
         local ring=Instance.new('Frame');ring.Name='Ring';ring.BackgroundTransparency=1;ring.AnchorPoint=Vector2.new(.5,.5);ring.Position=UDim2.fromScale(.5,.5);ring.Size=UDim2.fromScale(.42,.42);ring.ZIndex=61;ring.Parent=veil
         local aspect=Instance.new('UIAspectRatioConstraint');aspect.DominantAxis=Enum.DominantAxis.Height;aspect.Parent=ring
         local cap=Instance.new('UISizeConstraint');cap.MaxSize=Vector2.new(20,20);cap.Parent=ring
         local round=Instance.new('UICorner');round.CornerRadius=UDim.new(1,0);round.Parent=ring
-        local line=Instance.new('UIStroke');line.Thickness=2;line.Color=b:IsA('TextButton')and b.TextColor3 or Color3.new(1,1,1);line.Parent=ring
+        local word=face and face:FindFirstChildWhichIsA('TextLabel',true)
+        local line=Instance.new('UIStroke');line.Thickness=2;line.Color=word and word.TextColor3 or b:IsA('TextButton')and b.TextColor3 or Color3.new(1,1,1);line.Parent=ring
         local fade=Instance.new('UIGradient');fade.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(.6,.2),NumberSequenceKeypoint.new(1,1)});fade.Parent=line
-        veil.Parent=b
+        if face then ring.ZIndex=veil.ZIndex+1 end
+        veil.Parent=face or b
     end
-    veil.BackgroundTransparency=shown and b.BackgroundTransparency or 1;veil.Ring.Visible=shown==true
+    if face then veil.BackgroundTransparency=shown and src.BackgroundTransparency or .5+src.BackgroundTransparency*.5
+    else veil.BackgroundTransparency=shown and b.BackgroundTransparency or 1 end
+    veil.Ring.Visible=shown==true
 end
 local function clear(b)
-    local veil=b:FindFirstChild('PressPending');if veil then veil:Destroy()end
+    local face=b:FindFirstChild('Face');local veil=(face or b):FindFirstChild('PressPending');if veil then veil:Destroy()end
     local was=b:GetAttribute('PendingWas');if was==nil then return end
     local auto,text=b:GetAttribute('PendingAuto'),b:GetAttribute('PendingText')
     b:SetAttribute('PendingWas',nil);b:SetAttribute('PendingAuto',nil);b:SetAttribute('PendingText',nil)
+    local inter=b:GetAttribute('PendingInteract');b:SetAttribute('PendingInteract',nil);if inter~=nil then b.Interactable=inter end
     b.Active=was;b.AutoButtonColor=was and auto~=false;if b:IsA('TextButton')then b.TextTransparency=was and(text or 0)or .5 end;b:SetAttribute('Enabled',was)
 end
 function M.restore()
@@ -71,7 +78,7 @@ function M.begin()
         beat=RunService.Heartbeat:Connect(function(dt)
             local a=active;if not a then return end
             M.restore();angle=(angle+dt*360)%360
-            local veil=a.button and a.button:FindFirstChild('PressPending');if veil and a.shown then veil.Ring.Rotation=angle end
+            local b=a.button;local veil=b and((b:FindFirstChild('Face')or b):FindFirstChild('PressPending'));if veil and a.shown then veil.Ring.Rotation=angle end
         end)
     end
     return token

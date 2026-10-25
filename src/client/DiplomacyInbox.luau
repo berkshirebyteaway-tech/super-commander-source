@@ -2,6 +2,7 @@ local UI=require(script.Parent.Theme)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
 local L=require(script.Parent.Localization)
 local M={};M.__index=M
+local V2=require(script.Parent.Hud20).ENABLED
 function M.new(parent,send,showDetail)
     local panel=UI.panel(parent,"DiplomacyInbox");panel.ZIndex=18;panel.Visible=false
     local title=UI.label(panel,"Title","동맹 요청",14,UI.colors.accent)
@@ -28,9 +29,40 @@ function M.new(parent,send,showDetail)
         for i,r in ipairs(list)do if self.pinned and r.from==self.pinned.from and r.created==self.pinned.created then index=i;break end end
         self.pinned=#list>0 and list[index%#list+1]or nil;self.expired=false;self.pending=false;self.pendingRequest=nil;self.pendingVersion=nil;self.pendingAt=nil;self:update(self.state)
     end)
+    if V2 then self.showDetail=showDetail;self.pending20={};self.answered20={};self.known20={};require(script.Parent.Requests20).attach(panel)end
     return self
 end
+function M:update20(state)
+    if self.state and self.state.version~=state.version then self.pending20={};self.answered20={};self.known20={}end
+    self.state=state
+    local incoming=state.diplomacy and state.diplomacy.incoming or {}
+    self.count=#incoming;self.panel:SetAttribute('RequestCount',#incoming)
+    local now=os.clock();local items,alive={},{}
+    for _,r in ipairs(incoming)do
+        local key='req:'..tostring(r.from)..':'..tostring(r.created)
+        alive[key]=true
+        if not self.known20[key]then require(script.Parent.TelemetryStep).step('match','allyReqShown',{count=#incoming})end
+        local face;for _,f in ipairs(state.factions or {})do if f.id==r.from then face=f end end
+        local left=math.max(0,(r.expires-state.tick)/10);local total=math.max(1,(r.expires-(r.created or state.tick))/10)
+        local p=self.pending20[key];if p and now-p>=8 then self.pending20[key]=nil;p=nil end
+        table.insert(items,{key=key,kind='request',name=L.text(r.name or ''),userId=face and face.userId,ratio=math.clamp(left/total,0,1),pending=p~=nil,
+            enabled=not state.paused and state.phase=='playing',
+            accept=function()self:reply20('accept',r,key)end,decline=function()self:reply20('reject',r,key)end,
+            inspect=function()if self.showDetail then self.showDetail(r.from)end end})
+    end
+    for key in pairs(self.known20)do if not alive[key]and not self.answered20[key]then require(script.Parent.TelemetryStep).step('match','allyReqExpired',{count=#incoming})end end
+    self.known20=alive
+    self.request=nil;self.expired=false;self.pinned=nil
+    require(script.Parent.Requests20).set('request',items)
+end
+function M:reply20(kind,r,key)
+    if self.pending20[key]or not self.state then return end
+    local id=self.send('alliance',kind,r.from)
+    self.pendingRequest=id;self.pendingVersion=self.state.version;self.pendingKey20=key;self.answered20[key]=true
+    if kind=='accept'and id~=nil then self.pending20[key]=os.clock()end
+end
 function M:update(state)
+    if V2 then return self:update20(state)end
     if self.state and self.state.version~=state.version then self.pinned=nil;self.pending=false;self.pendingRequest=nil;self.pendingVersion=nil;self.pendingAt=nil end
     if self.pendingAt and os.clock()-self.pendingAt>=8 then self.pending=false;self.pendingRequest=nil;self.pendingVersion=nil;self.pendingAt=nil end
     local incoming=state.diplomacy and state.diplomacy.incoming or {}
@@ -64,10 +96,12 @@ function M:update(state)
 end
 function M:result(r)
     if not Commands.acknowledges(self.pendingRequest,self.pendingVersion,r,'alliance')then return end
+    if V2 and self.pendingKey20 then self.pending20[self.pendingKey20]=nil;self.pendingKey20=nil end
     self.pending=false;self.pendingRequest=nil;self.pendingVersion=nil;self.pendingAt=nil
     if self.state then self:update(self.state)end
 end
 function M:layout(w,h,obscured,battle,aiming)
+    if V2 then self.peek.Visible=false;return require(script.Parent.Requests20).layout(w,h,obscured)end
     self.panel.Visible=((self.request~=nil or self.expired)and not obscured and not aiming and self.state and self.state.phase=='playing')==true
     self.peek.Visible=(self.request~=nil and aiming and not obscured and self.state and self.state.phase=='playing')==true
     self.badge.Text=tostring(self.count or 0);UI.box(self.peek,w-56,8,44,44)

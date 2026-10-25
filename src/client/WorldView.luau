@@ -27,7 +27,7 @@ local function part(parent,name,size,position,color)
     local p=Instance.new("Part");p.Name=name;p.Size=size;p.Position=position;p.Anchored=true;p.CanCollide=false;p.CanTouch=false;p.CanQuery=false;p.CastShadow=false;p.Color=color;p.Material=Enum.Material.SmoothPlastic;p.Parent=parent;return p
 end
 function M.new(parent)
-    local self=setmetatable({parent=parent,owners={},view={w=1000},chunks={},queue={},units={},yaw=0,tilt=math.rad(89.9),enabled=false,overview=true},M)
+    local self=setmetatable({parent=parent,owners={},view={w=1000},lastRevision=-1,chunks={},queue={},units={},yaw=0,tilt=math.rad(89.9),enabled=false,overview=true},M)
     self.playback=Playback.new()
     self.popups={};self.animated={}
     self.combined=Combined.new(self)
@@ -130,10 +130,13 @@ function M:dragAvatar(from,to)
     if d.Magnitude>.05 then self.dragHeading=d.Unit end
     char:PivotTo(CFrame.new(at)*hrp.CFrame.Rotation);hrp.AssemblyLinearVelocity=Vector3.zero
 end
+local offscreen=Vector2.new(-2000,-2000)
 function M:project(tile,height,allowOffscreen)
+    if not self.map then return offscreen end
     return self:projectXY(tile%self.map.meta.width,math.floor(tile/self.map.meta.width),height,allowOffscreen)
 end
 function M:signalPoint(tile)
+    if not self.map then return offscreen end
     local x,y,z=G.toWorld(tile,self.map.meta.width,self.map.meta.height);local world=Vector3.new(x,y+.2,z)
     local camera=self.frameCamera or workspace.CurrentCamera;local screen=camera:WorldToScreenPoint(world)
     if screen.Z>=0 then return (Vector2.new(screen.X,screen.Y)-(self.frameOrigin or self.parent.AbsolutePosition))/Theme.scale end
@@ -143,6 +146,7 @@ function M:signalPoint(tile)
     return size*.5+d.Unit*math.max(size.X,size.Y)*2
 end
 function M:projectXY(x,y,height,allowOffscreen)
+    if not self.map then return offscreen end
     local world=Vector3.new((x+.5-self.map.meta.width/2)*G.scale,G.surfaceY+(height or .1),(y+.5-self.map.meta.height/2)*G.scale)
     local screen,visible=(self.frameCamera or workspace.CurrentCamera):WorldToScreenPoint(world)
     if (not visible and not allowOffscreen) or screen.Z<0 then return Vector2.new(-2000,-2000) end
@@ -155,13 +159,14 @@ function M:draw()
     end
 end
 function M:updateOwnership(state)
-    if state.ownershipRevision<=self.lastRevision then return end
+    if not self.map or (state.ownershipRevision or 0)<=self.lastRevision then return end
     self.lastRevision=state.ownershipRevision
     if state.owned then self.playback:reset(self.owners);for _,c in ipairs(self.chunks) do c.raster.force=true end
     else self.playback:push(state.captured or {},os.clock()) end
     self:draw()
 end
 function M:markTerritory(t)
+    if not self.map then return end
     local w,h=self.map.meta.width,self.map.meta.height
     local function mark(tile)
         if tile<0 or tile>=w*h then return end
@@ -311,8 +316,6 @@ function M:setState(state)
         if info and info.Detailed~=detailed and info.SkinId==skinId and info.VisualLevel==math.min(u.level,3)and info.Owner==u.owner then
             if swaps>=M.detailSwapsPerState then detailed=info.Detailed else swaps+=1 end
         end
-        local existed=model~=nil
-        local wasBuilding=info and info.Building
         if model and (info.SkinId~=skinId or info.VisualLevel~=math.min(u.level,3)or info.Detailed~=detailed or info.Owner~=u.owner) then model:Destroy();self.units[u.id]=nil;model=nil end
         if not model then
             local ownerColor=FactionColors.get(u.owner,kinds[u.owner],Color3.fromRGB(table.unpack(Catalog.get(self.styleId).territory)))
@@ -320,9 +323,6 @@ function M:setState(state)
             model:PivotTo(self:structureFrame(u.kind,u.tile))
             info={SkinId=skinId,Owner=u.owner,VisualLevel=model:GetAttribute("VisualLevel"),Detailed=model:GetAttribute("Detailed"),Radar=model:GetAttribute("RadarLocal")~=nil,Extents=model:GetExtentsSize(),Position=Vector3.new(x,y,z),Light=model:FindFirstChild('CollectionLight',true)};M.info[model]=info
             if info.Light then Art.light(model,false)end
-        end
-        if not self.reducedEffects and not u.building and (wasBuilding or not existed and self.lastStateTick and (u.assemblyStartedTick or u.createdTick or -1)>=self.lastStateTick) then
-            self.popups[model]={base=model:GetPivot(),elapsed=0}
         end
         if info.Building~= (u.building==true)then
             for _,p in ipairs(model:GetChildren()) do if p:IsA("BasePart") then p.Transparency=math.max(p:GetAttribute("BaseTransparency")or 0,u.building and .55 or 0)end end
@@ -413,12 +413,6 @@ function M:step(dt)
         for _,model in ipairs(self.animated)do if model.Parent then Buildings.animate(model,self.visualTime,self.reducedEffects,batch)end end
     end
     if not pcall(batch.flush,batch)then batch:clear()end
-    for model,p in pairs(self.popups) do
-        p.elapsed+=dt;local t=math.min(1,p.elapsed/.48)
-        if not model.Parent then self.popups[model]=nil
-        elseif t==1 or self.reducedEffects then model:PivotTo(p.base);self.popups[model]=nil
-        else local lift=1.2*(1-t)^2+.2*math.sin(t*math.pi*3)*(1-t);model:PivotTo(p.base*CFrame.new(0,lift,0)) end
-    end
     local char=Players.LocalPlayer.Character;local hrp=char and char:FindFirstChild("HumanoidRootPart");local hum=char and char:FindFirstChildOfClass("Humanoid")
     local ownName=char and char:FindFirstChild("CommanderName");if ownName then ownName.Enabled=false end
     if hum then

@@ -22,9 +22,9 @@ local function productFor(id)
     return nil
 end
 M.productFor=productFor
-local errors={['paid-random-restricted']='이 계정에서는 유료 뽑기를 이용할 수 없어요.',['collection-not-ready']='스킨 컬렉션 준비 중',['insufficient-tickets']='뽑기권이 부족해요.',['insufficient-medals']='코인이 부족해요.',['subscription-required']='공개 모집은 VIP 클럽 혜택이에요.',['preset-locked']='설정 보관함은 커맨더 프라임 혜택이에요.',['busy']='잠시 뒤 다시 시도하세요.',['free-draw-used']='오늘 무료 뽑기는 이미 받았어요.'}
+local errors={['paid-random-restricted']='유료 뽑기 불가',['collection-not-ready']='스킨 컬렉션 준비 중',['insufficient-tickets']='뽑기권 부족',['insufficient-medals']='코인 부족',['subscription-required']='🔒 VIP 공개 모집',['preset-locked']='🔒 프라임 전용',['busy']='잠시 뒤 다시 시도하세요.',['free-draw-used']='오늘 무료 뽑기 완료'}
 function M.new(accounts)
-    local self=setmetatable({accounts=accounts,celebrations=require(script.Parent.SupplyCelebration)},M)
+    local self=setmetatable({accounts=accounts},M)
     Market.ProcessReceipt=function(receipt)local decision=self:receipt(receipt);pcall(self.logReceipt,self,receipt,decision);return decision end
     pcall(function()Market.PromptSubscriptionPurchaseFinished:Connect(function(player,id,bought)if id==Config.subscriptionId then accounts.analytics:emit(player,'purchase_prompt_result',{sku='club',stage='prompt',result=bought and 'accepted'or 'cancelled'});accounts.analytics:flow(player,'commerce','promptClosed',{sku='club',result=bought and 'accepted'or 'cancelled'})end end)end)
     pcall(function()Market.PromptProductPurchaseFinished:Connect(function(userId,id,bought)local player=Players:GetPlayerByUserId(userId);if not player then return end
@@ -168,13 +168,13 @@ function M:purchase(player,a,value)
     local why=(value=='permanent'or value=='club')and view.benefits and view.benefits[value]and 'duplicate'or not view.collectionReady and 'not_loaded'or not view.policyKnown and 'unknown'or not view.paidRandomAllowed and 'policy_restricted'or view.salesOpen and value=='club'and 'policy_restricted'or 'sales_disabled'
     log:emit(player,'purchase_attempt',{sku=session.checkoutSku,stage='request',result='rejected',reason=why})
     log:flow(player,'commerce','blocked',{sku=session.checkoutSku,result='rejected',reason=why})
-    return {ok=false,message=not view.collectionReady and '스킨 컬렉션 준비 중'or not view.policyKnown and '이용 가능 여부를 확인하지 못했어요. 다시 시도해 주세요.'or not view.paidRandomAllowed and errors['paid-random-restricted']or '판매 준비 중이에요.'}
+    return {ok=false,message=not view.collectionReady and '스킨 컬렉션 준비 중'or not view.policyKnown and '확인 실패'or not view.paidRandomAllowed and errors['paid-random-restricted']or '판매 준비 중'}
 end
 function M:request(player,a,action,value)
-    if player:GetAttribute('FrontierRoom')then return {ok=false,message='로비에서 사용할 수 있어요.'}end
-    if not a.ready then return {ok=false,message='보관함을 불러오는 중이에요.'}end
+    if player:GetAttribute('FrontierRoom')then return {ok=false,message='로비에서만'}end
+    if not a.ready then return {ok=false,message='불러오는 중'}end
     if action=='billingPurchase'then
-        if type(value)~='string'or #value>32 or (value~='permanent'and value~='club'and not Config.developerProducts[value])then return {ok=false,message='판매 준비 중이에요.'}end
+        if type(value)~='string'or #value>32 or (value~='permanent'and value~='club'and not Config.developerProducts[value])then return {ok=false,message='판매 준비 중'}end
         if not Session.current(self.accounts,player,a,Players)or a.checkoutPending then pcall(function()self.accounts.analytics:flow(player,'commerce','blocked',{sku=Schema.enum('sku',value,'other'),result='rejected',reason='busy'})end);return {ok=false,message=errors.busy}end
         a.checkoutPending=true
         local ok,result=pcall(self.purchase,self,player,a,value)
@@ -195,9 +195,9 @@ function M:request(player,a,action,value)
             local next,info,medals
             if value.currency=='studio'then next,info,medals=Testing.draw(p.commerce,value,entropy,p.outgame.medals,drawAt,player.UserId,game:GetService('RunService'):IsStudio(),self.accounts.localMode)
             else next,info,medals=Supply.draw(p.commerce,value.kind,value.currency,value.requestId,entropy,p.outgame.medals,paidAllowed,drawAt,nil,value.sequence,player.UserId)end
-            if not next then return nil,info end;p.commerce=next;p.outgame.medals=medals;result=info;require(Core.CollectionSets).sync(p.outgame,next.owned)
+            if not next then return nil,info end;p.commerce=next;p.outgame.medals=medals;result=info
         elseif action=='supplyTestGrant'then
-            local next,why=Testing.grant(p.commerce,game:GetService('RunService'):IsStudio(),self.accounts.localMode);if not next then return nil,why end;p.commerce=next;require(Core.CollectionSets).sync(p.outgame,next.owned)
+            local next,why=Testing.grant(p.commerce,game:GetService('RunService'):IsStudio(),self.accounts.localMode);if not next then return nil,why end;p.commerce=next
         elseif action=='equipSupply'then
             local loadout=type(value)=='string'and Supply.ownedLoadout(p.commerce,value)
             if not loadout then return nil,'invalid-request'end
@@ -228,7 +228,6 @@ function M:request(player,a,action,value)
     if action=='supplyDraw'and not profile and type(value)=='table'and value.currency=='free'then pcall(log.flow,log,player,'gacha','freeDraw',{sku=Schema.enum('sku',value.kind,'other'),result='rejected',reason=Schema.reason(err)})end
     if profile and fresh and result then require(script.Parent.TelemetryProgress).safe(require(script.Parent.TelemetryProgress).draw,log,player,value,result)end
     if action=='savePreset'and err=='preset-locked'then log:emit(player,'benefit_used',{benefit='preset_slots',result='rejected',reason='subscription_required',sku='permanent'})end
-    if profile and fresh and result and not result.duplicate then self.celebrations.announce(player,result)end
-    return {ok=profile~=nil,result=result,message=err and(errors[err]or '요청을 완료하지 못했어요.'),account=self.accounts:snapshot(player)}
+    return {ok=profile~=nil,result=result,message=err and(errors[err]or '요청 실패'),account=self.accounts:snapshot(player)}
 end
 return M

@@ -4,7 +4,7 @@ M.PHONE_SCALE=.82
 M.PHONE_WIDE=.85
 M.TOUCH_SCALE=.88
 M.TOUCH_WIDE=.92
-function M.tablet(w,h,touch)return touch==true and math.min(w,h)>=600 and math.max(w,h)>=900 end
+function M.tablet(w,h,touch)return touch==true and math.min(w,h)>=540 and math.max(w,h)>=900 end
 function M.desk(w,h,touch)return not touch or M.tablet(w,h,touch)end
 function M.phoneHudWidth(w)local s=M.PHONE_SCALE;return math.floor(math.min(w-16,math.max(560*M.PHONE_WIDE,w*.68/.92*M.PHONE_WIDE))/s)end
 M.PC_SCALE=.75

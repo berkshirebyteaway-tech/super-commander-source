@@ -2,7 +2,6 @@ local Players=game:GetService('Players')
 local UIS=game:GetService('UserInputService')
 local UI=require(script.Parent.ToyUI)
 local Rules=require(script.Parent.Parent.Core.OpsRules)
-local Sale=require(script.Parent.Parent.Core.LaunchSale)
 local Step=require(script.Parent.TelemetryStep)
 local M={}
 local started=false
@@ -32,16 +31,15 @@ function M.start()
         if (p.state=='warn'or p.state=='gated')and not p.closeAt then p.state='normal'end
         local flash={text=pack:GetAttribute('OpsFlash')or '',textEn=pack:GetAttribute('OpsFlashEn')or '',untilAt=tonumber(pack:GetAttribute('OpsFlashUntil'))or 0}
         local text,kind=Rules.topLine(p,t,en,flash,pack:GetAttribute('OpsTicker'),pack:GetAttribute('OpsTickerEn'))
-        if not text and not me:GetAttribute('FrontierRoom')then text=Sale.line(tonumber(pack:GetAttribute('LaunchSaleEndsAt')),t,en);kind=text and 'sale'or nil end
         line.Visible=text~=nil
         if text and line.Text~=text then line.Text=text end
-        local loud=kind=='phase'or kind=='flash'or kind=='sale'
+        local loud=kind=='phase'or kind=='flash'
         dot.Visible=loud;pad.PaddingLeft=UDim.new(0,loud and 20 or 12);dot.Position=UDim2.new(0,(loud and -20 or -12)+8,.5,0);edge.Color=loud and UI.colors.gold:Lerp(UI.colors.line,.45)or UI.colors.line
         line.TextColor3=loud and UI.colors.ink or UI.colors.ink:Lerp(UI.colors.muted,.35)
-        local key=kind and (kind..':'..(kind=='phase'and p.state or kind=='sale'and 'on'or text))or nil
+        local key=kind and (kind..':'..(kind=='phase'and p.state or text))or nil
         if key~=shown then shown=key;if kind then Step.step('ops','topLine',{item=kind=='phase'and p.state or kind,result='shown'})end end
     end
-    for _,name in ipairs({'OpsState','OpsCloseAt','OpsReopenAt','OpsFlash','OpsFlashUntil','OpsTicker','OpsTickerEn','LaunchSaleEndsAt'})do pack:GetAttributeChangedSignal(name):Connect(refresh)end
+    for _,name in ipairs({'OpsState','OpsCloseAt','OpsReopenAt','OpsFlash','OpsFlashUntil','OpsTicker','OpsTickerEn'})do pack:GetAttributeChangedSignal(name):Connect(refresh)end
     me:GetAttributeChangedSignal('OpsMoveAt'):Connect(refresh)
     task.spawn(function()while gui.Parent do pcall(refresh);task.wait(1)end end)
     local function open()if me:GetAttribute('OpsAdmin')==true then require(script.Parent.OpsConsole).toggle()end end

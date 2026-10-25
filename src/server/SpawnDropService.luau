@@ -15,8 +15,8 @@ local function commit(room,id,tile)
     return true
 end
 function M.begin(room,roster,now,random,parties)
-    room.drop=Model.new(room.session,Squad.assign(roster,parties),now,random);room.spawnUntil=now+Model.readySeconds+Model.seconds
-    room.randomSpawn=random==true;room.note='낙하해서 시작 위치를 정하세요.'
+    room.drop=Model.new(room.session,Squad.assign(roster,parties),now,random);room.drop.quick=room.single==true;room.spawnUntil=now+Model.readySeconds+Model.seconds
+    room.randomSpawn=random==true;room.note='낙하 중'
     if random then
         for id,p in ipairs(room.drop.players)do local tile=room.drop:randomTile(id)
             if tile then p.reserved=tile;if commit(room,id,tile)then p.x=tile%room.session.map.meta.width;p.y=tile//room.session.map.meta.width end end

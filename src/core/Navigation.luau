@@ -28,7 +28,7 @@ function M:waterTick()
         self.waterTerrain=self.waterTerrain or WaterTerrain.new(grid,self:mini()or grid)
         local changed,miniChanged=self.waterTerrain:convert(converted)
         self.w.convertedLandTiles=(self.w.convertedLandTiles or 0)+#converted
-        for _,t in ipairs(converted)do if self.w.sim.fallout[t]then self.w.sim.fallout[t]=nil;self.w.sim.onFalloutCleared(t)end end
+        for _,t in ipairs(converted)do if self.w.sim.fallout[t]then self.w.sim.fallout[t]=nil;self.w.sim.falloutRevision=(self.w.sim.falloutRevision or 0)+1;self.w.sim.onFalloutCleared(t)end end
         local system=self.w.unitSystem
         for _,t in ipairs(changed)do if system then system.terrainChanges[t]=buffer.readu8(self.w.sim.tb,t)end end
         if system then system.terrainRevision+=1 end

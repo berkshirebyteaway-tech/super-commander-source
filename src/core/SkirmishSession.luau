@@ -167,7 +167,7 @@ function M:changeRelation(a,b,amount)
     r.relations[b]=math.clamp(before+amount,-100,100)
     if M.attitude(before)>0 and M.attitude(r.relations[b])==0 and r.kind=="NATION" and self.sim.players[b] and self.sim.players[b].kind=="HUMAN" and self.sim.players[a].tiles.size>0 then
         local tile=self:borderWith(a,b)
-        if tile then self:notify(b,string.format("%s 측이 나에게 적대적으로 돌아섰어요. 공격에 대비하세요.",r.name),"rejected",tile) end
+        if tile then self:notify(b,string.format("%s 적대",r.name),"rejected",tile) end
     end
 end
 function M:allianceWarmth(a,b)
@@ -192,11 +192,11 @@ function M:aiEmoji(a,b,text)
     self.resources[a].emoji={target=b,text=text,tick=self.sim.ticks}
     if self.unitSystem and self.nations[a] then self.unitSystem.comms:emit("emoji",a,b,text) end
 end
-function M:economyPlayer(id)
+function M:economyPlayer(id,snapshotUnits)
     id=id or 1;local p=self.sim.players[id];local r=self.resources and self.resources[id]
     if not r then return Base.economyPlayer(self) end
     local levels,owned=0,{}
-    for _,u in ipairs(self.units) do
+    for _,u in ipairs(snapshotUnits or self.units) do
         if u.active and (u.owner or 1)==id then
             owned[u.kind]=(owned[u.kind] or 0)+(u.building and 1 or u.level)
             if u.kind=="City" and not u.building then levels+=u.level end
@@ -310,23 +310,23 @@ function M:spawnStep()
     end
 end
 function M:spawn(tile)
-    if self.phase~="spawn" then return false,"이미 시작한 경기예요." end
-    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"육지를 선택하세요." end
+    if self.phase~="spawn" then return false,"이미 시작" end
+    if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"육지 선택" end
     local tiles=Spawn.tiles(self,tile,false)
-    if #tiles==0 then return false,"다른 세력이 없는 육지를 선택하세요." end
+    if #tiles==0 then return false,"빈 육지 선택" end
     for _,t in ipairs(tiles) do self.sim:conquer(1,t) end
     self:recordOwnership();self.sim.captured={};self.sim.players[1].spawnTile=tile;self.spawnTile=tile;self.phase="playing"
-    self:event("정착 완료. 주변 땅을 선택하고 확장하세요.");return true,"정착했어요."
+    self:event("정착");return true,"정착"
 end
 function M:attack(id,target,fraction,tile)
-    if self.phase~="playing" or not self.sim.players[id] or not self.sim.players[target] and target~=0 or target==id then return false,"공격할 상대를 선택하세요." end
-    if self:friendly(id,target) then return false,"동맹을 먼저 해제해야 공격할 수 있어요." end
-    if self:protectedTarget(id,target) then return false,"상대의 시작 보호 시간이 끝나면 공격할 수 있어요." end
+    if self.phase~="playing" or not self.sim.players[id] or not self.sim.players[target] and target~=0 or target==id then return false,"대상 선택" end
+    if self:friendly(id,target) then return false,"동맹 상대" end
+    if self:protectedTarget(id,target) then return false,"상대 보호 시간" end
     local p=self.sim.players[id];local amount=p.troops*fraction
     local function sent(ok,...)if ok then p.troopsSent=(p.troopsSent or 0)+amount end;return ok,...end
     if not self:sharesLandBorder(id,target) then
         if tile then return sent(self.unitSystem.naval:transport(id,tile,amount)) end
-        return false,"바다 건너 목표 해안을 선택해 수송선을 출항시키세요."
+        return false,"해안 선택"
     end
     if target==0 and tile then
         local seen,stack={}, {tile};seen[tile]=true;local adjacent=false
@@ -345,41 +345,41 @@ function M:breakAlliance(a,b)
     local key=pair(a,b);if not self.alliances[key] then return end
     self.alliances[key]=nil
     local traitor=not self.sim.players[b].isTraitor and not self:away(b)
-    if traitor then self.sim.players[a].traitorUntil=self.sim.ticks+300;self.sim.players[a].isTraitor=true end
+    if traitor then self.sim.players[a].traitorUntil=self.sim.ticks+300;self.sim.players[a].isTraitor=true;local r=self.resources[a];if r then r.betrayals=(r.betrayals or 0)+1 end end
     self:changeRelation(b,a,-100)
     local team=self.sim.players[b].team
     for _,n in ipairs(self:nearby(a)) do
         if n~=0 and n~=a and not (n~=b and team~=nil and self.sim.players[n].team==team) then self:changeRelation(n,a,-40) end
     end
-    self:notify(a,string.format(traitor and "%s 측과의 동맹을 깼어요. 30초 동안 내 방어가 약해져요." or "%s 측과의 동맹을 깼어요.",self.resources[b].name),"diplomacy")
-    if traitor then self:notify(b,string.format("%s 측이 동맹을 깼어요. 배신자는 30초 동안 방어가 약해져요.",self.resources[a].name),"rejected") end
+    self:notify(a,string.format(traitor and "%s 동맹 파기  30초 방어 약화" or "%s 동맹 파기",self.resources[b].name),"diplomacy")
+    if traitor then self:notify(b,string.format("%s 배신  30초 방어 약화",self.resources[a].name),"rejected") end
 end
 function M:retaliate(id,fraction)
     local p=self.sim.players[id];local last
     for _,a in ipairs(p and p.incoming or {})do local q=self.sim.players[a.owner];if a.active~=false and q and q.kind~="BOT" then last=a end end
-    if not last then return false,"반격할 공격이 없어요." end
-    local troops=math.min(last.troops or 0,fraction*p.troops);if troops<1 then return false,"반격할 병력이 부족해요." end
+    if not last then return false,"반격할 공격 없음" end
+    local troops=math.min(last.troops or 0,fraction*p.troops);if troops<1 then return false,"병력 부족" end
     return self:attack(id,last.owner,troops/p.troops,nil)
 end
 function M:allianceCommand(a,b,kind)
-    if self.phase~="playing" or self.settings.disableAlliances or self.settings.customAllianceDuration==0 then return false,"지금은 외교를 사용할 수 없어요." end
-    if not self.resources[b] or a==b or self.sim.players[a].tiles.size==0 or self.sim.players[b].tiles.size==0 then return false,"활동 중인 상대를 선택하세요." end
+    if self.phase~="playing" or self.settings.disableAlliances or self.settings.customAllianceDuration==0 then return false,"외교 불가" end
+    if not self.resources[b] or a==b or self.sim.players[a].tiles.size==0 or self.sim.players[b].tiles.size==0 then return false,"대상 선택" end
     local key=pair(a,b);local alliance=self.alliances[key]
     local request=self.requests[key]
     if kind=="break" then
-        if not alliance then return false,"동맹 관계가 아니에요." end
+        if not alliance then return false,"동맹 아님" end
     elseif kind=="extend" then
-        if alliance and alliance.agreed[a] then return false,"연장을 요청했어요. 상대의 동의를 기다려요." end
-        if not alliance or alliance.expires-self.sim.ticks>300 then return false,"만료 30초 전부터 연장할 수 있어요." end
-        if self:away(a) or self:away(b) then return false,"접속이 끊긴 지휘관과는 동맹을 연장할 수 없어요." end
+        if alliance and alliance.agreed[a] then return false,"연장 요청 ✓" end
+        if not alliance or alliance.expires-self.sim.ticks>300 then return false,"만료 30초 전부터" end
+        if self:away(a) or self:away(b) then return false,"접속 끊긴 상대" end
     elseif kind=="accept" or kind=="reject" then
-        if not request or request.a~=b or request.b~=a or self.sim.ticks-request.created>200 then return false,"이미 처리됐거나 만료된 요청이에요." end
+        if not request or request.a~=b or request.b~=a or self.sim.ticks-request.created>200 then return false,"만료된 요청" end
     elseif kind=="request" then
-        if alliance then return false,"이미 동맹 관계예요." end
+        if alliance then return false,"이미 동맹" end
         local history=self.requestHistory[a..":"..b]
-        if request and request.a==a or not request and history and self.sim.ticks-history<300 then return false,"동맹 요청 대기 중이거나 재요청 대기 시간이에요." end
+        if request and request.a==a or not request and history and self.sim.ticks-history<300 then return false,"요청 재사용 대기" end
     else return false,"외교 명령이 올바르지 않아요." end
-    for _,order in ipairs(self.diplomacyOrders) do if order.a==a and order.b==b then return false,"명령을 처리 중이에요." end end
+    for _,order in ipairs(self.diplomacyOrders) do if order.a==a and order.b==b then return false,"처리 중" end end
     table.insert(self.diplomacyOrders,{a=a,b=b,kind=kind});return true,"외교 명령을 보냈어요."
 end
 function M:resolveRequest(recipient,sender,accepted,tick,reason)
@@ -396,8 +396,8 @@ function M:resolveRequest(recipient,sender,accepted,tick,reason)
     local senderName,recipientName=self.resources[sender].name,self.resources[recipient].name
     if accepted then self:notify(sender,string.format("%s 측과 동맹을 맺었어요.",recipientName),"diplomacy");self:notify(recipient,string.format("%s 측과 동맹을 맺었어요.",senderName),"diplomacy")
     elseif reason=="rejected" then
-        self:notify(sender,string.format("%s 측이 동맹 요청을 거절했어요.",recipientName),"rejected");self:notify(recipient,string.format("%s의 동맹 요청을 거절했어요.",senderName),"diplomacy")
-    else self:notify(sender,recipientName.." 측이 동맹 요청에 응답하지 않았어요.","diplomacy");self:notify(recipient,senderName.."의 동맹 요청이 만료됐어요.","diplomacy") end
+        self:notify(sender,string.format("%s 동맹 거절",recipientName),"rejected");self:notify(recipient,string.format("%s 요청 거절",senderName),"diplomacy")
+    else self:notify(sender,recipientName.." 응답 없음","diplomacy");self:notify(recipient,senderName.." 동맹 요청 만료","diplomacy") end
     return true
 end
 function M:acceptBotAlliances(id)
@@ -438,9 +438,11 @@ function M:produce()
         p.isTraitor=p.traitorUntil~=nil and p.traitorUntil>self.sim.ticks
         if p.tiles.size>0 then
             local before=p.troops
-            self.sim:addTroops(id,E.troopIncrease(self.settings,self:economyPlayer(id)))
+            local economy=self:economyPlayer(id)
+            self.sim:addTroops(id,E.troopIncrease(self.settings,economy))
             p.troopsProduced=(p.troopsProduced or 0)+math.max(0,p.troops-before)
-            self:setGold(id,B.add(self:getGold(id),B.fromNumber(E.goldRate(self.settings,self:economyPlayer(id)))))
+            economy.troops=p.troops
+            self:setGold(id,B.add(self:getGold(id),B.fromNumber(E.goldRate(self.settings,economy))))
             self.diplomacyEconomy:expireTemporary(id,self.sim.ticks)
             self.clusterRules:tick(id)
         elseif not self.resources[id].dead and p.lastTileChange~=nil then
@@ -455,7 +457,7 @@ function M:produce()
     end
 end
 function M:upgrade(id,amount)
-    for _,u in ipairs(self.units) do if u.id==id and (u.owner or 1)~=1 then return false,"내 도시만 업그레이드할 수 있어요." end end
+    for _,u in ipairs(self.units) do if u.id==id and (u.owner or 1)~=1 then return false,"내 도시 선택" end end
     return Base.upgrade(self,id,amount)
 end
 function M:step()
@@ -485,7 +487,7 @@ function M:step()
             if self:resolveRequest(o.a,o.b,o.kind=="accept",self.sim.ticks-1,o.kind=="reject" and "rejected" or nil) and o.kind=="accept" then self:allianceWarmth(o.a,o.b) end
         elseif o.kind=="extend" and a and not self:away(o.a) and not self:away(o.b) then
             a.agreed[o.a]=true
-            if a.agreed[a.a] and a.agreed[a.b] then a.expires=self.sim.ticks-1+(self.settings.customAllianceDuration or 5)*600;a.agreed={};self:notify(a.a,"동맹이 연장됐어요.","diplomacy");self:notify(a.b,"동맹이 연장됐어요.","diplomacy") end
+            if a.agreed[a.a] and a.agreed[a.b] then a.expires=self.sim.ticks-1+(self.settings.customAllianceDuration or 5)*600;a.agreed={};self:notify(a.a,"동맹 연장 ✓","diplomacy");self:notify(a.b,"동맹 연장 ✓","diplomacy") end
         end
     end
     self.diplomacyOrders={}

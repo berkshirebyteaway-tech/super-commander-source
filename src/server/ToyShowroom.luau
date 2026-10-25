@@ -42,10 +42,6 @@ function M.create(parent,onMode)
     local function rect(gui,pos,dim,color,alpha)
         local f=Instance.new('Frame');f.Position=pos;f.Size=dim;f.BackgroundColor3=color;f.BackgroundTransparency=alpha or 0;f.BorderSizePixel=0;f.Parent=gui;return f
     end
-    local function prompt(p,title,mode,action)
-        local v=Instance.new('ProximityPrompt');v.Name='Explore';v.ActionText=action or '고르기';v.ObjectText=title;v.HoldDuration=0;v.MaxActivationDistance=16;v.RequiresLineOfSight=false;v.KeyboardKeyCode=Enum.KeyCode.E;v.Parent=p
-        v.Triggered:Connect(function(player)onMode(player,mode)end)
-    end
     local MESH={
         wall={mesh=125365072526785,tex=nil,color=rgb(44,54,68),material=Enum.Material.Metal,size=Vector3.new(30,25.094,4.624)},
         console={mesh=138254590508571,tex=75163347490155,size=Vector3.new(17.667,16.887,10)},
@@ -105,7 +101,6 @@ function M.create(parent,onMode)
     text(hg,'Kicker','S  U  P  E  R',26,palette.teal,UDim2.fromOffset(0,2),UDim2.new(1,0,0,26),true)
     text(hg,'Title','COMMANDER',100,palette.ink,UDim2.fromOffset(0,22),UDim2.new(1,0,0,70),true)
     rect(hg,UDim2.new(.5,-120,0,94),UDim2.fromOffset(240,3),palette.teal)
-    text(hg,'Sub','로비  LOBBY',22,palette.muted,UDim2.fromOffset(0,99),UDim2.new(1,0,0,12),true)
     do
         local board=block('BigBoard',{200,40,1},{0,34,-121.5},palette.inset,false)
         block('BigBoardFrame',{202,.5,1.2},{0,54.2,-121.5},palette.steelLight,false,nil,Enum.Material.Metal);block('BigBoardFrame',{202,.5,1.2},{0,13.8,-121.5},palette.steelLight,false,nil,Enum.Material.Metal)
@@ -113,15 +108,11 @@ function M.create(parent,onMode)
         for i=0,24 do rect(g,UDim2.fromOffset(i*50,0),UDim2.new(0,1,1,0),palette.line,.6)end
         for i=0,4 do rect(g,UDim2.fromOffset(0,i*60),UDim2.new(1,0,0,1),palette.line,.6)end
         rect(g,UDim2.fromOffset(0,0),UDim2.fromOffset(900,240),rgb(6,11,17),.1)
-        text(g,'BoardKicker','LIVE FRONTS',22,palette.teal,UDim2.fromOffset(48,40),UDim2.fromOffset(600,26),true,Enum.TextXAlignment.Left)
-        text(g,'BoardTitle','실시간 전장',76,rgb(150,166,184),UDim2.fromOffset(46,70),UDim2.fromOffset(700,84),true,Enum.TextXAlignment.Left).TextWrapped=false
-        text(g,'BoardSub','지금 모집 중인 전장  →',26,rgb(96,112,130),UDim2.fromOffset(48,160),UDim2.fromOffset(700,32),false,Enum.TextXAlignment.Left)
         for _,c in ipairs({{24,20,1,1},{876,20,-1,1},{24,220,1,-1},{876,220,-1,-1}})do
             rect(g,UDim2.fromOffset(c[3]>0 and c[1] or c[1]-40,c[4]>0 and c[2] or c[2]-2),UDim2.fromOffset(40,2),palette.steelLight,.3)
             rect(g,UDim2.fromOffset(c[3]>0 and c[1] or c[1]-2,c[4]>0 and c[2] or c[2]-40),UDim2.fromOffset(2,40),palette.steelLight,.3)
         end
         rect(g,UDim2.fromOffset(920,0),UDim2.new(0,2,1,0),palette.teal,.4)
-        text(g,'OpsTitle','GLOBAL OPERATIONS',30,palette.ink,UDim2.fromOffset(940,10),UDim2.fromOffset(250,36),true,Enum.TextXAlignment.Left)
         for i=0,5 do
             local y=58+i*29;local col=({palette.teal,palette.azure,palette.violet,palette.amber,palette.teal,palette.ice})[i+1]
             rect(g,UDim2.fromOffset(940,y),UDim2.fromOffset(8,18),col,0)
@@ -243,8 +234,6 @@ function M.create(parent,onMode)
         local g=surface(screen,Enum.NormalId.Back,12)
         rect(g,UDim2.fromOffset(0,0),UDim2.new(0,8,1,0),color)
         text(g,'Glyph',glyph,72,color,UDim2.fromOffset(30,22),UDim2.fromOffset(90,90),true)
-        text(g,'Text',title,74,palette.ink,UDim2.fromOffset(130,22),UDim2.new(1,-150,0,90),true,Enum.TextXAlignment.Left).TextWrapped=false
-        text(g,'Sub',sub,32,palette.muted,UDim2.fromOffset(132,122),UDim2.new(1,-150,0,40),false,Enum.TextXAlignment.Left)
         rect(g,UDim2.new(0,30,1,-26),UDim2.new(1,-60,0,4),color,.5)
         for _,dx in ipairs({-14,14})do block('ScreenPost',{1.2,30,1.2},{x+dx,15,modeZ-21.6},palette.steel,false)end
         if not meshPart('StationConsole','console',cf(x,7.6,modeZ-8),.9,true)then
@@ -262,7 +251,6 @@ function M.create(parent,onMode)
                 neon('PadChevron_'..id,{4.4,.06,.5},{x+s*1.4,.53,modeZ+18.4-i*2.2},color,.2,CFrame.Angles(0,s*math.rad(40),0)):SetAttribute('Pulse',true)
             end
         end
-        prompt(pad,title,id)
         return screen,pad
     end
     station('single','혼자 하기','AI 국가를 상대로 바로 시작',-62,palette.teal,'◎')
@@ -285,9 +273,7 @@ function M.create(parent,onMode)
         block('WardrobeNoteFrame',{21,6,.3},{x,19.5,z-3.95},rgb(58,70,86),false,nil,Enum.Material.Metal)
         local g=surface(sign,Enum.NormalId.Back,12)
         rect(g,UDim2.fromOffset(0,0),UDim2.new(0,6,1,0),palette.teal)
-        text(g,'Text','장비실 스킨',44,palette.ink,UDim2.fromOffset(16,0),UDim2.new(1,-24,1,0),true,Enum.TextXAlignment.Left)
         local bench=block('LockerBench',{18,2,4},{x,1,z+2},palette.steel,true)
-        prompt(bench,'스킨','wardrobe','열기')
         local anchor=block('BayLight',{1,1,1},{x,30,z},palette.teal,false);anchor.Transparency=1;light('SpotLight',anchor,rgb(170,230,225),1.6,45,60,Enum.NormalId.Bottom)
     end
     do
@@ -303,11 +289,7 @@ function M.create(parent,onMode)
         local screen=block('RecordsNote',{14,9,.4},{x,19,z-1.2},palette.inset,false)
         local g=surface(screen,Enum.NormalId.Back,12)
         rect(g,UDim2.fromOffset(0,0),UDim2.new(1,0,0,6),palette.gold)
-        text(g,'Text','기록실',60,palette.ink,UDim2.fromOffset(0,14),UDim2.new(1,0,0,60),true)
-        text(g,'Sub','전적, 업적, 계급',26,palette.muted,UDim2.fromOffset(0,74),UDim2.new(1,0,0,30))
         local medal=Geo.ball(model,'RecordsMedal',Vector3.new(3,3,.6),cf(x,16.6+9,z-1),palette.gold);medal.Material=Enum.Material.Neon;medal:SetAttribute('Spin',true)
-        prompt(screen,'기록실','records','보기')
-        local near=block('RecordsAccess',{4,4,4},{x-10,2,z+6},palette.ink,false);near.Transparency=1;prompt(near,'기록실','records','보기')
     end
 
     for i=0,6 do neon('GuideDash',{.8,.06,3},{0,.04,43-i*5},rgb(70,140,150),.78)end
@@ -339,11 +321,7 @@ function M.create(parent,onMode)
         local gui=Instance.new('SurfaceGui');gui.Name='Live';gui.Face=Enum.NormalId.Back;gui.SizingMode=Enum.SurfaceGuiSizingMode.PixelsPerStud;gui.PixelsPerStud=12;gui.LightInfluence=0;gui.MaxDistance=200;gui.Parent=board
         local note=rect(gui,UDim2.fromOffset(12,12),UDim2.new(1,-24,0,52),palette.steel,0);note.Name='StatsNote'
         rect(note,UDim2.fromOffset(0,0),UDim2.new(0,5,1,0),palette.teal)
-        local stats=text(note,'Stats','AI 지휘관 상시 대기   혼자도 바로 출발',20,palette.ink,UDim2.fromOffset(12,0),UDim2.new(1,-16,1,0));stats.TextXAlignment=Enum.TextXAlignment.Left
         local paper=rect(gui,UDim2.fromOffset(12,74),UDim2.new(1,-24,1,-86),palette.inset,0);paper.Name='LeadersNote'
-        text(paper,'Title','대전 승리 TOP',24,palette.gold,UDim2.fromOffset(10,4),UDim2.new(1,-20,0,28),true,Enum.TextXAlignment.Left)
-        local leaders=text(paper,'Leaders','첫 승리의 주인공을 기다려요',16,palette.ink,UDim2.fromOffset(10,34),UDim2.new(1,-20,1,-38),false,Enum.TextXAlignment.Left)
-        leaders.TextYAlignment=Enum.TextYAlignment.Top;leaders.Font=Enum.Font.BuilderSansMedium
     end
 
     for _,x in ipairs({-64,0,64})do for _,z in ipairs({-36,18})do

@@ -87,12 +87,79 @@ function M:update(state,sorted,ownColor)
     self.teamGame=Teams.active(state);self.teams=self.teamGame and Teams.build(state,sorted)or nil;self.sorted=sorted or {}
     if not self.teamGame then self.mode="players"end
     local alive,mineAt={},nil
-    for _,f in ipairs(sorted or {})do if (f.tiles or 0)>0 and not f.eliminated then table.insert(alive,f);if f.id==1 then mineAt=#alive end end end
+    for _,f in ipairs(sorted or {})do if f.kind~='BOT'and(f.tiles or 0)>0 and not f.eliminated then table.insert(alive,f);if f.id==1 then mineAt=#alive end end end
     self.alive=alive;self.mineAt=mineAt
     self.frame:SetAttribute("Survivors",#alive);self.frame:SetAttribute("MyRank",mineAt or 0)
     self:draw()
 end
+local K
+local GLASS=Color3.fromRGB(12,17,24)
+function M:draw20()
+    K=K or require(script.Parent.Kit20)
+    local alive=self.alive or {};local mineAt=self.mineAt;local f=self.frame
+    f.BackgroundColor3=GLASS;f.BackgroundTransparency=.14;K.round(f,self.compact and 8 or 10)
+    local st=f:FindFirstChildOfClass('UIStroke');if st then st.Color=K.colors.line;st.Transparency=.1 end
+    for _,m in ipairs(self.marks)do m.Visible=false end
+    self.columns.Visible=false;self.more.Visible=false
+    self.icon20=self.icon20 or K.icon(self.title,'records',14,K.colors.accent,'Icon20')
+    if self.compact then
+        self.toggle.Visible=false;for _,t in ipairs(self.tabs)do t.button.Visible=false end;self.mine.root.Visible=false;self.label.Visible=false
+        for _,o in ipairs(self.rows)do o.root.Visible=false end
+        UI.box(self.title,0,0,76,26);K.box(self.icon20,11,8,11,11);self.icon20.Size=UDim2.fromOffset(11,11)
+        self.count.RichText=true;if K.fonts.num then self.count.FontFace=K.fonts.num end
+        self.count.Text=mineAt and string.format('#%d<font color="#8A97A8" size="11"> /%d</font>',mineAt,#alive)or string.format('<font color="#8A97A8">%d</font>',#alive)
+        self.count.TextXAlignment=Left;self.count.TextSize=13;self.count.TextColor3=K.colors.ink;UI.box(self.count,26,0,48,26)
+        self.height=26;f.Size=UDim2.fromOffset(76,26);return
+    end
+    local W=232
+    self.toggle.Visible=true;self.toggle.Text='';self.toggle.BackgroundTransparency=1
+    local ts=self.toggle:FindFirstChildOfClass('UIStroke');if ts then ts.Enabled=false end
+    self.chev20=self.chev20 or K.icon(self.toggle,'fold',14,K.colors.muted,'Chev20')
+    UI.box(self.toggle,W-36,0,36,36);K.box(self.chev20,11,11,14,14);self.chev20.Rotation=self.collapsed and 180 or 0
+    self.label.Visible=true;self.label.Text='순위';self.label.TextSize=13;self.label.FontFace=K.fonts[800]or self.label.FontFace
+    UI.box(self.title,0,0,W-40,36);K.box(self.icon20,11,14,14,14);UI.box(self.label,31,13,40,17)
+    self.count.RichText=false;if K.fonts.num then self.count.FontFace=K.fonts.num end;self.count.TextSize=12;self.count.TextColor3=K.colors.muted;self.count.TextXAlignment=Left
+    self.count.Text=tostring(#alive);UI.box(self.count,59,13,60,17)
+    local tabs=self.teamGame==true and not self.collapsed;local tx=96
+    for _,t in ipairs(self.tabs)do local b=t.button;b.Visible=tabs
+        if tabs then local on=self.mode==t.mode;UI.box(b,tx,8,t.width,20);tx+=t.width+4;b.BackgroundTransparency=on and 0 or 1;b.TextColor3=on and K.colors.bg or K.colors.muted;K.round(b,4)end end
+    if tabs and self.mode=='teams'then self.count.Visible=false else self.count.Visible=true end
+    local y=36
+    local INSET=6
+    local function row20(o,item,rank,pinned,lit)
+        o.root.Visible=item~=nil;if not item then return end
+        local h=pinned and 26 or 22;local plate=pinned or lit==true
+        local ox=plate and INSET or 0;local rw=plate and W-INSET*2 or W
+        UI.box(o.root,ox,y,rw,h);K.round(o.root,6)
+        o.root.BackgroundColor3=K.colors.accent;o.root.BackgroundTransparency=plate and .9 or 1
+        o.stroke.Enabled=plate;o.stroke.Color=K.colors.accent;o.stroke.Transparency=.45;o.stroke.Thickness=1
+        for _,l in ipairs({o.rank,o.land})do if K.fonts.num then l.FontFace=K.fonts.num end;l.TextSize=12 end
+        o.rank.TextXAlignment=Left;UI.box(o.rank,11-ox,0,18,h);o.rank.TextColor3=plate and K.colors.accent or K.colors.muted
+        o.dot.Position=UDim2.fromOffset(31-ox,math.floor((h-8)/2));o.dot.Size=UDim2.fromOffset(8,8)
+        o.face.Size=UDim2.fromOffset(16,16);o.face.Position=UDim2.fromOffset(27-ox,math.floor((h-16)/2))
+        if not pinned then o.face.Visible=false;o.dot.Visible=true end
+        o.name.TextSize=12;o.name.FontFace=K.fonts[plate and 800 or 700]or o.name.FontFace;o.name.TextColor3=K.colors.ink
+        UI.box(o.name,47-ox,0,W-47-50-11,h)
+        o.land.TextColor3=K.colors.ink;UI.box(o.land,W-11-46-ox,0,46,h)
+        o.troops.Visible=false
+        y+=h
+    end
+    if tabs and self.mode=='teams'then
+        local list=self.teams or {};local mine
+        for i,t in ipairs(list)do if t.mine then mine=i end end
+        for i,o in ipairs(self.rows)do local t=not self.collapsed and list[i]or nil;fillTeam(o,t,i,self.sorted);row20(o,t,i,false,i==mine)end
+        self.mine.root.Visible=false
+        if not self.collapsed and mine and mine>M.ROWS then y+=6;fillTeam(self.mine,list[mine],mine,self.sorted);row20(self.mine,list[mine],mine,true,true)end
+    else
+        for i,o in ipairs(self.rows)do local fct=not self.collapsed and alive[i]or nil;fill(o,fct,i,self.ownColor);row20(o,fct,i,false,i==mineAt)end
+        self.mine.root.Visible=false
+        if not self.collapsed and mineAt and mineAt>M.ROWS then y+=6;fill(self.mine,alive[mineAt],mineAt,self.ownColor);row20(self.mine,alive[mineAt],mineAt,true)end
+    end
+    self.height=self.collapsed and 36 or y+9
+    f.Size=UDim2.fromOffset(W,self.height)
+end
 function M:draw()
+    if require(script.Parent.Hud20).ENABLED then return self:draw20()end
     local alive=self.alive or {};local mineAt=self.mineAt
     if self.compact then
         self.toggle.Visible=false;self.columns.Visible=false;for _,t in ipairs(self.tabs)do t.button.Visible=false end;self.more.Visible=false;self.mine.root.Visible=false;self.label.Visible=false
@@ -145,6 +212,17 @@ function M:draw()
     self.frame.Size=UDim2.fromOffset(M.WIDTH,self.height)
 end
 function M:layout(w,h,show,compact)
+    if require(script.Parent.Hud20).ENABLED then
+        local touch=require(script.Parent.InputMode).touch()
+        local pc=not touch or require(script.Parent.Parent.Core.InterfacePlacement).tablet(w,h,touch)
+        local small=not pc or w<900
+        if small~=self.compact then self.compact=small end;self:draw()
+        self.frame.Visible=show==true
+        local inset=0;pcall(function()inset=game:GetService('GuiService'):GetGuiInset().Y/(UI.scale or 1)end)
+        if small then local portrait=h>w;UI.box(self.frame,w-12-36-6-76,math.floor((portrait and 17 or 13)-inset),76,26)
+        else UI.box(self.frame,w-232-12,math.max(4,math.floor(58-inset)),232,self.height or 36)end
+        return
+    end
     local compactIn=compact
     compact=compact==true or w<900 or h<500
     if compact~=self.compact then self.compact=compact;self:draw()end

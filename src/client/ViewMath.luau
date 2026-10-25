@@ -55,8 +55,7 @@ function M.portraitHUD(width,expanded)
         growth={x=rateX,y=y1,w=rateW,h=48},
         gold={x=goldX,y=y1,w=goldW,h=row},
         troops={x=start,y=y1+2,w=rateX-6-start,h=row-4},
-        amount={x=pad,y=y2,w=40,h=48},
-        slider={x=pad+44,y=y2,w=width-pad*2-44,h=48},
+        slider={x=pad,y=y2,w=width-pad*2,h=48},
         surface=y2+48+2-offset,
         grid={x=pad,y=y1,w=0,h=0},
         palette={x=pad,y=expanded and 4 or y1,w=expanded and width-pad*2 or buildW,h=expanded and 92 or row}}

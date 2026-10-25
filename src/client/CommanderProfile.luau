@@ -20,7 +20,7 @@ function M.fetch(lobby,userId)
         if lobby.commanderProfile~=s then return end
         s.loading=false
         if ok and type(r)=='table'and r.ok and type(r.profile)=='table'then s.data=r.profile;Step.step('social','commanderProfile',{result='loaded'})
-        else s.error=ok and type(r)=='table'and r.message or '연결이 끊겼어요. 다시 시도하세요.';Step.step('social','commanderProfile',{result='failed',reason=ok and 'refused'or 'network'})end
+        else s.error=ok and type(r)=='table'and r.message or '연결 끊김';Step.step('social','commanderProfile',{result='failed',reason=ok and 'refused'or 'network'})end
         if lobby.page=='commander'then lobby:drawPage()end
     end)
 end
@@ -47,9 +47,7 @@ local function header(lobby,body,w,s,y)
     local n=skip(text(card,'Name',clan and string.format('[%s] %s',clan,name)or name,100,14,bw>0 and tw-bw-8 or tw,26,20,C.ink));UI.display(n)
     skip(text(card,'Handle',p and '@'..p.Name or '',100,40,tw,18,12,C.muted))
     local level=h and h.level or d and d.level or 1
-    local rank=h and h.rank or d and L.text(d.title or '')or ''
-    local worn=h and h.title~=''and h.title~=h.rank and h.title or nil
-    skip(text(card,'Rank',worn and string.format('Lv. %d  %s  %s',level,rank,worn)or string.format('Lv. %d  %s',level,rank),100,60,tw,20,14,C.gold))
+    skip(text(card,'Rank',string.format('Lv. %d',level),100,60,tw,20,14,C.gold))
     local mine=Players.LocalPlayer:GetAttribute('CommanderClan')
     text(card,'Unit',clan and (clan==mine and '같은 클랜'or '클랜 소속')or '클랜 없음',100,80,tw,18,12,clan and clan==mine and C.accent or C.muted)
     return y+116
@@ -83,7 +81,7 @@ function M.draw(lobby,body,w)
         end
         body.CanvasSize=UDim2.fromOffset(0,y+8);return
     end
-    y=ranked(body,w,d,y)
+    if require(script.Parent.Parent.Core.HiddenScreens).ranked()then y=ranked(body,w,d,y)end
     y=require(script.Parent.RecordsView).draw(s.hub,body,w,y,{records=d.records,history=d.history})
     body.CanvasSize=UDim2.fromOffset(0,y+8)
 end

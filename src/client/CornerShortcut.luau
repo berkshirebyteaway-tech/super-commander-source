@@ -1,7 +1,7 @@
 local UI=require(script.Parent.Theme)
 local Style=require(script.Parent.HudStyle)
 local Placement=require(script.Parent.Parent.Core.InterfacePlacement)
-local M={}
+local M={paints=setmetatable({},{__mode='k'})}
 function M.new(parent,name,key,kind,callback,tipText)
     if key and tipText and not string.find(tipText,'(',1,true)then tipText=tipText..' ('..key..')'end
     local b=UI.button(parent,name,'',callback);b.ZIndex=19;b.BackgroundTransparency=1;b:SetAttribute('LocalizationSkip',true)
@@ -25,9 +25,9 @@ function M.new(parent,name,key,kind,callback,tipText)
     local function paint()
         local locked=b:GetAttribute('Locked')==true
         local color=locked and UI.colors.muted or UI.colors.ink
-        for _,p in ipairs(ink)do p.BackgroundColor3=color end;ringLine.Color=color
+        for _,p in ipairs(ink)do p.BackgroundColor3=color;p.BackgroundTransparency=locked and .5 or 0 end;ringLine.Color=color;ringLine.Transparency=locked and .5 or 0
     end
-    b:GetAttributeChangedSignal('Locked'):Connect(paint);paint()
+    b:GetAttributeChangedSignal('Locked'):Connect(paint);paint();M.paints[b]=paint
     local hint=UI.label(b,'Key',key or '',13,UI.colors.muted);hint.TextXAlignment=Enum.TextXAlignment.Center;hint.Font=Enum.Font.BuilderSansBold;hint.ZIndex=23;hint:SetAttribute('LocalizationSkip',true);hint.TextWrapped=false;UI.box(hint,0,31,44,13)
     hint.BackgroundColor3=Style.colors.lock;hint.BackgroundTransparency=1;Style.round(hint,4)
     local tip=UI.label(b,'Tip',tipText,13);tip.Visible=false;tip.BackgroundColor3=UI.colors.panel;tip.BackgroundTransparency=.04;tip.TextXAlignment=Enum.TextXAlignment.Center;tip.ZIndex=24;Style.round(tip,6)
@@ -61,7 +61,8 @@ function M.place(b,w,h,menu,touch,index)
     plate.AnchorPoint=Vector2.new(.5,0);plate.Position=UDim2.new(.5,0,0,(size-p)/2);plate.Size=UDim2.fromOffset(p,p)
     Style.round(plate,phone and 10 or 8)
     local color=phone and Color3.new(0,0,0)or Style.colors.cell
-    b:SetAttribute('PlateColor',color);plate.BackgroundColor3=color;plate.BackgroundTransparency=phone and .28 or .04
+    if M.paints[b]then M.paints[b]()end
+    b:SetAttribute('PlateColor',color);plate.BackgroundColor3=color;plate.BackgroundTransparency=(phone and .28 or .04)+(b:GetAttribute('Locked')and .4 or 0)
     local line=plate:FindFirstChildOfClass('UIStroke');if line then line.Color=Style.colors.line;line.Transparency=phone and .5 or 0 end
     plate.Icon.Grow.Scale=touch and not desk and .8 or 1.375
     local k=b.Key;k.TextSize=s<1 and Placement.PC_TEXT or 13;local kw=math.max(20,#k.Text*(s<1 and 9 or 8)+10)

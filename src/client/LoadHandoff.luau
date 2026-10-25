@@ -24,6 +24,7 @@ function M.start(gui,cover,roster)
     local function place()
         for o,b in pairs(base)do o.Position,o.Size,o.Visible=b[1],b[2],b[3]end
         local f=roster.frame
+        brand:SetAttribute('RosterShown',hosted and f.Visible)
         if not hosted or not f.Visible then return end
         local a=card.AbsoluteSize;local p=f.AbsolutePosition-card.AbsolutePosition
         if p.X>a.X*.4 then

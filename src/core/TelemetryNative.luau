@@ -20,6 +20,8 @@ local function payWhere(d)return d.area=='commerce'and d.sku and d.origin and d.
 local function payWhereRow(d)return payWhere(d)and 1 or -1 end
 local function waitBucket(d)local t=d.elapsed_seconds;return not t and 'unknown'or t<10 and 'lt10s'or t<30 and 'lt30s'or t<60 and 'lt60s'or t<120 and 'lt2m'or t<300 and 'lt5m'or 'ge5m'end
 local function minutes(d)local t=d.journey_seconds or d.elapsed_seconds;return not t and 'unknown'or t<60 and 'lt1m'or t<180 and 'lt3m'or t<300 and 'lt5m'or t<600 and 'lt10m'or t<1200 and 'lt20m'or t<2400 and 'lt40m'or 'ge40m'end
+local function firstMinutes(d)local t=d.elapsed_seconds;return not t and 'unknown'or t<60 and 'lt1m'or t<180 and 'lt3m'or t<300 and 'lt5m'or t<600 and 'lt10m'or t<900 and 'lt15m'or t<1200 and 'lt20m'or t<1800 and 'lt30m'or 'ge30m'end
+local function firstRow(d)return d.marker=='new'and (d.elapsed_seconds or 0)/60 or -1 end
 local function elimCause(d)return d.area=='match'and d.step=='eliminated'and d.item or nil end
 local function elimRow(d)return elimCause(d)and 1 or -1 end
 local function idleBucket(d)local t=d.idle_seconds;return not t and 'unknown'or t<10 and 'lt10s'or t<20 and 'lt20s'or t<30 and 'lt30s'or t<60 and 'lt60s'or t<180 and 'lt3m'or 'ge3m'end
@@ -34,7 +36,7 @@ M.views={
  device_profile={{'SC_Device','device_class','viewport_bucket'},{'SC_Locale','locale','device_class'}},
  client_health_window={{'SC_ClientFps','phase',fps},{'SC_FpsDevice','device_class',fps},{'SC_PingBucket','input_mode',ping},{'SC_ClientMemory','phase',memory}},
  request_result={{'SC_Request',request,outcome}},
- visit_closed={{'SC_ExitPhase','phase',matches},{'SC_SessionSeconds','phase',matches,'elapsed_seconds'},{'SC_ExitStage','journey','where'},{'SC_ExitMinutes','journey',minutes}},
+ visit_closed={{'SC_ExitPhase','phase',matches},{'SC_SessionSeconds','phase',matches,'elapsed_seconds'},{'SC_ExitStage','journey','where'},{'SC_ExitMinutes','journey',minutes},{'SC_FirstSession',firstMinutes,'journey',firstRow}},
  queue_exit={{'SC_QueueWait','result',waitBucket}},
  capture_observed={{'SC_FirstCaptureSeconds','mode','input_mode','elapsed_seconds'}},
  tutorial_step={{'SC_TutorialStep','stage','result'}},
@@ -71,7 +73,8 @@ function M.exitStage(s,now)
  local inMatch=s.matchAt and (s.phase=='drop'or s.phase=='playing'or s.phase=='spectate'or s.phase=='result')
  local mode=s.context.mode;local games=s.pvpGames or 0
  local real=inMatch and not s.intro and M.realMatch(mode)and (games==0 or games==1 and s.counted)
- local journey=not s.lobbyReadyAt and not s.matchAt and 'preLobby'or inMatch and s.intro and s.phase~='result'and 'firstOp'or not s.profileKnown and 'unknown'
+ local before=not s.lobbyReadyAt and not s.matchAt
+ local journey=before and ((s.phase=='drop'or s.phase=='playing'or s.phase=='spectate'or s.phase=='result')and 'rejoin'or s.matchServer and 'arrival'or 'preLobby')or inMatch and s.intro and s.phase~='result'and 'firstOp'or not s.profileKnown and 'unknown'
   or not s.basics and 'newLobby'or real and 'firstPvp'or games==0 and 'afterFirstOp'or 'returning'
  local phase=s.phase;if phase=='queue'and not s.queueAt then phase='lobby'end
  local where=s.introOpen and 'intro'or phase=='boot'and (s.clientReady and 'boot'or 'loading')or phase=='lobby'and (screens[s.lastScreen or 'lobby']or 'menu')

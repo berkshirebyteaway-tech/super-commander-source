@@ -43,14 +43,23 @@ function M:tag(player)
     t={gui=gui,plate=plate,stroke=stroke,bar=bar,flag=flag,code=code,avatar=avatar,avatarRing=avatarRing,text=text,name=name,troops=troops,troopMark=troopMark,status=status,benefit=benefit,padding=plate:FindFirstChildOfClass("UIPadding"),list=plate:FindFirstChildOfClass("UIListLayout")}
     self.tags[player]=t;return t
 end
+local function portrait()local v=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize;return v~=nil and v.Y>v.X end
 local function density(t,compact,small)
-    t.benefit.root.Visible=not compact and (t.benefit.key or 0)>0
-    t.name.Visible=true;t.bar.Visible=not compact
+    local nameOnly=small and portrait()
+    t.benefit.root.Visible=not compact and not nameOnly and (t.benefit.key or 0)>0
+    t.name.Visible=true;t.bar.Visible=not compact and not nameOnly
     t.text.Visible=not compact
+    t.troops.Visible=not nameOnly;if t.troopMark then t.troopMark.Visible=not nameOnly end
+    if nameOnly and not compact then t.status.Visible=false end
     t.plate.Visible=not compact or t.status.Visible
-    t.flag.Visible=not compact and t.flagApplied==true;t.avatar.Visible=not compact and not t.flagApplied
+    t.flag.Visible=not compact and not nameOnly and t.flagApplied==true;t.avatar.Visible=not compact and not nameOnly and not t.flagApplied
     local indent=t.troops:GetAttribute("Indent")or 0
-    if small then
+    if nameOnly then
+        t.gui.Size=UDim2.fromOffset(160,26)
+        t.plate.Size=UDim2.fromOffset(0,18);t.padding.PaddingLeft=UDim.new(0,6);t.padding.PaddingRight=UDim.new(0,6);t.list.Padding=UDim.new(0,4)
+        t.name.TextSize=11;t.name.Size=UDim2.fromOffset(0,18);t.text.Size=UDim2.fromOffset(0,18)
+        t.status.Size=UDim2.fromOffset(0,14);t.status.TextSize=10
+    elseif small then
         t.gui.Size=UDim2.fromOffset(200,34)
         t.plate.Size=UDim2.fromOffset(0,compact and 20 or 24);t.padding.PaddingLeft=UDim.new(0,6);t.padding.PaddingRight=UDim.new(0,6);t.list.Padding=UDim.new(0,5)
         t.bar.Size=UDim2.fromOffset(3,14);t.flag.Size=UDim2.fromOffset(20,13);t.avatar.Size=UDim2.fromOffset(18,18)

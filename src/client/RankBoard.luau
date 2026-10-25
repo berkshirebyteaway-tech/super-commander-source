@@ -30,7 +30,7 @@ end
 function M.draw(parent,box,rows,opts)
     opts=opts or {};local h=opts.rowHeight or 44;local y=box.y
     if #rows==0 then
-        local e=UI.label(parent,'BoardEmpty',opts.empty or '아직 순위에 오른 지휘관이 없어요',14,C.muted);e.TextXAlignment=Enum.TextXAlignment.Center;UI.box(e,box.x,y,box.w,48);y+=56
+        local e=UI.label(parent,'BoardEmpty',opts.empty or '순위 없음',14,C.muted);e.TextXAlignment=Enum.TextXAlignment.Center;UI.box(e,box.x,y,box.w,48);y+=56
     else
         for _,r in ipairs(rows)do M.row(parent,r,box.x,y,box.w,h);y+=h+6 end
     end

@@ -17,6 +17,7 @@ local Teams=require(script.Parent.TeamStandings)
 local Squad=require(script.Parent.Parent.Core.DropSquad)
 local SquadView=require(script.Parent.DropSquadView)
 local Catalog=require(script.Parent.Parent.Core.CosmeticCatalog)
+local Desk=require(script.Parent.DeskScene)
 local Players=game:GetService('Players')
 local UIS=game:GetService('UserInputService')
 local Actions=game:GetService('ContextActionService')
@@ -91,9 +92,11 @@ function M:clear()
         if tile then self.world:focusAt(tile);self.world.smoothDistance=nil;self.world.focus=nil end
         if self.cameraCF then self.world.dropExitCamera={cf=self.cameraCF,at=os.clock()}end
     end
+    if self.deskHidden then Desk.dropView(self.deskHidden,false);self.deskHidden=nil end
     for _,fx in pairs(self.trails or {})do fx:destroy()end;self.trails={}
     self.folder:ClearAllChildren();self.models={};self.rigs={};self.marks={};self.poses={};self.plane=nil;self.reticle=nil;self.cameraCF=nil;self.spectacleMe=nil;self.dropFov=nil;self.camDive=nil;self.camNear=nil;self.camWide=nil
     self.visibility:clear();self.poseBatch:clear()
+    if self.land20 then self.land20.button.Visible=false end
     self.frame.Visible=false;self.overview.Visible=false;self.world.dropActive=false;self.world.dropCamera=nil;self.active=false;self.readySent=false;self.diving=nil
     for _,b in pairs(self.blips)do b:Destroy()end;self.blips={}
     self.drop=nil
@@ -177,6 +180,7 @@ function M:update(state)
         local edge=math.max(self.world.map.meta.width,self.world.map.meta.height)*G.scale;local height=math.clamp(edge*.65,110,620)
         self.entryCamera=CFrame.lookAt(Vector3.new(0,G.surfaceY+height+80,edge*.25),Vector3.new(0,G.surfaceY+height*.2,0))
         self.raster:setPreview(require(script.Parent.Parent.Maps.MapLoader).preview(self.world.map.meta.key))
+        Desk.dropView(self.world.desk,true,self.raster.outside);self.deskHidden=self.world.desk
         task.defer(function()self.raster:fit();self.raster:draw()end)
         self.spectacle:begin(self.folder,self.world.reducedEffects==true,self.touch()or UIS.TouchEnabled and not UIS.KeyboardEnabled)
     end
@@ -205,6 +209,7 @@ function M:accept(d)
 end
 function M:step(dt,obscured)
     if not self.active or not self.drop or not self.world.map then return end
+    if self.deskHidden~=self.world.desk then Desk.dropView(self.world.desk,true,self.raster.outside);self.deskHidden=self.world.desk end
     self.visibility:step(os.clock(),Me.Character)
     local d=self.drop;local age=self.state.paused and 0 or math.min(.4,os.clock()-self.receivedAt)
     local began=os.clock();local built=0
@@ -313,8 +318,8 @@ function M:step(dt,obscured)
             if wide>0 then
                 local aspect=viewport.X/math.max(1,viewport.Y);local spanX,spanZ=meta.width*G.scale,meta.height*G.scale
                 local above=focus.Y-G.surfaceY
-                local top=math.min(Layout.wideMaxHeight,math.max(Layout.fitHeight(spanX,spanZ,aspect)*math.clamp(self.world.dropZoom or 1,.25,1.5),above+distance))
-                local fx,fz=Layout.wideFocus(x,z,spanX,spanZ,top,aspect)
+                local top=math.min(Layout.wideMaxHeight,math.max(Layout.fitHeight(spanX,spanZ,aspect)*math.clamp(self.world.dropZoom or 1,.25,1.5)+above,above+distance))
+                local fx,fz=Layout.wideFocus(x,z,spanX,spanZ,top,aspect,nil,above)
                 local h=math.exp(math.log(math.max(1,above+distance))*(1-wide)+math.log(math.max(1,top))*wide)
                 focus=focus:Lerp(Vector3.new(fx,G.surfaceY,fz),wide);distance=math.max(8,h-(focus.Y-G.surfaceY))
             end
@@ -350,8 +355,8 @@ function M:step(dt,obscured)
     self.spectacle:step(dt,{elapsed=elapsed,planeSeconds=d.planeSeconds,shot=shot,me=self.spectacleMe,camera=self.cameraCF,top=height,surfaceY=G.surfaceY,
         heading=self.spectacleMe and self.spectacleMe.heading or 0,wide=self.camWide or 0,obscured=obscured,paused=self.state.paused,flashes=self.world.mapFlashes~=false})
     local pickLeft=math.max(0,math.ceil((own.plunge or d.seconds)-elapsed));local plunging=own.plunge and elapsed>=own.plunge
-    local title=d.preparing and '전장 준비 중' or own.landed and string.format('착륙 완료, %d초 후 시작',left)or plunging and '하강!'or elapsed<d.planeSeconds and '출격 준비'or string.format('착륙 위치 고르기 %d초',pickLeft)
-    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '모두 같은 시각에 전투를 시작해요.')or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or plunging and '착륙 위치가 정해졌어요.'or touch and '끌어서 착륙지 조절'or 'WASD 착륙지 조절  Space 지금 내리기'
+    local title=d.preparing and '전장 준비 중' or (own.landed or plunging) and string.format('%d초 뒤 시작',left)or string.format('착륙 위치 고르기 %d초',pickLeft)
+    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or touch and '끌어서 착륙지 조절'or 'WASD 착륙지 조절  Space 지금 내리기'
     local land='지금 내리기'
     if self.lastTitle~=title then self.lastTitle=title;self.title.Text=title end
     if self.lastHint~=hint then self.lastHint=hint;self.hint.Text=hint end
@@ -359,6 +364,17 @@ function M:step(dt,obscured)
     if self.lastLand~=land then self.lastLand=land;self.land.Text=land end
     self.land.Visible=not d.random and not own.landed and not d.preparing and not plunging;UI.enabled(self.land,elapsed>=d.planeSeconds and not self.diving and not self.state.paused)
     local size=self.frame.Parent.AbsoluteSize/UI.scale;local r=Layout.of(size.X,size.Y,touch,meta.width,meta.height)
+    local ok20,H20=pcall(require,script.Parent.Hud20)
+    if ok20 and H20.ENABLED then
+        local Card=require(script.Parent.LandingCard20)
+        local landed=own.landed or plunging
+        local team=self.ownTeam~=nil and Teams.label(self.ownTeam,self.state)or nil
+        Card.card(self.frame,{seconds=not d.preparing and (landed and left or pickLeft)or nil,title=d.preparing and '전장 준비 중'or landed and '곧 시작'or '착륙 위치 고르기',
+            hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and '착륙지 고정'or touch and '끌어서 이동'or 'WASD 이동',
+            team=team and string.format('%s 소속',team)or nil,teamColor=team and Colors.team(self.ownTeam,self.ownTeam)or nil},size.X,size.Y,{self.title,self.hint,self.teamTag})
+        self.land.Size=UDim2.fromOffset(0,0);self.land.BackgroundTransparency=1;self.land.TextTransparency=1
+        Card.button(self.frame.Parent,self,self.frame.Visible and self.land.Visible,self.land:GetAttribute('Enabled')~=false,size.X,size.Y)
+    else
     local panel=r.panel;UI.box(self.frame,panel.x,panel.y,panel.w,panel.h)
     UI.box(self.title,r.title.x,r.title.y,touch and r.title.w or panel.w-(self.land.Visible and 120 or 24),r.title.h);self.title.TextSize=touch and 15 or 17
     UI.box(self.hint,r.hint.x,r.hint.y,self.land.Visible and r.hint.w or panel.w-24,r.hint.h);self.hint.TextWrapped=true;self.hint.TextSize=14
@@ -370,8 +386,19 @@ function M:step(dt,obscured)
     if self.teamTag.Visible then self.teamTag.TextColor3=Colors.team(self.ownTeam,self.ownTeam);self.teamTag.TextSize=touch and 13 or 14;UI.box(self.teamTag,tagX,r.title.y,room,r.title.h)end
     UI.box(self.land,r.land.x,r.land.y,r.land.w,r.land.h)
     self.land.TextSize=14
+    end
     local mw,mh=r.mini.w-8,r.mini.h-8
     UI.box(self.overview,r.mini.x,r.mini.y,r.mini.w,r.mini.h);UI.box(self.mapFrame,4,4,mw,mh)
+    if ok20 and H20.ENABLED then
+        if not self.mini20 then
+            local K=require(script.Parent.Kit20);self.mini20=true
+            self.overview.BackgroundTransparency=1
+            for _,s in ipairs(self.overview:GetChildren())do if s:IsA('UIStroke')then s.Enabled=false end end
+            K.round(self.mapFrame,8);K.stroke(self.mapFrame,K.colors.line,1,0,true)
+            if self.raster.label then K.round(self.raster.label,8)end
+        end
+        mw,mh=r.mini.w,r.mini.h;UI.box(self.mapFrame,0,0,mw,mh)
+    end
     local hasPeers=false;for _,p in ipairs(d.players)do if p.id~=1 and (self.party[p.id]or self.ownTeam~=nil and p.team==self.ownTeam)then hasPeers=true;break end end
     self.rallyButton.Visible=hasPeers and not obscured and not shot.active and not d.preparing
     if self.rallyButton.Visible and self.rallyShownVersion~=self.version then self.rallyShownVersion=self.version;require(script.Parent.TelemetryStep).step('drop','rallyShown',{})end

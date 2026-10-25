@@ -172,15 +172,22 @@ local function run(frame,fn)
     frame.Destroying:Once(function()c:Disconnect()end)
 end
 M.run=run
+local BUILD_SCALE=1.3
+local BUILD_SPOTS={Vector3.new(-13,0,-4.6),Vector3.new(-5,0,-4.6),Vector3.new(3,0,-4.6),Vector3.new(-13,0,4.4),Vector3.new(-5,0,4.4),Vector3.new(3,0,4.4)}
 local function buildings(parent,item)
     local frame,world,camera=stage(parent)
-    local city=Preview.model(item,'City');city.Parent=world;local co=fit(city,9)
-    local fort=Preview.model(item,'DefensePost');fort.Parent=world;local fo=fit(fort,6)
-    city:PivotTo(CFrame.new(-8,.12,1)*CFrame.Angles(0,math.rad(20),0)*co);fort:PivotTo(CFrame.new(2,.12,-4)*CFrame.Angles(0,math.rad(-25),0)*fo)
-    camera.CFrame=CFrame.lookAt(Vector3.new(-3,30,36),Vector3.new(-3,1,0))
-    local still=reduced()
+    local list={}
+    for i,role in ipairs(require(script.Parent.BuildingModels).previewOrder)do
+        local m=Preview.model(item,role);m.Parent=world;m:PivotTo(CFrame.identity)
+        pcall(function()m:ScaleTo(m:GetScale()*BUILD_SCALE)end)
+        local cf,b=Preview.visibleBounds(m);local spot=BUILD_SPOTS[i]or Vector3.zero
+        m:PivotTo(CFrame.new(spot.X,.12-(cf.Y-b.Y/2),spot.Z));list[i]=m
+    end
+    camera.CFrame=CFrame.lookAt(Vector3.new(-5,30,35),Vector3.new(-5,1.5,0))
+    local still=reduced();local Skins=require(script.Parent.BuildingRoleSkins)
     run(frame,function(t)
-        for _,m in ipairs({city,fort})do Art.step(m,t,still,1+math.floor(t/2)%3);pcall(function()require(script.Parent.BuildingRoleSkins).step(m,t,still)end)end
+        local ph=1+math.floor(t/2)%3
+        for _,m in ipairs(list)do Art.step(m,t,still,ph);pcall(Skins.step,m,t,still)end
     end)
     return frame
 end
@@ -217,15 +224,32 @@ local function parachute(parent,item)
     local frame,world,camera=stage(parent)
     local model,extra=Preview.model(item);model.Parent=world
     if model:FindFirstChildOfClass('Humanoid')then require(script.Parent.DropAvatar).lockVisual(model)end
-    camera.CFrame=CFrame.lookAt(Vector3.new(-2,22,38),Vector3.new(-4,6,0))
+    local body,homes,frames={},{},{}
+    local bottom=0
+    if extra and extra.rig then
+        local rig=extra.rig;local skip={}
+        for _,l in ipairs(rig.limbs)do skip[l.part]=true end
+        for _,a in ipairs(rig.accessories)do skip[a.part]=true end
+        for _,p in ipairs(model:GetDescendants())do
+            if p:IsA('BasePart')and not p:IsDescendantOf(rig.model)then
+                if p.Transparency<.95 then bottom=math.min(bottom,p.Position.Y-p.Size.Y/2)end
+                if not skip[p]then table.insert(body,p);table.insert(homes,p.CFrame);table.insert(frames,p.CFrame)end
+            end
+        end
+    else local cf,b=Preview.visibleBounds(model);bottom=math.min(0,cf.Y-b.Y/2)end
+    local ground=.12-bottom;local height=8.5
+    camera.CFrame=CFrame.lookAt(Vector3.new(-3,20,34),Vector3.new(-5,ground+6.5,0))
     local drop,rest=3.6,1.2
     run(frame,function(t)
-        local u=math.min(1,(t%(drop+rest))/drop);local y=14*(1-u)^1.3+.2
+        local u=math.min(1,(t%(drop+rest))/drop);local y=height*(1-u)^1.3+ground
+        local at=CFrame.new(-5,y,0)
         if extra and extra.rig then
+            for i,h in ipairs(homes)do frames[i]=at*h end
+            world:BulkMoveTo(body,frames,Enum.BulkMoveMode.FireCFrameChanged)
             local m=extra.motion;m.time=t;m.landed=u>=1;m.landAge=math.max(0,(t%(drop+rest))-drop);m.inflation=u>=1 and math.max(0,1-((t%(drop+rest))-drop)/.6)or 1
-            m.canopyRoll=math.sin(t*.8)*.04;extra.rig:step(CFrame.new(-5,y,0),m,true)
+            m.canopyRoll=math.sin(t*.8)*.04;extra.rig:step(at,m,true)
             Art.step(extra.rig.canopy,t,reduced(),1+math.floor(t/2)%3)
-        else model:PivotTo(CFrame.new(-5,y,0))end
+        else model:PivotTo(at)end
     end)
     return frame
 end

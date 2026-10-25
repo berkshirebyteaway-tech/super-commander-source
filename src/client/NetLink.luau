@@ -5,7 +5,7 @@ local Players=game:GetService('Players')
 local C=UI.colors
 local M={}
 M.weakGap,M.lostGap,M.weakPing,M.okPing,M.pingHold,M.clearHold=1.4,5,.45,.3,3,2
-local TEXT={weak='연결이 불안정해요',lost='다시 연결하는 중…'}
+local TEXT={weak='연결 불안정',lost='다시 연결하는 중…'}
 local BARS={6,10,14,18}
 
 function M.new(parent,remote)

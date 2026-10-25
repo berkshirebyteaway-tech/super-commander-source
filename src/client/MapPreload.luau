@@ -10,11 +10,13 @@ remote.OnClientEvent:Connect(function(m)
     if not valid(m)then return end
     local b=M.building
     if not b or b.key~=m.key or b.fnv~=m.fnv or b.total~=m.parts then b={key=m.key,fnv=m.fnv,total=m.parts,parts={},pieces={},done=0,got=0};M.building=b end
+    if b.parts[m.part]then return end
     local list=b.pieces[m.part];if not list then list={count=0,total=m.pieces};b.pieces[m.part]=list end
     if list.total~=m.pieces or list[m.piece]then return end
     list[m.piece]=m.data;list.count+=1;b.got+=1/(list.total*b.total)
     if list.count==list.total then b.parts[m.part]=table.concat(list);b.pieces[m.part]=nil;b.done+=1 end
-    if b.done==b.total then
+    local whole=b.done==b.total;for i=1,b.total do whole=whole and b.parts[i]~=nil end
+    if whole then
         M.held={key=b.key,fnv=b.fnv,parts=b.parts};M.building=nil
         remote:FireServer({done=b.key..'/'..tostring(b.fnv)})
     end

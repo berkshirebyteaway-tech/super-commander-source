@@ -145,6 +145,7 @@ function M:stop(t,station)
     local gold=E.trainGold(self.w.settings,self.w:economyPlayer(owner),relation,t.visited)
     self.w:setGold(owner,B.add(self.w:getGold(owner),gold))
     if station.owner~=owner then self.w:setGold(station.owner,B.add(self.w:getGold(station.owner),gold)) end
+    local res=self.w.resources[owner];if res then local n=tonumber(B.toString(gold))or 0;res.trainGold=(res.trainGold or 0)+n;if relation=='ally'or relation=='team'then res.allyTrainGold=(res.allyTrainGold or 0)+n end end
     t.visited+=1;self.s:effect("trade",station.tile,owner,{gold=B.toString(gold)})
 end
 function M:tick()

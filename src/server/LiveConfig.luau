@@ -8,6 +8,8 @@ M.defaults={
     dailyOp=true,
     clans=true,
     ranked=true,
+    rankedScreen=false,
+    seasonScreen=false,
     sales=true,
     commsOpen=false,
     sale=true,
@@ -46,7 +48,7 @@ function M.get(key)
     local default=M.defaults[key]
     if snapshot and not missing[key]then
         local ok,value=pcall(function()return snapshot:GetValue(key)end)
-        if ok and value==nil then missing[key]=true end
+        if not ok or value==nil then missing[key]=true end
         if ok and value~=nil and typeof(value)==typeof(default)then return value end
     end
     return default
@@ -71,6 +73,7 @@ function M.publish()
     local function short(t)return utf8.len(t)and utf8.len(t)>80 and t:sub(1,utf8.offset(t,81)-1)or t end
     pack:SetAttribute('LiveNotice',short(M.get('notice')));pack:SetAttribute('LiveNoticeEn',short(M.get('noticeEn')))
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
+    pack:SetAttribute('LiveRankedScreen',M.get('rankedScreen')==true);pack:SetAttribute('LiveSeasonScreen',M.get('seasonScreen')==true)
     pack:SetAttribute('LaunchSaleEndsAt',M.salesOpen()and M.saleEndsAt()or 0)
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
     require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())

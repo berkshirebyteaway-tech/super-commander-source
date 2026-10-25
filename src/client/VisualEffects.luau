@@ -11,12 +11,13 @@ local function color(rgb) return Color3.fromRGB(rgb[1],rgb[2],rgb[3]) end
 function M.new()
     local f=Instance.new("Folder");f.Name="FrontierEffects";f.Parent=workspace
     local self=setmetatable({folder=f,active=0,maxActive=4,rings={},lastId=0,reduced=false,flashes=true,poses={},lastOrder={},stamps=0,connections=0,flashCount=0,epoch=0},M)
-    local Motion=require(script.Parent.CharacterMotion);Motion.posing=self.poses
+    local Motion=require(script.Parent.CharacterMotion);Motion.posing=self.poses;self.motion=Motion;self.streaks={};self.lit=0
     self.particles=Particles.new(f)
     self.orderFx=require(script.Parent.CommanderOrderFx).new(f)
     RunService.RenderStepped:Connect(function(dt)
-        if self.reduced then self.particles:clear() else self.particles:step(dt) end
+        if self.reduced or self.lite then self.particles:clear() else self.particles:step(dt) end
         self.orderFx:step(dt,self.reduced)
+        self:stepStreaks()
     end)
     RunService.PreAnimation:Connect(function()
         for joint,p in pairs(self.poses) do
@@ -39,7 +40,7 @@ function M:burst(position,style,large)
     self:bricks(position,{color(style.primary or style.accent),color(style.accent),color(style.secondary or {191,239,255})},large and 10 or 5,large and 2.4 or 1.5)
 end
 function M:bricks(position,colors,count,force,assemble,priority)
-    if not self.reduced then self.particles:burst(position,colors,count,force,assemble,priority) end
+    if not (self.reduced or self.lite) then self.particles:burst(position,colors,count,force,assemble,priority) end
 end
 function M:connection(a,b,tint,kind)
     if self.reduced or self.connections>=3 or (b-a).Magnitude<.1 then return end
@@ -58,7 +59,7 @@ function M:connection(a,b,tint,kind)
     Debris:AddItem(model,.6);task.delay(.6,function()if epoch==self.epoch then self.connections=math.max(0,self.connections-1)end end)
 end
 function M:flash(position,tint)
-    if self.reduced or self.flashes==false or self.flashCount>=2 then return end
+    if self.reduced or self.lite or self.flashes==false or self.flashCount>=2 then return end
     self.flashCount+=1;local epoch=self.epoch
     local model=Instance.new('Model');model.Name='ImpactGlint';model.Parent=self.folder
     local p=Instance.new('Part');p.Name='Glint';p.Anchored=true;p.CanCollide=false;p.CanQuery=false;p.CanTouch=false;p.CastShadow=false
@@ -156,16 +157,54 @@ function M:pose(character,kind,tier)
     end
     self.folder:SetAttribute("PoseRig",shoulder.ClassName)
 end
+local Gesture=require(script.Parent.Parent.Core.CommandGesture)
+function M:strike(char,kind,at,target,tint)
+    local g=Gesture.kinds[kind];local epoch=self.epoch
+    task.delay(math.max(0,g.flash-at),function()
+        if self.epoch~=epoch or self.reduced or self.flashes==false or not char.Parent or self.lit>=4 then return end
+        self.lit+=1
+        local h=Instance.new("Highlight");h.Name="CommandFlash";h.FillColor=Color3.new(1,1,1);h.OutlineColor=Color3.new(1,1,1)
+        h.FillTransparency=.45;h.OutlineTransparency=0;h.DepthMode=Enum.HighlightDepthMode.Occluded;h.Adornee=char;h.Parent=self.folder
+        TweenService:Create(h,TweenInfo.new(Gesture.flashTime,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{FillTransparency=1,OutlineTransparency=1}):Play()
+        task.delay(Gesture.flashTime+.02,function()h:Destroy();self.lit=math.max(0,self.lit-1)end)
+    end)
+    local hand=char:FindFirstChild("RightHand")or char:FindFirstChild("Right Arm")
+    if kind~="attack" or not g.trail or not target or not hand or #self.streaks>=4 then return end
+    local s=Instance.new("Part");s.Name="CommandStreak";s.Anchored=true;s.CanCollide=false;s.CanQuery=false;s.CanTouch=false;s.CastShadow=false
+    s.Material=Enum.Material.Neon;s.Color=tint:Lerp(Color3.new(1,1,1),.45);s.Transparency=1;s.Size=Vector3.new(.4,.15,.1);s.Parent=self.folder
+    table.insert(self.streaks,{part=s,hand=hand,target=target,born=os.clock()-at,from=g.trail[1],to=g.trail[2],epoch=epoch})
+end
+function M:stepStreaks()
+    local now=os.clock();local camera=workspace.CurrentCamera
+    for i=#self.streaks,1,-1 do local v=self.streaks[i];local t=now-v.born
+        if t>=v.to or v.epoch~=self.epoch or self.reduced or not v.hand.Parent then v.part:Destroy();table.remove(self.streaks,i)
+        elseif t>=v.from then
+            local k=(t-v.from)/(v.to-v.from);local hp=v.hand.Position
+            local flat=Vector3.new(v.target.X-hp.X,0,v.target.Z-hp.Z);local full=flat.Magnitude
+            if full<1 then v.part.Transparency=1 else
+                local dir=flat/full;local head=math.min(full-.5,full*Gesture.ease.out(math.min(1,k*3)));local tail=full*math.max(0,(k-.35)/.65)
+                local len=math.max(.05,head-tail);local y=hp.Y+(v.target.Y+.3-hp.Y)*k
+                local w=math.clamp((camera and (camera.CFrame.Position-hp).Magnitude or 40)*.012,.35,2.5)*(1-.6*k)
+                local mid=hp+dir*((head+tail)/2)
+                v.part.Size=Vector3.new(w,.15,len);v.part.CFrame=CFrame.lookAt(Vector3.new(mid.X,y,mid.Z),Vector3.new(mid.X,y,mid.Z)+dir)
+                v.part.Transparency=.1+.9*k*k
+            end
+        end
+    end
+end
 function M:receive(event)
     if type(event)~="table" or event.schema~=1 or type(event.id)~="number" or event.id<=self.lastId then return end
     if event.roomId~=self.roomId or self.roomId==nil then return end
     self.lastId=event.id;self.folder:SetAttribute("LastEvent",event.kind);self.folder:SetAttribute("EventCount",(self.folder:GetAttribute("EventCount") or 0)+1)
     local style=Catalog.get(event.style)
     local p=Players:GetPlayerByUserId(event.playerId or 0);local char=p and p.Character;local root=char and char:FindFirstChild("HumanoidRootPart")
-    if p==Players.LocalPlayer then Audio.play(event.kind) end
+    if p==Players.LocalPlayer then if event.kind=='attack'or event.kind=='build'or event.kind=='upgrade'then Audio.order(event.kind)else Audio.play(event.kind)end end
     if event.kind=="attack" or event.kind=="build" or event.kind=="upgrade" then
         if root and os.clock()-(self.lastOrder[p] or 0)>.2 then
-            self.lastOrder[p]=os.clock();self:pose(char,nil,style.tier)
+            self.lastOrder[p]=os.clock()
+            local target=type(event.position)=="table" and Vector3.new(event.position[1],event.position[2],event.position[3])or nil
+            local moved,at=false,0;if not self.reduced then moved,at=self.motion.gesture(char,event.kind,target)end
+            if moved then self:strike(char,event.kind,at,target,color(style.accent))else self:pose(char,nil,style.tier)end
             if self.orderFx:emit(style,root,event.kind,self.reduced)and p==Players.LocalPlayer and os.clock()-(self.lastCollectionSound or -10)>=8 then
                 self.lastCollectionSound=os.clock();require(script.Parent.CollectionArt).sound(style)
             end

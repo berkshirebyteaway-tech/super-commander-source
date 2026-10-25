@@ -84,14 +84,14 @@ function M:update(state)
     if #list>=2 then for _,t in ipairs(list)do if t.share>=near then announce('team'..tostring(t.team),t.team==myTeam,'상대 팀',t.share)end end
     else for _,f in ipairs(state.factions or {})do if not f.eliminated and (f.share or 0)>=near then announce(f.id,f.id==1,f.name,f.share)end end end
     local overtime=settings.overtime and settings.overtime.enabled and threshold<.8
-    if overtime and not self.overtimeAt then self.overtimeAt=state.tick;self:headsUp('연장전 시작, 승리에 필요한 영토가 매분 2%p씩 줄어들어요',5)end
+    if overtime and not self.overtimeAt then self.overtimeAt=state.tick;self:headsUp('연장전  승리 기준 매분 -2%p',5)end
     local immunity=settings.spawnImmunityDuration or 50
     self.peace=immunity>50 and state.tick<immunity and (immunity-state.tick)/10 or nil
     self.traitorLeft=nil
     for _,f in ipairs(state.factions or {})do if f.id==1 and f.traitor and f.traitorUntil then self.traitorLeft=(f.traitorUntil-state.tick)/10 end end
     if not(self.traitorLeft and self.traitorLeft>0)then self.traitorLeft=nil end
     if state.paused and state.multiplayer then self.headsText.Text='방장이 경기를 일시정지했어요';self.headsText.TextColor3=C.gold;self.headsFixed=true
-    elseif self.peace then self.headsText.Text='평화 시간, 봇만 공격할 수 있어요  '..clock(self.peace);self.headsText.TextColor3=C.gold;self.headsFixed=true
+    elseif self.peace then self.headsText.Text=(state.multiplayer and '평화 시간, 지휘관끼리 공격 금지  'or '평화 시간, 핵 발사 금지  ')..clock(self.peace);self.headsText.TextColor3=C.gold;self.headsFixed=true
     elseif self.traitorLeft then self.headsText.Text='배신자, 방어 약화  '..clock(self.traitorLeft);self.headsText.TextColor3=C.danger;self.headsFixed=true
     elseif state.doomsday then
         local required=state.doomsday.required or 0;local owned=state.player and state.player.tiles or 0
@@ -108,8 +108,48 @@ end
 function M:headsUp(message,seconds,color)
     self.headsText.Text=message;self.headsText.TextColor3=color or C.gold;self.headsUntil=os.clock()+(seconds or 4)
 end
+function M:layout20(w,h,show,compact)
+    local K=require(script.Parent.Kit20)
+    self.shown=show==true;self.frame.Visible=self.shown and self.active==true
+    local touch=require(script.Parent.InputMode).touch()
+    local pc=not touch or require(script.Parent.Parent.Core.InterfacePlacement).tablet(w,h,touch)
+    local portrait=touch and w<h
+    local inset=0;pcall(function()inset=game:GetService('GuiService'):GetGuiInset().Y/(UI.scale or 1)end)
+    local s=self.state;local solo=s~=nil and not s.multiplayer and self.active==true and self.shown
+    local fh=pc and 48 or 28;local ts=pc and 26 or 15
+    local chipW,chipH=pc and 27 or 21,pc and 26 or 18
+    local cw=pc and(solo and 130 or 91)or(solo and 79 or 53)
+    local y=math.max(4,math.floor((pc and 58 or portrait and 58 or 50)-inset))
+    local f=self.frame;K.box(f,12,y,cw,fh);K.round(f,pc and 10 or 8)
+    f.BackgroundColor3=Color3.fromRGB(12,17,24);f.BackgroundTransparency=.14
+    self.edge=self.edge or f:FindFirstChildOfClass('UIStroke')
+    if self.edge and not self.lastMinute then self.edge.Color=K.colors.line;self.edge.Transparency=.1;self.edge.Thickness=1 end
+    self.mode.Visible=false
+    local tx=pc and 15 or 9;if K.fonts.num then self.time.FontFace=K.fonts.num end;self.time.TextSize=ts
+    self.time.TextXAlignment=Enum.TextXAlignment.Left;K.box(self.time,tx,0,cw-tx,fh)
+    local chip=self.chip20 or K.make('Frame',f,{Name='Speed20',BackgroundColor3=K.colors.raised,BorderSizePixel=0,ZIndex=13});self.chip20=chip;K.round(chip,4)
+    local ctext=self.chipText20 or K.num(chip,'Text','×1',pc and 13 or 11,K.colors.muted,Enum.TextXAlignment.Center);self.chipText20=ctext;ctext.Size=UDim2.fromScale(1,1);ctext.ZIndex=14
+    chip.Visible=solo==true
+    local chipX=pc and 88 or 50;K.box(chip,chipX,math.floor((fh-chipH)/2),chipW,chipH);ctext.TextSize=pc and 13 or 11
+    local speed=s and s.speed or 1;ctext.Text=speed>=4 and '최대'or ('×'..speed);if speed>=4 then K.box(chip,chipX,math.floor((fh-chipH)/2),pc and 36 or 28,chipH)end
+    local hit=pc and 44 or 36
+    self.speedPill.Visible=solo==true;self.speedPill.Text='';self.speedPill.BackgroundTransparency=1;self.speedPill.ZIndex=15
+    UI.box(self.speedPill,12+chipX+chipW/2-hit/2,y+fh/2-hit/2,hit,hit)
+    if self.speedFace then self.speedFace.Visible=false end
+    local by=y+fh+6
+    for i,b in ipairs(self.speedOptions)do
+        b.Visible=solo==true and self.speedOpen==true
+        local on=b:GetAttribute('Speed')==speed;b.BackgroundColor3=on and K.colors.ink or K.colors.raised;b.TextColor3=on and K.colors.bg or K.colors.ink;b.TextSize=13;K.round(b,8)
+        local bw,bh=pc and 52 or 48,pc and 32 or 36
+        UI.box(b,12+(i-1)*(bw+6),by,bw,bh)
+    end
+    local hw=math.min(420,w-32);K.round(self.heads,10);self.heads.BackgroundColor3=Color3.fromRGB(12,17,24);self.heads.BackgroundTransparency=.14
+    UI.box(self.heads,(w-hw)/2,compact and math.max(124,math.floor(h*.3))or math.max(184,math.floor(h*.24)),hw,36);UI.box(self.headsText,10,0,hw-20,36)
+    UI.box(self.big,(w-360)/2,math.floor(h*.38)-45,360,90);if K.fonts.num then self.big.FontFace=K.fonts.num end
+end
 function M:layout(w,h,show,compact)
     self.w,self.h,self.compact=w,h,compact
+    if require(script.Parent.Hud20).ENABLED then return self:layout20(w,h,show,compact)end
     self.shown=show==true;self.frame.Visible=self.shown and self.active==true
     local touch=require(script.Parent.InputMode).touch()
     local phone=touch and h<500 and w>h and w>=560;self.phone=phone
@@ -156,8 +196,8 @@ function M:step(hidden,covered)
     if self.speedPill.Visible~=solo then self.speedPill.Visible=solo;for _,b in ipairs(self.speedOptions)do b.Visible=solo and self.speedOpen==true end end
     local last=self.lastMinute and self.active
     if last then
-        local pulse=(math.sin(os.clock()*4)+1)/2
-        self.time.TextColor3=C.gold:Lerp(C.ink,pulse*.25)
+        if require(script.Parent.Hud20).ENABLED then self.time.TextColor3=C.gold
+        else local pulse=(math.sin(os.clock()*4)+1)/2;self.time.TextColor3=C.gold:Lerp(C.ink,pulse*.25)end
     end
     if self.edge and self.goldEdge~=last then
         self.goldEdge=last;self.edge.Color=last and C.gold or Style.colors.line;self.edge.Transparency=last and 0 or .35;self.edge.Thickness=last and 1.5 or 1

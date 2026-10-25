@@ -54,7 +54,7 @@ end
 function M.label(format,teams,maximum)
     if format==M.humansVsNations then return string.format("사람 대 국가, 최대 %d명",maximum)end
     local name=M.labels[format]
-    if name then return string.format(name.." %d팀",teams)end
+    if name then return teams and string.format(name.." %d팀",teams)or name end
     return string.format("%d팀, 최대 %d명",teams or format,maximum)
 end
 function M.short(format,teams)

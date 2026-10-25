@@ -12,8 +12,8 @@ local function count(t)local n=0;if type(t)=='table'then for _ in pairs(t)do n+=
 local Career
 local function unlocked(o)
  Career=Career or require(Core.CareerRules)
- local ok,titles,plates=pcall(function()local O=require(Core.OutgameRules);return Career.unlocked(o,O.level(o.xp))end)
- return ok and titles or {},ok and plates or {}
+ local ok,plates=pcall(function()local O=require(Core.OutgameRules);return Career.unlocked(o,O.level(o.xp))end)
+ return ok and plates or {}
 end
 function P.outgame(log,player,before,after,sku)
  if not(log and player and type(before)=='table'and type(after)=='table')then return end
@@ -39,16 +39,12 @@ function P.outgame(log,player,before,after,sku)
  for key,c in pairs(g1)do if not g0[key]then seen[player][key]=os.time();log:flow(player,'goals','claimReady',{item=P.code(type(c)=='table'and c.source)or 'other',value=type(c)=='table'and tonumber(c.medals)or 0,total=waiting,result='pending'})end end
  for key,c in pairs(g0)do if not g1[key]then local at=seen[player][key];seen[player][key]=nil
   log:flow(player,'goals','claimed',{item=P.code(type(c)=='table'and c.source)or 'other',value=at and os.time()-at or nil,total=waiting,result='granted'})end end
- if (after.xp or 0)~=(before.xp or 0)or count(after.seasonRewards)~=count(before.seasonRewards)or count(after.mastery)~=count(before.mastery)
-  or (after.comradeDays and after.comradeDays.count)~=(before.comradeDays and before.comradeDays.count)or (after.dailyOp and after.dailyOp.days)~=(before.dailyOp and before.dailyOp.days)then
-  local t0,p0=unlocked(before);local t1,p1=unlocked(after)
-  for id in pairs(t1)do if not t0[id]then log:flow(player,'progression','titleUnlock',{item=P.code(id),result='granted'})end end
+ if (after.xp or 0)~=(before.xp or 0)or (after.comradeDays and after.comradeDays.count)~=(before.comradeDays and before.comradeDays.count)
+  or count(after.recruits and after.recruits.ids)~=count(before.recruits and before.recruits.ids)then
+  local p0,p1=unlocked(before),unlocked(after)
   for id in pairs(p1)do if not p0[id]then log:flow(player,'progression','plateUnlock',{item=P.code(id),result='granted'})end end
  end
- local st0={};for _,id in ipairs(type(before.sets)=='table'and before.sets or {})do st0[id]=true end;local st1=type(after.sets)=='table'and after.sets or {}
- for _,id in ipairs(st1)do if not st0[id]then log:flow(player,'progression','setComplete',{item=P.code(id),total=#st1,result='granted'})end end
  local e0=type(before.equipped)=='table'and before.equipped or {};local e1=type(after.equipped)=='table'and after.equipped or {}
- if e1.title~=e0.title then log:flow(player,'progression','titleEquip',{item=P.code(e1.title)or 'rankName',result='ok'})end
  if e1.plate~=e0.plate then log:flow(player,'progression','plateEquip',{item=P.code(e1.plate)or 'none',result='ok'})end
  local o0=keys(before.ownedSlots)
  for key in pairs(keys(after.ownedSlots))do if not o0[key]then log:flow(player,'cosmetics','unlock',{item=P.code(tostring(key):match(':(.+)$')or key),sku=Schema.enum('sku',sku,'other'),result='granted'})end end
@@ -56,6 +52,17 @@ function P.outgame(log,player,before,after,sku)
  if c1>c0 then log:flow(player,'social','comradeDay',{value=c1,result='granted'})end
  local d0=before.dailyOp and before.dailyOp.days or 0;local d1=after.dailyOp and after.dailyOp.days or 0
  if d1>d0 then log:flow(player,'goals','dailyOpDay',{value=d1,result='granted'})end
+ local C=require(Core.CampaignRules)
+ local m0=type(before.campaign)=='table'and type(before.campaign.stars)=='table'and before.campaign.stars or {}
+ local m1=type(after.campaign)=='table'and type(after.campaign.stars)=='table'and after.campaign.stars or {}
+ for id,m in pairs(m1)do local was,now=tonumber(m0[id])or 0,tonumber(m)or 0
+  if now~=was then local item=P.code('stage_'..tostring(id));local total=C.total(after)
+   if was%2==0 and now%2==1 then log:flow(player,'campaign','firstClear',{item=item,value=C.count(now),total=total,result='granted'})
+   elseif C.count(now)>C.count(was)then log:flow(player,'campaign','starUp',{item=item,value=C.count(now),total=total,result='granted'})end
+  end
+ end
+ local gate=C.chapters[#C.chapters].unlockStars
+ if gate and C.total(before)<gate and C.total(after)>=gate then log:flow(player,'campaign','finalUnlocked',{value=C.total(after),result='granted'})end
 end
 function P.draw(log,player,value,result)
  if not(log and player and type(result)=='table')then return end

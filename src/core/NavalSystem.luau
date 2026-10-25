@@ -22,8 +22,8 @@ function M:fresh(d)
     d.waterVersion=version;d.path=nil;d.destination=nil;d.index=1;return true
 end
 function M:lost(u)
-    if u.kind=="Warship" then self.w:notify(u.owner,"내 순찰 군함이 격침됐어요.","loss",u.tile)
-    elseif u.kind=="TransportShip" then self.w:notify(u.owner,string.format("내 수송선이 격침됐어요. 병력 %s 손실",self.w.amount((u.troops or 0)/10)),"loss",u.tile) end
+    if u.kind=="Warship" then self.w:notify(u.owner,"군함 격침됨","loss",u.tile)
+    elseif u.kind=="TransportShip" then self.w:notify(u.owner,string.format("수송선 격침  병력 -%s",self.w.amount((u.troops or 0)/10)),"loss",u.tile) end
 end
 function M:port(owner,tile,capacity,exclude)
     local c=self.nav:component(tile);local best,d=nil,math.huge
@@ -37,13 +37,13 @@ function M:docked(port,exclude)
 end
 function M:transport(owner,tile,troops,route)
     local w=self.w
-    if U.disabled(w.settings,"TransportShip") or self.s:count(owner,"TransportShip")>=3 then return false,"수송선은 동시에 3척까지 출항할 수 있어요." end
-    if not self.nav:valid(tile) or not self.nav:land(tile) or w.sim:owner(tile)==owner or w:friendly(owner,w.sim:owner(tile)) then return false,"상륙할 중립 또는 적 해안을 선택하세요." end
-    if w:protectedTarget(owner,w.sim:owner(tile)) then return false,"상대의 시작 보호 시간이 끝나면 출항할 수 있어요." end
+    if U.disabled(w.settings,"TransportShip") or self.s:count(owner,"TransportShip")>=3 then return false,"수송선 3/3" end
+    if not self.nav:valid(tile) or not self.nav:land(tile) or w.sim:owner(tile)==owner or w:friendly(owner,w.sim:owner(tile)) then return false,"상륙할 해안 선택" end
+    if w:protectedTarget(owner,w.sim:owner(tile)) then return false,"상대 보호 시간" end
     local path,dst;if route then path,dst=route,route[#route] else path,dst=self.nav:transport(owner,tile) end
-    if not path then return false,"연결된 바다에 닿은 내 해안과 목표 해안이 필요해요. 목표 해안 50칸 이내를 선택하세요." end
+    if not path then return false,"닿을 수 없는 해안" end
     troops=math.floor(math.min(w.sim.players[owner].troops,troops or w.sim.players[owner].troops/5))
-    if troops<1 then return false,"출항할 병력이 없어요." end
+    if troops<1 then return false,"병력 부족" end
     local target=w.sim:owner(dst)
     local u=self.s:create("TransportShip",owner,path[1],{troops=troops,targetTile=dst,target=target})
     if target~=0 and w.sim.players[target].kind~="BOT" and w.sim.players[owner].kind~="BOT" and w.resolveRequest then w:resolveRequest(owner,target,false,nil,"rejected") end
@@ -61,15 +61,15 @@ function M:resolveRetreat(u)
 end
 function M:retreat(owner,id)
     local u=self.s:unit(id)
-    if not u or u.owner~=owner or u.kind~="TransportShip" or u.retreating then return false,"철수할 내 수송선을 선택하세요." end
+    if not u or u.owner~=owner or u.kind~="TransportShip" or u.retreating then return false,"수송선 선택" end
     u.retreating=true
-    if not self:resolveRetreat(u)then return true,"복귀 경로가 없어 병력을 반환했어요." end
-    return true,"수송선이 복귀해요. 상륙 시 병력 25%를 잃어요."
+    if not self:resolveRetreat(u)then return true,"복귀 경로 없음  병력 반환" end
+    return true,"수송선 복귀  병력 -25%"
 end
 function M:move(owner,id,tile)
     local u=self.s:unit(id)
-    if not u or u.owner~=owner or u.kind~="Warship" or not self.nav:valid(tile) or not self.nav:water(tile) then return false,"내 군함과 이동할 바다를 선택하세요." end
-    local path=self.nav:path(u.tile,tile);if not path then return false,"연결되지 않은 바다예요." end
+    if not u or u.owner~=owner or u.kind~="Warship" or not self.nav:valid(tile) or not self.nav:water(tile) then return false,"군함과 바다 선택" end
+    local path=self.nav:path(u.tile,tile);if not path then return false,"연결되지 않은 바다" end
     local d=self:record(u);d.path=nil;d.destination=nil;d.manualTick=self.w.sim.ticks;d.retreatPort=nil
     u.patrolTile=tile;u.targetTile=nil;u.navalState="patrolling";return true,"군함의 순찰 구역을 옮겨요."
 end
@@ -105,12 +105,12 @@ function M:tickTransport(u)
     end
 end
 function M:spawnWarship(owner,tile)
-    if not self.nav:water(tile) then return false,"군함을 배치할 바다를 선택하세요." end
-    local port=self:port(owner,tile);if not port then return false,"이 바다에 연결된 내 항구를 먼저 건설하세요." end
-    if not self.s:pay(owner,"Warship") then return false,"군함을 건조할 골드가 부족해요." end
+    if not self.nav:water(tile) then return false,"바다 선택" end
+    local port=self:port(owner,tile);if not port then return false,"연결된 항구 필요" end
+    if not self.s:pay(owner,"Warship") then return false,"골드 부족" end
     local u=self.s:create("Warship",owner,port.tile,{health=1000,maxHealth=1000,veterancy=0,patrolTile=tile,navalState="patrolling"})
     self.s:effect("shipReady",port.tile,owner,{})
-    self:record(u);return true,"군함을 건조했어요. 바다를 순찰하며 자동으로 교전해요."
+    self:record(u);return true,"군함 건조"
 end
 function M:veteran(u,kind)
     if u.veterancy>=3 then return end
@@ -194,8 +194,10 @@ function M:tickWarship(u)
         u.inCombat=true
         for _=1,2 do
             if self.nav:manhattan(u.tile,target.tile)<=5 then
-                self.w:notify(target.owner,string.format("%s에게 무역선을 나포당했어요.",self.w.resources[u.owner].name),"loss",target.tile)
-                target.owner=u.owner;target.captured=true;self:record(target).path=nil;self:veteran(u,"TradeShip");return
+                self.w:notify(target.owner,string.format("무역선 나포됨 %s",self.w.resources[u.owner].name),"loss",target.tile)
+                target.owner=u.owner;target.captured=true;self:record(target).path=nil;self:veteran(u,"TradeShip")
+                local res=self.w.resources[u.owner];if res then res.tradeCaptures=(res.tradeCaptures or 0)+1 end
+                return
             end
             self:walk(u,target.tile,1)
         end;return
@@ -272,12 +274,20 @@ function M:tickTrade(u)
             local robbed=d.original and self.w.resources[d.original]
             if d.original~=u.owner and robbed then self.w:notify(u.owner,string.format("%s에게서 나포한 무역선으로 골드 +%s",robbed.name,self.w.amount(tonumber(amount))),"capture",dst.tile) end
         elseif src then
-            for _,port in ipairs({src,dst}) do self.w:setGold(port.owner,B.add(self.w:getGold(port.owner),gold));self.s:effect("trade",port.tile,port.owner,{gold=amount}) end
+            for _,port in ipairs({src,dst}) do self.w:setGold(port.owner,B.add(self.w:getGold(port.owner),gold));self.s:effect("trade",port.tile,port.owner,{gold=amount})
+                local res=self.w.resources[port.owner];if res then res.tradeGold=(res.tradeGold or 0)+(tonumber(amount)or 0)end end
         end
         return
     end
     d.index+=1;u.tile=d.path[d.index];d.traveled+=1
-    for _,n in ipairs(self.w.sim:neighbors(u.tile)) do if self.nav:land(n) then u.safeTick=self.w.sim.ticks;break end end
+    local sim=self.w.sim;local neighbors=self.tradeNeighbors
+    if not neighbors then neighbors={};self.tradeNeighbors=neighbors else table.clear(neighbors) end
+    local tile,width,height=u.tile,sim.width,sim.height;local x=tile%width
+    if tile>=width then table.insert(neighbors,tile-width) end
+    if tile<(height-1)*width then table.insert(neighbors,tile+width) end
+    if x~=0 then table.insert(neighbors,tile-1) end
+    if x~=width-1 then table.insert(neighbors,tile+1) end
+    for _,n in ipairs(neighbors) do if self.nav:land(n) then u.safeTick=sim.ticks;break end end
 end
 function M:tick(u)
     if u.kind=="TransportShip" then self:tickTransport(u) elseif u.kind=="Warship" then self:tickWarship(u) elseif u.kind=="Shell" then self:tickShell(u) elseif u.kind=="Port" then self:tickPort(u) elseif u.kind=="TradeShip" then self:tickTrade(u) end

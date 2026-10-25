@@ -2,6 +2,7 @@ local Manifest=require(script.Parent.CosmeticMeshManifest)
 local M={state={},diagnostics={},enabled=true}
 local templates={};local waiting={};local watchers={};local rigs={}
 local LIMIT=4;local active=0;local queue={}
+local RETRIES=3;local BACKOFF={15,60,180};local fails={}
 local Assets=(function()local ok,s=pcall(function()return game:GetService('AssetService')end);return ok and s or nil end)()
 local MAT=Enum.Material
 local V3,CF,ANG=Vector3.new,CFrame.new,CFrame.Angles
@@ -33,6 +34,7 @@ local function pump()
         task.spawn(function()
             local p,err=create(id)
             templates[id]=p or false;if err then M.diagnostics[id]=err end
+            if p then fails[id]=nil else local f=fails[id]or {n=0};f.n+=1;f.at=os.clock();fails[id]=f end
             active-=1
             local keys=waiting[id];waiting[id]=nil
             if keys then for key in pairs(keys)do settle(key)end end
@@ -41,9 +43,19 @@ local function pump()
     end
 end
 function M.has(key)return M.enabled and Manifest[key]~=nil end
+local function retry(key,now)
+    local again,pending={},false
+    for _,d in ipairs(Manifest[key].parts)do local id=d.meshId;if templates[id]==nil then pending=true end
+        if templates[id]==false then local f=fails[id]
+            if not f or f.n>RETRIES or now-f.at<BACKOFF[f.n]then return false end
+            again[id]=true end end
+    if not next(again)and not pending then return false end
+    for id in pairs(again)do templates[id]=nil end
+    M.state[key]=nil;return true
+end
 function M.request(key)
     if not M.has(key)then return nil end
-    local s=M.state[key];if s then return s end
+    local s=M.state[key];if s=='failed'and Assets then retry(key,os.clock());s=M.state[key]end;if s then return s end
     if not Assets then M.state[key]='failed';return 'failed'end
     M.state[key]='loading'
     for _,d in ipairs(Manifest[key].parts)do
@@ -158,7 +170,8 @@ function M.build(parent,key,opts)
             k=opts.heroScale;cf=CF(hb+(cf.Position-hb)*k)*cf.Rotation
         end
         p.Name=d.name;p.Size=V3(d.size[1]*gk,d.size[2],d.size[3]*gk)*s*k
-        local at=origin*CF(cf.Position*s)*cf.Rotation
+        local o=opts.originFor and opts.originFor(d)or origin
+        local at=o*CF(cf.Position*s)*cf.Rotation
         p.CFrame=at;p.Material=MAT[d.material]or MAT.SmoothPlastic
         p.Color=d.tint and colors[d.tint]or rgb(d.color)
         if d.material=='Neon'then p.CastShadow=false end
@@ -173,8 +186,8 @@ function M.build(parent,key,opts)
         p.Parent=parent
         local r={part=p,home=at,def=d,kind=e.kind,phase=d.phase,tint=d.tint,side=e.side,index=e.index,offset=e.offset,radius=e.radius and e.radius*s*k}
         if e.kind then
-            local function place(v)return v and origin*((k~=1 and hb+(v-hb)*k or v)*s)end
-            r.hinge=place(e.hinge);r.hip=place(e.hip);r.axis=e.axis and origin.Rotation*e.axis
+            local function place(v)return v and o*((k~=1 and hb+(v-hb)*k or v)*s)end
+            r.hinge=place(e.hinge);r.hip=place(e.hip);r.axis=e.axis and o.Rotation*e.axis
         end
         table.insert(out,r)
     end

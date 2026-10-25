@@ -84,8 +84,7 @@ function M.draw(hub,body,w,y)
     end
     local last=shop.lastSupply or billing.history[1]
     if last then local b=UI.button(body,'LastResult',last.name..'  ›',function()Reveal.open(shop,last,function()shop:drawSupply(kind,billing.testingAvailable and 'studio'or 'ticket')end)end);UI.box(b,0,y,w,44);b.TextSize=14;y+=54 end
-    text(body,'FairPlay','외형만 변경, 전투 성능 동일',2,y,w-4,26,12,UI.colors.muted);y+=34
-    if not billing.paidRandomAllowed then text(body,'PaidRestriction',billing.policyKnown and '이 계정에서는 유료 뽑기를 이용할 수 없어요.'or '이용 가능 여부를 확인하지 못했어요. 다시 시도해 주세요.',2,y,w-4,42,12,UI.colors.muted);y+=50 end
+    if not billing.paidRandomAllowed then text(body,'PaidRestriction',billing.policyKnown and '유료 뽑기 불가'or '확인 실패',2,y,w-4,42,12,UI.colors.muted);y+=50 end
     body.CanvasSize=UDim2.fromOffset(0,y+8)
 end
 return M

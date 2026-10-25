@@ -13,6 +13,8 @@ local steel=Color3.fromRGB(172,184,198)
 local water=Color3.fromRGB(34,104,142)
 local roles={City="skyline",DefensePost="star-bastion",Port="gantry-crane",Factory="rail-train",MissileSilo="vertical-missile",SAMLauncher="radar-launcher"}
 M.roles=roles
+local blocks
+M.previewOrder={"City","Port","MissileSilo","Factory","DefensePost","SAMLauncher"}
 function M.create(kind,style,level,detail,ownerColor)
     level=math.clamp(level or 1,1,3);local detailed=detail~=false
     if not roles[kind]then error("Unknown building model: "..tostring(kind))end
@@ -25,6 +27,17 @@ function M.create(kind,style,level,detail,ownerColor)
         model:SetAttribute("VisualLevel",level);model:SetAttribute("Detailed",detailed);model:SetAttribute("Theme","WarRoomV4")
         model:SetAttribute("RoleSilhouette",roles[kind]);model:SetAttribute("PartCount",#model:GetChildren());return model
     end
+    if style.access=="free"and not style.tier and Themes.defaultKey(kind)then
+        local model=Themes.createDefault(kind,level,detailed,ownerColor or rgb(style.territory or style.accent),function()return blocks(kind,style,level,detailed,ownerColor)end)
+        if model:GetAttribute("MeshItem")then
+            model:SetAttribute("VisualLevel",level);model:SetAttribute("Detailed",detailed);model:SetAttribute("Theme","WarRoomV4")
+            model:SetAttribute("RoleSilhouette",roles[kind]);model:SetAttribute("PartCount",#model:GetChildren())
+        end
+        return model
+    end
+    return blocks(kind,style,level,detailed,ownerColor)
+end
+blocks=function(kind,style,level,detailed,ownerColor)
     local model=Instance.new("Model");model.Name=kind
     local body=rgb(style.primary):Lerp(ice,style.tier and style.tier>=3 and .24 or .45)
     local trim=rgb(style.secondary);local signal=rgb(style.accent)
@@ -274,4 +287,5 @@ function M.preview(parent,kind,style)
     local camera=Instance.new("Camera");camera.FieldOfView=34;camera.CFrame=CFrame.lookAt(Vector3.new(6.4,6.6,7.6),Vector3.new(0,1.35,0));camera.Parent=frame;frame.CurrentCamera=camera
     local model=M.create(kind,style,kind=="City"and 2 or 1,true);model.Parent=frame;return frame
 end
+Themes.prefetchDefault()
 return M

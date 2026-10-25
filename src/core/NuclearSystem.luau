@@ -11,15 +11,15 @@ function M:readySilo(owner,tile)
     return Aim.readySilo(self.w,owner,tile)
 end
 function M:canLaunch(owner,kind,tile)
-    if self.w.sim.ticks<(self.w.settings.spawnImmunityDuration or 50) then return false,"시작 보호 시간이 끝나면 로켓을 발사할 수 있어요." end
-    if not self.nav:valid(tile) or T.isImpassable(self.w.sim.terrain[tile+1]) or U.disabled(self.w.settings,kind) then return false,"발사할 수 없는 목표예요." end
+    if self.w.sim.ticks<(self.w.settings.spawnImmunityDuration or 50) then return false,"보호 시간" end
+    if not self.nav:valid(tile) or T.isImpassable(self.w.sim.terrain[tile+1]) or U.disabled(self.w.settings,kind) then return false,"발사할 수 없는 목표" end
     local w=self.w;local target=w.sim:owner(tile);local p,q=w.sim.players[owner],w.sim.players[target]
-    if kind=="MIRV" and target==0 then return false,"다탄두 로켓은 상대 영토를 선택해야 해요." end
-    if p.team and q and q.team==p.team then return false,"같은 팀의 영토는 공격할 수 없어요." end
+    if kind=="MIRV" and target==0 then return false,"상대 영토 선택" end
+    if p.team and q and q.team==p.team then return false,"같은 팀" end
     if p.team and kind~="MIRV" then local _,outer=U.magnitude(kind)
-        for _,u in ipairs(w.units) do if u.active and U.structures[u.kind] and w.sim.players[u.owner].team==p.team and w:distance2(u.tile,tile)<=outer*outer then return false,"폭발 범위에 같은 팀의 건물이 있어요." end end
+        for _,u in ipairs(w.units) do if u.active and U.structures[u.kind] and w.sim.players[u.owner].team==p.team and w:distance2(u.tile,tile)<=outer*outer then return false,"범위에 같은 팀 건물" end end
     end
-    local silo=self:readySilo(owner,tile);if not silo then return false,"완공된 미사일 사일로가 필요해요. 발사 후 9초 동안 재장전해요." end
+    local silo=self:readySilo(owner,tile);if not silo then return false,"사일로 필요" end
     return true,silo
 end
 function M:flight(kind,owner,src,dst,speed,wait,up)
@@ -30,11 +30,11 @@ end
 function M:launch(owner,kind,tile,options)
     local valid,silo=self:canLaunch(owner,kind,tile);if not valid then return false,silo end
     if options and not options.any then
-        if options.silo~=silo.id then return false,'발사 시설이 바뀌었어요. 새 경로를 확인하세요.'end
+        if options.silo~=silo.id then return false,'발사 시설 변경'end
         local stamp=table.concat(Aim.breakList(self.w,owner,kind,tile),',')
-        if options.relationStamp~=stamp then return false,'동맹 영향이 바뀌었어요. 목표를 다시 확인하세요.'end
+        if options.relationStamp~=stamp then return false,'동맹 변경, 다시 확인'end
     end
-    if not self.s:pay(owner,kind) then return false,"발사할 골드가 부족해요." end
+    if not self.s:pay(owner,kind) then return false,"골드 부족" end
     local tick=self.w.sim.ticks;local wait=0;local last=0
     for _,t in ipairs(silo.missileQueue or {}) do last=math.max(t+1,last+1) end;wait=math.max(0,last-tick)
     silo.missileQueue=silo.missileQueue or {};table.insert(silo.missileQueue,tick)
@@ -96,7 +96,7 @@ function M:detonate(u)
         if self.nav:land(t) then
             if w.settings.waterNukes then
                 self.nav:queueWater(t)
-            elseif not w.sim.fallout[t] then w.sim.fallout[t]=true;w.falloutTiles=(w.falloutTiles or 0)+1 end
+            elseif not w.sim.fallout[t] then w.sim.fallout[t]=true;w.sim.falloutRevision=(w.sim.falloutRevision or 0)+1;w.falloutTiles=(w.falloutTiles or 0)+1 end
         end
     end
     for id,count in pairs(impacted) do
@@ -135,8 +135,8 @@ function M:cancelBetween(a,b)
         local launcher,other=pairing[1],pairing[2];local n=counts[launcher]
         if n then
             local launcherName,otherName=self.w.resources[launcher].name,self.w.resources[other].name
-            self.w:notify(launcher,string.format("%s 동맹 체결로 그쪽으로 보낸 로켓 %d발이 해제됐어요.",otherName,n),"diplomacy")
-            self.w:notify(other,string.format("%s 동맹 체결로 나를 향하던 로켓 %d발이 해제됐어요.",launcherName,n),"diplomacy")
+            self.w:notify(launcher,string.format("%s 동맹  내 로켓 %d발 해제",otherName,n),"diplomacy")
+            self.w:notify(other,string.format("%s 동맹  날아오던 로켓 %d발 해제",launcherName,n),"diplomacy")
         end
     end
 end

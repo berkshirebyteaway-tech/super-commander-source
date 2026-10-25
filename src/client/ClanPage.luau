@@ -30,12 +30,13 @@ local function ask(lobby,action,a,b,c)
             elseif action=='leave'and had and not r.unit then step('clanLeft')end
         elseif ok and type(r)=='table'and r.reason=='need-token'then
             lobby.unitBusy=false;return ask(lobby,'buyExtra')
-        elseif ok and type(r)=='table'then lobby.notify(r.message or '다시 시도해 주세요.',true)
+        elseif ok and type(r)=='table'then lobby.notify(r.message or '다시 시도',true)
         else lobby.notify('연결 끊김, 다시 시도',true)end
         if action=='read'and not good then lobby.unitReadFailed=true end
         if lobby.page=='clan'then lobby:drawPage()end
     end)
 end
+M.ask=ask
 Market.PromptProductPurchaseFinished:Connect(function(userId,productId,purchased)
     if userId~=Me.UserId or not M.extraProduct or productId~=M.extraProduct then return end
     M.extraProduct=nil;pcall(Telemetry.step,'clan','extraPrompt',{result=purchased and 'accepted'or 'cancelled'})
@@ -47,6 +48,7 @@ end)
 function M.draw(lobby,body,w)
     M.lobby=lobby
     lobby.pageTitle.Text='클랜'
+    if require(script.Parent.Lobby20).ENABLED then require(script.Parent.Clan20).draw(lobby,body,w);return end
     local cw=w-10
     local compact=cw<560
     local y=0
@@ -137,7 +139,6 @@ function M.draw(lobby,body,w)
         y+=bh+12
         local head=UI.label(body,'MarkHead','엠블럼 색',16,C.ink);UI.box(head,4,y,200,24);y+=30
         M.swatches(body,u.color,function(i)if i~=u.color then step('clanMarkColor',tostring(i));ask(lobby,'color',i)end end,2,y,cw,48);y+=60
-        local hint=UI.label(body,'MarkHint','클랜장만 바꿀 수 있어요. 고르면 모든 클랜원에게 바로 보여요',13,C.muted);hint.TextWrapped=true;UI.box(hint,4,y,cw-8,40);y+=48
         body.CanvasSize=UDim2.fromOffset(0,y);return
     end
     lobby.clanMark=nil
@@ -191,8 +192,8 @@ function M.draw(lobby,body,w)
         if stage=='extra'then attendB.TextColor3=C.gold;local es2=attendB:FindFirstChildOfClass('UIStroke');if es2 then es2.Color=C.gold;es2.Transparency=.3 end end
         if stage=='done'then UI.enabled(attendB,false)end
         if stage=='extra'and a.tokens==0 and v.product and not v.product.studio then local live=v.product.available==true;pcall(Telemetry.offerSeen,'clanAttend','clanStrip',live and 'shown'or 'unavailable',live and 'none'or 'sales_disabled')end
-        local hint=UI.label(strip,'AttendHint',string.format('무료 하루 1번, Robux로 %d번 더, 1번에 기여 +%d',a.extraMax,a.amount),11,C.muted)
-        UI.box(hint,compact and 14 or 46,compact and 124 or 66,compact and cw-28 or 300,18)
+        local hint=UI.label(strip,'AttendHint','+'..a.amount..' 기여',12,C.gold);hint.TextXAlignment=Enum.TextXAlignment.Center
+        UI.box(hint,bx,byy+46,bw,18);hint.Visible=stage~='done'
         if lobby.clanGain and os.clock()-lobby.clanGain<.6 then lobby.clanGain=nil;V.float(strip,'+'..a.amount,bx+20,byy-6,C.gold)end
         y+=(compact and 150 or 96)+10
         lobby.clanTab=lobby.clanTab or 'members'
@@ -239,13 +240,11 @@ function M.draw(lobby,body,w)
                 end
                 y+=62
             end
-            local hint=UI.label(body,'MembersHint','이번 주 기여 순. 기여는 출석과 클랜전으로 쌓여요. 코드로 클랜원 초대',12,C.muted);UI.box(hint,4,y,cw-8,20);y+=28
         elseif lobby.clanTab=='board'then
-            local head=UI.label(body,'BoardHead','출석과 클랜전으로 쌓은 클랜 기여 순위',13,C.muted);UI.box(head,4,y,cw-8,20);y+=26
-            boardRows(v.top or {},u.id,'xp','아직 기록 없음. 오늘 출석으로 첫 기여를 쌓아 보세요')
+            boardRows(v.top or {},u.id,'xp','기록 없음')
         else
             M.warCard(lobby,body,v,u,cw,compact,function(dy)y+=dy end,function()return y end,card,text,action)
-            boardRows(v.war.top or {},u.id,'war','이번 달 클랜전 기록 없음')
+            boardRows(v.war.top or {},u.id,'war','기록 없음')
         end
         y+=6
         local leave=action(body,'LeaveClan',u.isLeader and u.count>1 and '클랜 나가기, 최고참이 클랜장 승계'or '클랜 나가기',function()
@@ -260,14 +259,14 @@ function M.draw(lobby,body,w)
         local e=V.emblem(banner,'PitchEmblem','CLAN',7,es);UI.box(e,compact and 12 or 22,compact and 14 or (bh-es)/2,es,es)
         local tx=(compact and 12 or 22)+es+(compact and 12 or 22);local tw=cw-tx-16
         local t=UI.label(banner,'PitchTitle','클랜',compact and 24 or 30,C.ink);UI.display(t);UI.box(t,tx,compact and 10 or 12,tw,compact and 34 or 38)
-        local s=UI.label(banner,'PitchLine','최대 100명, 매일 출석으로 클랜 레벨 1~100, 매달 클랜전 순위',13,C.muted);UI.box(s,tx,compact and 44 or 52,tw,compact and 36 or 20)
+        local s=UI.label(banner,'PitchLine','100명  Lv100  월간 클랜전',13,C.muted);UI.box(s,tx,compact and 44 or 52,tw,compact and 36 or 20)
         if compact then s.TextWrapped=true;s.TextScaled=true;UI.make('UITextSizeConstraint',s,{MaxTextSize=13,MinTextSize=10})end
         local by=compact and 92 or 84
         if v.prime then
-            local okPill=UI.pill(banner,'PrimeOwned','✓ 커맨더 프라임, 클랜을 만들거나 가입할 수 있어요',C.prime);UI.box(okPill,tx,by,math.min(tw,330),24);okPill.TextSize=12
+            local okPill=UI.pill(banner,'PrimeOwned','✓ 커맨더 프라임',C.prime);UI.box(okPill,tx,by,math.min(tw,150),24);okPill.TextSize=12
         else
             local lock=Icons.create(banner,'lock',14,C.prime);lock.Name='PrimeLock';UI.box(lock,tx,by+5,14,14)
-            local need=UI.label(banner,'PrimeNeed','커맨더 프라임 보유자만 클랜을 만들고 가입할 수 있어요',13,C.prime);UI.box(need,tx+20,by,tw-20,24)
+            local need=UI.label(banner,'PrimeNeed','프라임 전용',13,C.prime);UI.box(need,tx+20,by,tw-20,24)
             local go=action(banner,'ViewPrime','커맨더 프라임 보기',function()step('clanPrimeView');lobby:openPage('benefits')end,true,tx,by+30,math.min(tw,220),48)
         end
         local need,go=banner:FindFirstChild('PrimeNeed'),banner:FindFirstChild('ViewPrime')
@@ -282,8 +281,7 @@ function M.draw(lobby,body,w)
             local jb=action(join,'JoinByCode','코드로 가입',function()ask(lobby,'join',code.Text)end,true,cw-14-130,8,130,48)
             if not v.prime then UI.enabled(jb,false)end
             y+=72
-            local head=UI.label(body,'FindHead','기여 상위 클랜, 바로 가입할 수 있어요',13,C.muted);UI.box(head,4,y,cw-8,20);y+=26
-            boardRows(v.top or {},nil,'xp','아직 클랜이 없어요. 첫 클랜을 만들어 보세요',{prime=v.prime})
+            boardRows(v.top or {},nil,'xp','클랜 없음',{prime=v.prime})
         elseif lobby.clanGuestTab=='create'then
             local h=compact and 330 or 250
             local create=card('CreateCard',h,C.gold)
@@ -302,13 +300,12 @@ function M.draw(lobby,body,w)
             refresh()
             local swy=compact and nameY+104 or nameY+52;local swx=compact and fx or fx+160
             M.swatches(create,d.color,function(i)d.color=i;lobby:drawPage()end,swx,swy,compact and fw or fw-160)
-            local make=action(create,'CreateClan',v.prime and '클랜 만들기'or '커맨더 프라임 보유자만 만들 수 있어요',function()if v.prime then ask(lobby,'create',name.Text,tagBox.Text,d.color)end end,v.prime,fx,h-58,fw)
+            local make=action(create,'CreateClan',v.prime and '클랜 만들기'or '프라임 전용',function()if v.prime then ask(lobby,'create',name.Text,tagBox.Text,d.color)end end,v.prime,fx,h-58,fw)
             if not v.prime then UI.enabled(make,false)end
             y+=h+8
-            local hint=UI.label(body,'CreateHint','이름과 약칭은 모두에게 보여요. 클랜장이 클랜 마크를 꾸밀 수 있어요',12,C.muted);UI.box(hint,4,y,cw-8,20);y+=28
         else
             M.warCard(lobby,body,v,nil,cw,compact,function(dy)y+=dy end,function()return y end,card,text,action)
-            boardRows(v.war.top or {},nil,'war','이번 달 클랜전 기록 없음')
+            boardRows(v.war.top or {},nil,'war','기록 없음')
         end
     end
     if v.studio then
@@ -348,15 +345,15 @@ function M.warCard(lobby,body,v,u,cw,compact,advance,getY,card,text,action)
         local rec=skip(UI.label(p,'WarRecord',string.format('%s점  %d승 %d패  %s',UI.number(u.war.points),u.war.wins,u.war.losses,u.war.rank and string.format('%d위',u.war.rank)or '순위 밖'),compact and 16 or 20,C.ink))
         UI.display(rec);rec.TextXAlignment=compact and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right;UI.box(rec,compact and 16 or cw-16-340,compact and 60 or 14,340,28)
     end
-    local rules=string.format('클랜원 %d~%d명 파티로 같은 인원의 다른 클랜 %d~%d곳과 붙어요. 원작 규칙. 승리 +%d~%d점, 패배 %d점. 이기면 각자 기여 +%d',
-        War.minSize,War.maxSize,War.minClans-1,War.maxClans-1,War.winFor(War.minClans,War.minSize),War.winFor(War.maxClans,War.maxSize),war.lossPoints or War.lossPoints,war.winContribution or War.winContribution)
+    local rules=string.format('%d~%d인 파티  최대 %d클랜  승리 +%d~%d  패배 %d  기여 +%d',
+        War.minSize,War.maxSize,War.maxClans,War.winFor(War.minClans,War.minSize),War.winFor(War.maxClans,War.maxSize),war.lossPoints or War.lossPoints,war.winContribution or War.winContribution)
     local rl=UI.label(p,'WarRules',rules,12,C.muted);rl.TextWrapped=true;UI.box(rl,16,compact and 92 or 60,cw-32,compact and 40 or 36)
     local party=lobby.data and lobby.data.party;local n=party and type(party.users)=='table'and #party.users or 1
     local fits=n>=War.minSize and n<=War.maxSize
-    local sizeText=fits and string.format('같이 가는 클랜원 %d명, %d명씩 최대 %d클랜이 붙어요',n-1,n,War.maxClans)or string.format('클랜원을 파티에 초대해 주세요 (%d~%d명)',War.minSize,War.maxSize)
+    local sizeText=string.format('파티 %d / %d~%d',n,War.minSize,War.maxSize)
     local sl=UI.label(p,'WarParty',sizeText,13,fits and C.ink or C.muted);UI.box(sl,16,compact and 136 or 98,cw-32,18)
     local queue=lobby.clanWarQueue
-    local label=not u and '클랜에 가입하면 참가할 수 있어요'or not queue and '클랜전은 랭크전과 함께 열려요'or fits and string.format('%d대%d 클랜전 찾기',n,n)or '클랜원과 파티를 맺어 주세요'
+    local label=not u and '클랜 가입 필요'or not queue and '곧 열려요'or fits and string.format('%d대%d 클랜전 찾기',n,n)or string.format('파티 %d~%d명 필요',War.minSize,War.maxSize)
     local can=u~=nil and queue~=nil and fits
     local b=action(p,'FindClanWar',label,function()if queue and u and fits then step('clanWarQueue','p'..tostring(n));queue(lobby)end end,can,16,h-56,cw-32)
     if not can then UI.enabled(b,false)end

@@ -30,14 +30,14 @@ function M:hasEmbargo(a,b) return (self.world.resources[a].embargo or {})[b]~=ni
 function M:canTrade(a,b) return a~=b and not self:hasEmbargo(a,b) and not self:hasEmbargo(b,a) end
 function M:embargoAll(owner,enabled)
     local w=self.world;local p=w.sim.players[owner];local r=w.resources[owner]
-    if w.phase~="playing" or not p or p.tiles.size==0 or type(enabled)~="boolean" then return false,"진행 중인 경기에서 사용할 수 있어요." end
-    if w.sim.ticks-(r.lastEmbargoAll or -1)<100 then return false,"전체 금수는 10초마다 바꿀 수 있어요." end
+    if w.phase~="playing" or not p or p.tiles.size==0 or type(enabled)~="boolean" then return false,"경기 중에만" end
+    if w.sim.ticks-(r.lastEmbargoAll or -1)<100 then return false,"금수 재사용 대기" end
     local found=false
     for id,q in ipairs(w.sim.players) do if id~=owner and q.kind~="BOT" and not (p.team and p.team==q.team) and not w:friendly(owner,id,true) then
         found=true;self:embargo(owner,id,enabled,false,w.sim.ticks)
     end end
-    if not found then return false,"교역을 끊을 적이 없어요." end
-    r.lastEmbargoAll=w.sim.ticks;return true,enabled and "적과 교역을 중단했어요." or "적과 교역을 재개했어요."
+    if not found then return false,"끊을 교역 없음" end
+    r.lastEmbargoAll=w.sim.ticks;return true,enabled and "적과 교역 중단" or "적과 교역 재개"
 end
 function M:embargo(a,b,enabled,temporary,tick)
     local r=self.world.resources[a];r.embargo=r.embargo or {}
@@ -57,15 +57,15 @@ function M:expireTemporary(a,tick)
 end
 function M:queue(a,b,kind,amount)
     local w=self.world
-    if w.phase~="playing" or not w.resources[a] or not w.resources[b] or a==b then return false,"활동 중인 상대를 선택하세요." end
+    if w.phase~="playing" or not w.resources[a] or not w.resources[b] or a==b then return false,"대상 선택" end
     if kind=="gold" or kind=="troops" then
-        if not self:canDonate(a,b,kind) then return false,"동맹에게만 지원할 수 있어요. 같은 상대에게는 10초마다 보낼 수 있어요." end
+        if not self:canDonate(a,b,kind) then return false,"동맹만 지원  재사용 대기" end
         if amount~=nil and (type(amount)~="number" or amount~=amount or amount<=0 or amount>9007199254740991) then return false,"지원량이 올바르지 않아요." end
-        if kind=="gold" and B.compare(w:getGold(a),ZERO)==0 then return false,"보낼 골드가 없어요." end
-        if kind=="troops" and (w.sim.players[a].troops<1 or w:maxTroops(b)<=w.sim.players[b].troops) then return false,"상대의 병력이 최대이거나 보낼 병력이 없어요." end
+        if kind=="gold" and B.compare(w:getGold(a),ZERO)==0 then return false,"골드 부족" end
+        if kind=="troops" and (w.sim.players[a].troops<1 or w:maxTroops(b)<=w.sim.players[b].troops) then return false,"병력 부족 또는 상대 가득" end
     elseif kind~="embargoStart" and kind~="embargoStop" then return false,"지원 명령이 올바르지 않아요." end
     for _,list in ipairs({self.pending,self.active}) do
-        for _,o in ipairs(list) do if o.a==a and o.b==b then return false,"이 상대에게 보낸 명령을 처리 중이에요." end end
+        for _,o in ipairs(list) do if o.a==a and o.b==b then return false,"처리 중" end end
     end
     table.insert(self.pending,{a=a,b=b,kind=kind,amount=amount});return true,"외교 명령을 보냈어요."
 end
@@ -85,7 +85,7 @@ function M:step(tick)
     for _,o in ipairs(self.active) do
         if o.kind=="embargoStart" or o.kind=="embargoStop" then
             self:embargo(o.a,o.b,o.kind=="embargoStart",false,tick)
-            w:notify(o.a,string.format(o.kind=="embargoStart" and "%s에 무역 금수를 적용했어요." or "%s의 무역 금수를 해제했어요.",w.resources[o.b].name),"diplomacy")
+            w:notify(o.a,string.format(o.kind=="embargoStart" and "%s 금수" or "%s 금수 해제",w.resources[o.b].name),"diplomacy")
         elseif o.kind=="gold" then
             if self:canDonate(o.a,o.b,o.kind,tick) and B.compare(o.amount,ZERO)>0 then
                 local balance=w:getGold(o.a);local removed=B.compare(balance,o.amount)<0 and balance or o.amount

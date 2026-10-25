@@ -6,13 +6,18 @@ local Favorites=require(script.Parent.Parent.Core.EmojiFavorites)
 local Vip=require(script.Parent.Parent.Core.VipComms)
 local L=require(script.Parent.Localization)
 local VipLock=require(script.Parent.VipLock)
+local LockChip=require(script.Parent.LockChip)
 local Step=require(script.Parent.TelemetryStep)
 local C=UI.colors
 local M={};M.__index=M
+local function v2()local ok,H=pcall(require,script.Parent.Hud20);return ok and type(H)=='table'and H.ENABLED==true end
+local Q20
+local function q20()Q20=Q20 or require(script.Parent.QuickComms20);return Q20 end
 M.RECENT=10
 local TABS={{'messages','대화'},{'emoji','이모지'},{'chat','채팅'},{'motion','모션'}}
 local GROUPS={{false,'전체'},{'작전 응답','응답'},{'인사','인사'},{'도움 요청','도움'},{'공격 제안','공격'},{'방어 제안','방어'},{'경고','경고'},{'작전 대화','작전'}}
 local SCOPES={{'all','전체'},{'team','팀'},{'spectators','관전'}}
+M.TABS=TABS;M.GROUPS=GROUPS;M.SCOPES=SCOPES
 function M.new(parent,callbacks)
     local self=setmetatable({callbacks=callbacks,favorites={},mode='messages',recent={}},M)
     local f=Sheet.frame(parent,'QuickComms');self.frame=f;self.panel=parent
@@ -30,8 +35,10 @@ function M.new(parent,callbacks)
     return self
 end
 function M:hide()
-    if self.frame.Visible and not self.sentNow then Step.step('comms','quickClose',{item=self.mode,result='closed'})end
-    self.sentNow=nil;self.frame.Visible=false;self.subject=nil;self.editing=false;self.draft=nil;self.searching=false
+    local closing=self.frame:GetAttribute('Moving20')=='out'
+    if self.frame.Visible and not closing and not self.sentNow then Step.step('comms','quickClose',{item=self.mode,result='closed'})end
+    self.sentNow=nil;self.subject=nil;self.editing=false;self.draft=nil;self.searching=false
+    if v2()then Sheet.hide20(self.frame)else self.frame.Visible=false end
 end
 function M:alive(f)return f and f.id~=1 and (f.tiles or 0)>0 and not f.eliminated end
 function M:open(mode,id)
@@ -42,8 +49,8 @@ function M:open(mode,id)
     if id and id~=0 and self:alive(self.factions and self.factions[id])then self.targetId=id
     elseif self.mode=='emoji'then self.targetId=id==0 and 0 or self.targetId or 0 end
     if self.mode=='messages'and not self:alive(self.factions and self.factions[self.targetId])then self.targetId=self:recipients()[1]and self:recipients()[1].id or nil end
-    if not self.frame.Visible then Step.step('comms','quickOpen',{item=self.mode,value=#self.favorites})end
-    self.frame.Visible=true;self:draw()
+    if not self.frame.Visible or self.frame:GetAttribute('Moving20')=='out'then Step.step('comms','quickOpen',{item=self.mode,value=#self.favorites})end
+    if v2()then Sheet.show20(self.frame)else self.frame.Visible=true end;self:draw()
 end
 function M:tab(mode)
     if mode==self.mode and not self.subject then return end
@@ -69,7 +76,7 @@ end
 function M:update(state,factions)
     local old=self.state;self.state=state;self.factions=factions
     if state.phase=='menu'or old and old.version~=state.version then self.targetId=nil;self:hide();return end
-    if not self.frame.Visible then return end
+    if not self.frame.Visible or self.frame:GetAttribute('Moving20')=='out'then return end
     if (state.phase~='playing'or state.eliminated)and self.mode~='chat'then self:open('chat');return end
     if self.targetId and self.targetId~=0 and not self:alive(factions[self.targetId])then self.targetId=nil;self:draw(true);return end
     if self:contentSignature()~=self.signature then self:draw(true)end
@@ -100,17 +107,24 @@ function M:chips(strip,items,current,pick,touch)
     end
     strip.CanvasSize=UDim2.fromOffset(x,0)
 end
+local function chip(b,text,color,x,y)
+    local c=LockChip.create(b,text,color,x,y);c.ZIndex=b.ZIndex+2
+    for _,o in ipairs(c:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=b.ZIndex+3 end end
+    return c
+end
 local function cell(parent,name,text,x,y,w,h,fn,locked,mark)
     local b=UI.button(parent,name,text,fn);UI.box(b,x,y,w,h);b.TextSize=14;b.TextWrapped=true;b.TextXAlignment=Enum.TextXAlignment.Left;b.ZIndex=parent.ZIndex+1
     b.BackgroundColor3=Style.colors.chip;Style.round(b,6);Style.line(b,Style.colors.line,1)
-    UI.make('UIPadding',b,{PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,(locked or mark)and 30 or 10)})
-    if locked then b.TextColor3=C.muted;b:SetAttribute('VipLocked',true);local i=Sheet.lock(b,12);UI.box(i,w-12-22,(h-12)/2,12,12)
+    local cw=LockChip.width(LockChip.vip())
+    UI.make('UIPadding',b,{PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,locked and cw+14 or mark and 30 or 10)})
+    if locked then b.TextColor3=C.muted;b.TextTransparency=.45;if w<220 then b.TextSize=12 end;b.BackgroundTransparency=.5;b:SetAttribute('VipLocked',true);chip(b,'VIP',C.vip,w-12-8-cw,(h-LockChip.height)/2)
     elseif mark then local ring=UI.make('Frame',b,{Name='Target',BackgroundTransparency=1,ZIndex=b.ZIndex+1});UI.box(ring,w-12-24,(h-14)/2,14,14);Style.round(ring,7);Style.line(ring,Sheet.SKY,1.5)
         local dot=UI.make('Frame',ring,{Name='Dot',BackgroundColor3=Sheet.SKY,BorderSizePixel=0,ZIndex=b.ZIndex+2});UI.box(dot,4,4,6,6);Style.round(dot,3)end
     return b
 end
 function M:draw(preserveScroll)
     if not self.r then return end
+    if v2()then return q20().draw(self,preserveScroll)end
     local bodyScroll=preserveScroll and self.body.CanvasPosition
     local peopleScroll=preserveScroll and self.people.CanvasPosition
     local groupsScroll=preserveScroll and self.groups.CanvasPosition
@@ -144,7 +158,7 @@ function M:draw(preserveScroll)
     local bw=w;local by=0;local body=self.body
     local function row(h)local yy=by;by+=h;return yy end
     if self.mode=='messages'and not self.subject and #all==0 then
-        Sheet.caption(body,'NoRecipient','보낼 상대가 없어요. 전체 이모지는 보낼 수 있어요',0,row(28),bw)
+        Sheet.caption(body,'NoRecipient','보낼 상대 없음',0,row(28),bw)
     end
     if self.mode=='messages'and self.subject then
         local m=self.subject
@@ -194,11 +208,6 @@ function M:draw(preserveScroll)
             box:GetPropertyChangedSignal('Text'):Connect(function()self.query=box.Text;task.defer(function()if self.frame.Visible and self.searching then self:phrases()end end)end)
         end
         if not self.picking then self.listTop=by;self:phrases();by=self.listBottom or by end
-        if not phone then
-            Sheet.caption(self.foot,'Hint','표시가 있는 문구는 누르면 부대를 한 번 더 골라요',22,0,w-22)
-            local ring=UI.make('Frame',self.foot,{Name='Mark',BackgroundTransparency=1,ZIndex=26});UI.box(ring,2,4,14,14);Style.round(ring,7);Style.line(ring,Sheet.SKY,1.5)
-            footH=26
-        end
     elseif self.mode=='emoji'then
         people(true)
         local free=VipLock.allows('emoji','😀')
@@ -212,7 +221,7 @@ function M:draw(preserveScroll)
                     local b=UI.button(body,prefix..i,e,function()end);UI.box(b,x,yy,size,ch);b.TextSize=22;b.ZIndex=26;b.BackgroundColor3=Style.colors.chip;Style.round(b,8)
                     local picked=self.editing and table.find(self.draft or {},e)~=nil
                     Style.line(b,picked and C.ink or Style.colors.line,picked and 2 or 1)
-                    if locked and not self.editing then b.TextTransparency=.55;b:SetAttribute('VipLocked',true);local l=Sheet.lock(b,11);UI.box(l,size-14,3,11,11)end
+                    if locked and not self.editing then b.TextTransparency=.7;b.BackgroundTransparency=.5;b:SetAttribute('VipLocked',true)end
                     b:SetAttribute('Send',not self.editing)
                     b.Activated:Connect(function()
                         if self.editing then self.draft=Favorites.toggle(self.draft,e)or self.draft;self:draw()else self:send(e,nil,b)end
@@ -226,7 +235,7 @@ function M:draw(preserveScroll)
         local favs=self.editing and self.draft or self.favorites
         local none=#favs==0 and not self.editing
         local tight=phone and none
-        Sheet.caption(body,'FavTitle',none and '즐겨찾기, 편집을 눌러 골라요'or '즐겨찾기',0,by,bw-80).Visible=not tight
+        Sheet.caption(body,'FavTitle','즐겨찾기',0,by,bw-80).Visible=not tight
         local edit=UI.button(body,'EditFavorites',self.saving and '저장 중…'or self.editing and '저장'or '편집',function()
             if self.saving then return end
             if not self.editing then self.draft=Favorites.copy(self.favorites);self.editing=true;self:draw();return end
@@ -246,13 +255,11 @@ function M:draw(preserveScroll)
         else
             by+=touch and 38 or 28
             if not none then grid(favs,'Fav',touch and 0 or 8)end
-            Sheet.caption(body,'FreeTitle','외교 이모지, 누구나 써요',0,row(28),bw);grid(Vip.freeEmojis,'Free')
+            Sheet.caption(body,'FreeTitle','외교',0,row(28),bw);grid(Vip.freeEmojis,'Free')
         end
         Sheet.caption(body,'AllTitle','전체',0,by,60)
         if not free then
-            local l=Sheet.lock(body,12);UI.box(l,bw-206,by+5,12,12)
-            local hint=UI.button(body,'VipEmoji','VIP가 있어야 써요. VIP 보기 ›',function()VipLock.offer('emoji')end);hint.BackgroundTransparency=1;hint.TextColor3=Sheet.SKY;hint.TextSize=13;hint.TextXAlignment=Enum.TextXAlignment.Right
-            UI.box(hint,bw-190,by-(touch and 13 or 6),190,touch and 48 or 34);hint.ZIndex=26;local st=hint:FindFirstChildOfClass('UIStroke');if st then st.Enabled=false end
+            local c=LockChip.create(body,'VIP',C.vip,40,by+1);c.ZIndex=26;for _,o in ipairs(c:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=27 end end
         end
         by+=touch and 38 or 28
         local rest={};for _,e in ipairs(Catalog.emojis)do if not Vip.freeEmoji(e)then table.insert(rest,e)end end
@@ -281,7 +288,7 @@ function M:draw(preserveScroll)
             local t=UI.label(body,'Text'..i,h.text,13,C.ink);t.TextWrapped=false;t.TextTruncate=Enum.TextTruncate.AtEnd;t.ZIndex=26;t:SetAttribute('LocalizationSkip',h.tag==nil)
             if phone then UI.box(t,x,yy,bw-x,rowH)else UI.box(t,34,yy+20,bw-34,22)end
         end
-        if #lines==0 then Sheet.caption(body,'Empty','아직 대화가 없어요.',0,row(28),bw)end
+        if #lines==0 then Sheet.caption(body,'Empty','대화 없음',0,row(28),bw)end
         local ih=touch and 48 or 44;footH=ih+8
         if VipLock.allows('text')then
             local input,go=model.input,model.sendButton
@@ -290,7 +297,7 @@ function M:draw(preserveScroll)
             go.Parent=self.foot;go.ZIndex=26;Style.round(go,8);UI.box(go,w-ih,4,ih,ih);go.TextSize=20
         else
             local m=model;if m.input.Parent==self.foot then m.input.Parent=m.frame;m.sendButton.Parent=m.frame end
-            Sheet.banner(self.foot,'VipText','채팅 입력은 VIP가 있어야 써요','text',4,w,ih)
+            Sheet.banner(self.foot,'VipText','채팅 입력은 VIP',4,w,ih)
         end
         task.defer(function()if self.body.Parent then self.body.CanvasPosition=Vector2.new(0,math.max(0,self.body.CanvasSize.Y.Offset-self.body.AbsoluteSize.Y/UI.scale))end end)
     else
@@ -298,7 +305,7 @@ function M:draw(preserveScroll)
         local Motions=require(script.Parent.MotionsPage);local Icons=require(script.Parent.OutgameIcons)
         local a=self.callbacks.account and self.callbacks.account()or {};local level=(a.progress or {}).level or 1
         local club=VipLock.allows('motion')
-        if not club then Sheet.banner(body,'VipMotion','모션은 VIP가 있어야 써요','motion',row(touch and 56 or 48),bw,40)end
+        if not club then Sheet.banner(body,'VipMotion','모션은 VIP',row(touch and 56 or 48),bw,40)end
         local slots={};for _,id in ipairs(Loadout.copy((a.preferences or {}).motionLoadout,level))do table.insert(slots,{m=Loadout.find(id)})end
         for _,m in ipairs(Career.motions)do if m.level>level and #slots<6 then table.insert(slots,{m=m,locked=true})end end
         while #slots<6 do table.insert(slots,{})end
@@ -313,17 +320,16 @@ function M:draw(preserveScroll)
             b.InputBegan:Connect(function()self.lastCell=b end)
             local empty=not m or sl.locked;Style.line(b,Style.colors.line,1,empty and .2 or 0);if empty then b.BackgroundTransparency=1 end
             local is=phone and 22 or 34
-            local icon=sl.locked and Sheet.lock(b,14)or m and Icons.create(b,Motions.icons[m.id]or 'reward',is,club and C.ink or C.muted)
-            local label=UI.label(b,'Name',sl.locked and string.format('Lv.%d %s',m.level,m.name)or m and m.name or '비어 있음',13,(m and club and not sl.locked)and C.ink or C.muted)
+            local lock=sl.locked and {LockChip.level(m.level)}or m and not club and {LockChip.vip()}
+            local icon=not sl.locked and m and Icons.create(b,Motions.icons[m.id]or 'reward',is,club and C.ink or C.muted)
+            local label=UI.label(b,'Name',m and m.name or '비어 있음',13,(m and club and not sl.locked)and C.ink or C.muted)
             label.TextXAlignment=Enum.TextXAlignment.Center;label.TextWrapped=false;label.TextTruncate=Enum.TextTruncate.AtEnd;label.ZIndex=27;label.Font=Enum.Font.BuilderSansBold
-            if icon then icon.ZIndex=27;local sz=sl.locked and 14 or is;UI.box(icon,(cw-sz)/2,phone and 6 or (ch-sz)/2-14,sz,sz)
-            else local plus=UI.label(b,'Plus','+',20,C.muted);plus.TextXAlignment=Enum.TextXAlignment.Center;plus.ZIndex=27;UI.box(plus,0,phone and 2 or ch/2-30,cw,28)end
+            if lock then local lw=LockChip.width(lock[1]);chip(b,lock[1],lock[2],(cw-lw)/2,phone and 6 or (ch-LockChip.height)/2-14)end
+            if icon then icon.ZIndex=27;icon.Visible=club;UI.box(icon,(cw-is)/2,phone and 6 or (ch-is)/2-14,is,is)
+            elseif not lock then local plus=UI.label(b,'Plus','+',20,C.muted);plus.TextXAlignment=Enum.TextXAlignment.Center;plus.ZIndex=27;UI.box(plus,0,phone and 2 or ch/2-30,cw,28)end
             UI.box(label,6,phone and ch-28 or ch-34,cw-12,22)
         end
         by+=2*(ch+gap)
-        if not phone then
-            local note=UI.label(body,'Note','누르면 내 지휘관이 바로 동작해요. 칸은 레벨이 오르면 열리고, 순서는 스킨 › 모션에서 바꿔요.',13,C.muted);note.ZIndex=26;UI.box(note,0,row(44),bw,40)
-        end
     end
     local model=self.callbacks.model
     if self.mode~='chat'and model and model.input.Parent==self.foot then model.input.Parent=model.frame;model.sendButton.Parent=model.frame end
@@ -336,6 +342,7 @@ function M:draw(preserveScroll)
     if self.state then for _,b in ipairs(body:GetDescendants())do if b:IsA('GuiButton')and b:GetAttribute('Send')and not b:GetAttribute('VipLocked')then UI.enabled(b,self:allowed()==true)end end end
 end
 function M:phrases()
+    if v2()then return q20().phrases(self)end
     local body=self.body;local w=self.r.w-32;local touch=self.touch
     for _,o in ipairs(body:GetChildren())do if o:GetAttribute('Phrase')then o:Destroy()end end
     local by=self.listTop or 0;local q=self.query and self.searching and self.query:lower():gsub('^%s+',''):gsub('%s+$','')or ''
@@ -361,13 +368,14 @@ function M:phrases()
     else
         local free,rest={},{};for _,m in ipairs(found)do table.insert(Vip.freePhrases[m.key]and free or rest,m)end
         list(free,'Message_')
-        local b=Sheet.banner(body,'VipQuickChat','빠른 대화는 VIP가 있어야 써요','quickChat',by,w,40);b:SetAttribute('Phrase',true);by+=48
+        local b=Sheet.banner(body,'VipQuickChat','빠른 대화는 VIP',by,w,40);b:SetAttribute('Phrase',true);by+=48
         list(rest,'Message_')
     end
-    if #found==0 then caption('찾는 문구가 없어요');Step.change('quickSearch','comms','quickSearchEmpty',{result='unavailable'})end
+    if #found==0 then caption('결과 없음');Step.change('quickSearch','comms','quickSearchEmpty',{result='unavailable'})end
     self.listBottom=by;body.CanvasSize=UDim2.fromOffset(0,by+4)
 end
 function M:layout(w,h)
+    if v2()then return q20().layout(self,w,h)end
     local touch=Sheet.touch();self.controls=self.controls or self.panel:FindFirstChild('Controls')
     local r=Sheet.rect(w,h,touch,self.controls and self.controls.Visible and self.controls.Position.Y.Offset or nil)
     UI.box(self.frame,r.x,r.y,r.w,r.h)

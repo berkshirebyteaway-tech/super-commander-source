@@ -8,6 +8,7 @@ function M.describe(name,value,extra,state,context)
     if name=='attack'or name=='transport'or name=='retaliate'then
         local ratio=type(value)=='number'and math.clamp(value,0,1)or context.fraction or .2
         r.quantity=math.floor(ratio*100+.5)..'%'
+        r.ratio=ratio
         if type(extra)=='number'then owner=context.owners and context.owners[extra]end
         if name=='transport'or context.tile==extra and context.route=='transport'then r.title='수송 공격';r.icon='Transport'else r.icon='Soldier'end
     elseif name=='alliance'then owner=extra;r.icon='Alliance'

@@ -15,10 +15,10 @@ function M:clock(mode,now)
 end
 function M:join(ids,mode,now)
     local cfg=M.modes[mode]
-    if not cfg or #ids<1 or #ids>cfg.max then return false,"참가 인원을 확인하세요."end
-    if mode=="duel" and #ids>1 then return false,"1대1은 혼자 신청하세요."end
-    if mode=='pvp'and #ids>1 then return false,"대전은 혼자 신청하세요. 친구와는 연합전으로 출발해요."end
-    local seen={};for _,id in ipairs(ids)do if seen[id] or self.membership[id] then return false,"이미 참가 대기 중이에요."end;seen[id]=true end
+    if not cfg or #ids<1 or #ids>cfg.max then return false,"인원 확인"end
+    if mode=="duel" and #ids>1 then return false,"1대1은 혼자"end
+    if mode=='pvp'and #ids>1 then return false,"대전은 혼자  친구와는 연합전"end
+    local seen={};for _,id in ipairs(ids)do if seen[id] or self.membership[id] then return false,"이미 대기 중"end;seen[id]=true end
     self.sequence+=1;local group={id=self.sequence,users=table.clone(ids),joined=now,mode=mode}
     self.queues[mode]=self.queues[mode] or {};table.insert(self.queues[mode],group)
     for _,id in ipairs(ids)do self.membership[id]=group end

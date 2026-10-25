@@ -1,28 +1,37 @@
-local data=require(script.Parent.BrandMarkPixels)
-local M={};local cache
-local function image()
-    if cache==nil then
+local M={};local cache={}
+local function image(name)
+    if cache[name]==nil then
         local ok,img=pcall(function()
-            local n=data.size;local editable=game:GetService('AssetService'):CreateEditableImage({Size=Vector2.new(n,n)})
+            local data=require(script.Parent[name])
+            local editable=game:GetService('AssetService'):CreateEditableImage({Size=Vector2.new(data.w,data.h)})
             if not editable then return nil end
-            local pixels=buffer.create(n*n*4);local hex,i,p,len,total=data.pixels,1,0,#data.pixels,n*n
-            while i<=len and p<total do
-                if string.byte(hex,i)==122 then p+=tonumber(string.sub(hex,i+1,i+2),16)or 0;i+=3
-                else buffer.writeu32(pixels,p*4,tonumber(string.sub(hex,i,i+7),16)or 0);p+=1;i+=8 end
+            local pixels=buffer.create(data.w*data.h*4);local p,pal=0,data.palette
+            for c,n in string.gmatch(data.pixels,'(%a)(%d*)')do
+                local len,k=tonumber(n)or 1,string.byte(c)-97
+                if k>0 then local col=pal[k];for j=p,p+len-1 do buffer.writeu32(pixels,j*4,col)end end
+                p+=len
             end
-            editable:WritePixelsBuffer(Vector2.zero,Vector2.new(n,n),pixels);return editable
+            editable:WritePixelsBuffer(Vector2.zero,Vector2.new(data.w,data.h),pixels);return editable
         end)
-        cache=ok and img or false
+        cache[name]=ok and img or false
     end
-    return cache
+    return cache[name]
 end
-function M.create(parent,size)
-    local label=Instance.new('ImageLabel');label.Name='BrandMark';label.BackgroundTransparency=1;label.ScaleType=Enum.ScaleType.Fit
-    label.Size=UDim2.fromOffset(size or 40,size or 40)
-    local img=image()
-    if img then label.ImageContent=Content.fromObject(img);label:SetAttribute('Available',true)
-    else label.Visible=false;label:SetAttribute('Available',false)end
-    label.Parent=parent;return label
+local function label(parent,name,source,w,h)
+    local l=Instance.new('ImageLabel');l.Name=name;l.BackgroundTransparency=1;l.ScaleType=Enum.ScaleType.Fit
+    l.Size=UDim2.fromOffset(w,h)
+    local img=image(source)
+    if img then l.ImageContent=Content.fromObject(img);l:SetAttribute('Available',true)
+    else l.Visible=false;l:SetAttribute('Available',false)end
+    l.Parent=parent;return l
 end
+function M.create(parent,size)return label(parent,'BrandMark','BrandMarkPixels',size or 40,size or 40)end
+function M.commander(parent,height)local h=height or 300;return label(parent,'DoodleCommander','DoodleCommanderPixels',math.floor(h*512/743+.5),h)end
 function M.available(label)return label~=nil and label:GetAttribute('Available')==true end
+function M.word(o,stroke)
+    pcall(function()o.Font=Enum.Font.LuckiestGuy end)
+    local s=o:FindFirstChild('Ink')or Instance.new('UIStroke');s.Name='Ink';s.Color=Color3.fromRGB(10,8,6)
+    s.Thickness=stroke or math.max(2,math.floor(o.TextSize*.1+.5));s.LineJoinMode=Enum.LineJoinMode.Round;s.Parent=o
+    return o
+end
 return M

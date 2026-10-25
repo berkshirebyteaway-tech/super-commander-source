@@ -71,13 +71,13 @@ function M:send(kind,payload)
     self.sendSerial=(self.sendSerial or 0)+1;local serial=self.sendSerial
     local version=self.state and self.state.version;local room=self.state and self.state.roomId
     local function current()return self.sendSerial==serial and self.state and self.state.version==version and self.state.roomId==room and self.state.phase=='playing'end
-    task.delay(8,function()if self.preparing and self.sendSerial==serial then self.preparing=false;self.sendSerial+=1;if self.state and self.state.version==version then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,reason='timeout'});self.notify('신호 응답이 늦어요. 다시 시도하세요.',true)end end end)
+    task.delay(8,function()if self.preparing and self.sendSerial==serial then self.preparing=false;self.sendSerial+=1;if self.state and self.state.version==version then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,reason='timeout'});self.notify('신호 응답 지연',true)end end end)
     task.spawn(function()
         local ok,r=pcall(function()return Pack:WaitForChild('CommsPrepare'):InvokeServer(kind,payload)end)
         if not current()then if self.sendSerial==serial then self.preparing=false end;return end
         self.preparing=false
         if ok and type(r)=='table'and r.vip then VipLock.open(kind=='emoji'and 'emoji'or 'quickChat');return end
-        if not ok or type(r)~='table'or not r.ok then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,result=ok and 'rejected'or 'failed',reason=ok and 'none'or 'network'});self.notify(ok and type(r)=='table'and r.message or '소통 연결을 확인해 주세요.',true);return end
+        if not ok or type(r)~='table'or not r.ok then require(script.Parent.TelemetryStep).step('comms','sendFail',{item=kind,result=ok and 'rejected'or 'failed',reason=ok and 'none'or 'network'});self.notify(ok and type(r)=='table'and r.message or '연결 확인 필요',true);return end
         if type(r.ping)=='table'then
             local target;for _,f in pairs(self.factions or {})do if f.matchId==r.ping.subject then target=f;break end end
             self.pings:add(Me.UserId,r.ping,r.ping.tile or target and target.labelTile)
@@ -91,13 +91,13 @@ function M:freeSend()
     if not VipLock.allows('text')then return VipLock.open('text')end
     if self.sending or self.input.Text==''then return end
     local c=self.channels:FindFirstChild(self:channelName(self.scope)or '')
-    if not c then self.notify('Roblox 채팅을 사용할 수 없어요.',true);return end
+    if not c then self.notify('Roblox 채팅 꺼짐',true);return end
     local value=self.input.Text;local version=self.state and self.state.version;local room=self.state and self.state.roomId
     self.textSerial=(self.textSerial or 0)+1;local serial=self.textSerial;self.sending=true;self:draw()
     local function current()return self.textSerial==serial and self.state and self.state.version==version and self.state.roomId==room and self.state.phase~='menu'end
     task.delay(8,function()
         if not current()or not self.sending then return end
-        self.textSerial+=1;self.sending=false;self:draw();self.notify('채팅 응답이 늦어요. 다시 시도하세요.',true)
+        self.textSerial+=1;self.sending=false;self:draw();self.notify('채팅 응답 지연',true)
     end)
     task.spawn(function()
         local ok,message=pcall(function()return c:SendAsync(value)end)
@@ -105,7 +105,7 @@ function M:freeSend()
         self.sending=false;self:draw()
         local status=ok and message and message.Status
         if status==Enum.TextChatMessageStatus.Success or status==Enum.TextChatMessageStatus.Sending then if self.input.Text==value then self.input.Text=''end
-        else require(script.Parent.TelemetryStep).step('comms','sendFail',{item='text',result='failed',reason='failed'});self.notify('Roblox에서 메시지를 전송하지 못했어요.',true)end
+        else require(script.Parent.TelemetryStep).step('comms','sendFail',{item='text',result='failed',reason='failed'});self.notify('전송 실패',true)end
     end)
 end
 function M:received(channel,message)

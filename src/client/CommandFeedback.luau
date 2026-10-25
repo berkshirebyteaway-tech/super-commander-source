@@ -13,6 +13,7 @@ function M.new(parent,flow)
 end
 function M:begin(id,action,version,description,now)
     if not description then return end
+    require(script.Parent.ToyAudio).press(action,description)
     self.current={id=id,action=action,version=version,description=description,at=now or os.clock(),phase='input'}
     if self.icon then self.icon:Destroy()end
     self.icon=require(script.Parent.HotbarIcons).create(self.frame,description.icon,20,UI.colors.ice)
@@ -41,7 +42,7 @@ function M:step(hidden)
     local d=n.description
     self.title.Text=d.title..(d.target~=''and ' → '..d.target or '')
     self.text.TextWrapped=n.phase=='refused';self.text.TextTruncate=n.phase=='refused'and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
-    self.text.Text=n.phase=='refused'and (n.message or '실행 실패')or n.phase=='unknown'and '응답 확인 지연, 작전을 확인하세요'or (d.quantity~=''and d.quantity..' 'or '')..(n.phase=='accepted'and '지시 전달'or n.phase=='pending'and '요청 중…'or '입력 확인')
+    self.text.Text=n.phase=='refused'and (n.message or '실행 실패')or n.phase=='unknown'and '응답 지연'or (d.quantity~=''and d.quantity..' 'or '')..(n.phase=='accepted'and '지시 전달'or n.phase=='pending'and '요청 중…'or '입력 확인')
     self.phase.Text=n.phase=='accepted'and '✓'or n.phase=='refused'and '!'or n.phase=='unknown'and '?'or '···'
     local color=n.phase=='accepted'and UI.colors.good or n.phase=='refused'and UI.colors.danger or n.phase=='unknown'and UI.colors.gold or UI.colors.accent
     self.bar.BackgroundColor3=color;self.text.TextColor3=color

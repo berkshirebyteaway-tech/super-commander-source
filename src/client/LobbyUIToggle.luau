@@ -54,6 +54,9 @@ function M:paint()
 end
 function M:apply(w,h,home,lift,spot)
     local short=h<500;local narrow=w<600
+    if require(script.Parent.LobbyHomeB).START_FLOW then
+        if M.hidden then M.hidden=false;self:restore()end;self.allowed=false;self.button.Visible=false;return
+    end
     self.allowed=home==true
     if M.hidden and not home then M.hidden=false;table.clear(self.hiddenSet);self:paint()end
     local touch=UIS.TouchEnabled and not UIS.MouseEnabled

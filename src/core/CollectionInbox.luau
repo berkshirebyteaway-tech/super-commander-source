@@ -16,7 +16,7 @@ function M.inventory(a)
         if item.standard then out['standard:'..item.style]='items:commanderStandard'end
         for slot,id in pairs(item.loadout)do local ps=M.primary[slot]or slot;out['skin:'..ps..':'..id]='items:'..ps end
     end end
-    for _,key in ipairs({'titles','plates'})do for _,v in ipairs(p.career and p.career[key]or {})do out[key..':'..v.id]='honors'end end
+    for _,v in ipairs(p.career and p.career.plates or {})do out['plates:'..v.id]='honors'end
     return out
 end
 function M.status(a)

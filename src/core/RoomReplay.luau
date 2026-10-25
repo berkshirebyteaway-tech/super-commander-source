@@ -15,6 +15,7 @@ function M.single(room,id,now,campaignView)
     local progress=room and room.progress and room.progress[id]
     if not room or not room.single or not progress or not progress.ended then return nil end
     if room.campaign then local key=M.campaignNext(room,id,campaignView);local stage=Rules.campaign.stage(key)
+        if stage.intro then return {users={id},teams={},mode='training',map=stage.map,intro=true,unrecorded=progress.unrecorded==true}end
         return {users={id},teams={},mode='single',map=stage.map,campaign=stage.id,rewardMode='single'}end
     if room.daily then local Daily=Rules.dailyOperation;local op=Daily.of(Daily.day(now or os.time()));return {users={id},teams={},mode='single',map=op.map,daily=op,rewardMode='single'}end
     if room.intro then return {users={id},teams={},mode='training',map=room.session.map.meta.key,intro=true,unrecorded=progress.unrecorded==true,rewardMode=progress.mode}end

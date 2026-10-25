@@ -79,15 +79,23 @@ local function hull(model)
     local anchor=model:FindFirstChildWhichIsA("BasePart");if not anchor then return nil end
     local gui=Instance.new("BillboardGui");gui.Name="HullBar";gui.Size=UDim2.fromOffset(30,9);gui.AlwaysOnTop=true;gui.LightInfluence=0
     gui.StudsOffsetWorldSpace=Vector3.new(0,1.4,0);gui.SizeOffset=Vector2.new(0,1.9);gui.Adornee=anchor;gui.Parent=model
-    local track=Instance.new("Frame");track.Name="Track";track.Size=UDim2.fromOffset(30,4);track.BorderSizePixel=0;track.BackgroundColor3=Color3.fromRGB(11,15,20);track.BackgroundTransparency=.15;track.Parent=gui
-    local fill=Instance.new("Frame");fill.Name="Fill";fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=good;fill.Parent=track
+    local track=Instance.new("Frame");track.Name="Track";track.Size=UDim2.fromOffset(30,4);track.BorderSizePixel=0;track.BackgroundColor3=Color3.new(1,1,1);track.BackgroundTransparency=0;track.Parent=gui
+    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,2);corner.Parent=track
+    local rim=Instance.new("UIStroke");rim.Color=Color3.fromRGB(11,15,20);rim.Transparency=.4;rim.Thickness=1;rim.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;rim.Parent=track
+    local fill=Instance.new("UIGradient");fill.Name="Fill";fill.Parent=track
     local pips={}
-    for i=1,3 do local p=Instance.new("Frame");p.Name="Veteran"..i;p.Position=UDim2.fromOffset(9+(i-1)*5,6);p.Size=UDim2.fromOffset(3,3);p.BorderSizePixel=0;p.BackgroundColor3=gold;p.Visible=false;p.Parent=gui;pips[i]=p end
+    for i=1,3 do local p=Instance.new("Frame");p.Name="Veteran"..i;p.Position=UDim2.fromOffset(9+(i-1)*5,6);p.Size=UDim2.fromOffset(3,3);p.BorderSizePixel=0;p.BackgroundColor3=gold;p.Visible=false;p.Parent=gui;pips[i]=p
+        local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,1);c.Parent=p end
     return {gui=gui,fill=fill,pips=pips}
 end
+local hullTrack=Color3.fromRGB(11,15,20)
 local function dress(h,u)
     local ratio=math.clamp((u.health or 0)/math.max(1,u.maxHealth or 1),0,1)
-    if h.ratio~=ratio then h.ratio=ratio;h.fill.Size=UDim2.fromScale(ratio,1);h.fill.BackgroundColor3=ratio>.5 and good or ratio>.25 and gold or danger end
+    if h.ratio~=ratio then h.ratio=ratio
+        local c=ratio>.5 and good or ratio>.25 and gold or danger;local p=math.clamp(ratio,.002,.998)
+        h.fill.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,c),ColorSequenceKeypoint.new(p-.001,c),ColorSequenceKeypoint.new(p,hullTrack),ColorSequenceKeypoint.new(1,hullTrack)})
+        h.fill.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(p-.001,0),NumberSequenceKeypoint.new(p,.15),NumberSequenceKeypoint.new(1,.15)})
+    end
     local vet=u.veterancy or 0
     if h.vet~=vet then h.vet=vet;for i,p in ipairs(h.pips)do p.Visible=i<=vet end end
 end
@@ -101,7 +109,7 @@ function M:reset()
     self.railView:reset()
     for _,v in pairs(self.units) do if v.ring then v.ring.model:Destroy()end;if v.cosmeticTrail then v.cosmeticTrail:destroy()end;v.model:Destroy() end;for _,v in pairs(self.rails) do v:Destroy() end
     for _,v in ipairs(self.dying)do if v.cosmeticTrail then v.cosmeticTrail:destroy()end;v.model:Destroy()end
-    self.units={};self.dying={};self.pending=nil;self.skipped={};self.tradeCount=0;self.tradeKeep=1;self.rails={};self.effectsSeen=0;self.terrainRevision=-1;self.fallout={}
+    self.units={};self.dying={};self.pending=nil;self.skipped={};self.tradeCount=0;self.tradeKeep=1;self.rails={};self.effectsSeen=0;self.terrainRevision=-1;self.fallout={};self.falloutSource=nil
     if self.folder then self.folder:Destroy();self.folder=nil end;self.lastStep=nil
 end
 function M:position(tile,kind)
@@ -214,7 +222,7 @@ function M:apply(u,ctx)
         if v.trailReduced~=reduced then v.trailReduced=reduced;v.trail.Enabled=not reduced;v.trail.Lifetime=reduced and .1 or v.missile and u.kind~="MIRVWarhead" and 2.2 or .55 end
     end
     if v.homing then local reduced=self.world.reducedEffects==true;if v.reduced~=reduced then v.reduced=reduced;InterceptFx.setReduced(v.model,reduced)end end
-    if not v.trail and not v.missile and not v.homing then local reduced=self.world.reducedEffects==true;if v.wakeReduced~=reduced then local t=v.model:FindFirstChild("Wake",true)or v.model:FindFirstChild("RailDust",true);v.wakeTries=(v.wakeTries or 0)+1;if t or v.wakeTries>4 then v.wakeReduced=reduced;if t then t.Enabled=not reduced end end end end
+    if not v.trail and not v.missile and not v.homing then local reduced=self.world.reducedEffects==true or self.world.liteEffects==true;if v.wakeReduced~=reduced then local t=v.model:FindFirstChild("Wake",true)or v.model:FindFirstChild("RailDust",true);v.wakeTries=(v.wakeTries or 0)+1;if t or v.wakeTries>4 then v.wakeReduced=reduced;if t then t.Enabled=not reduced end end end end
 end
 function M:update(state)
     if not self.world.map then return end
@@ -266,9 +274,11 @@ function M:update(state)
         self.terrainRevision=state.terrainRevision
         for _,v in ipairs(state.terrainChanges or {}) do buffer.writeu8(self.world.map.terrain,v[1],v[2]);self.world:markTerritory(v[1]);changed=true end
     end
-    local fallout={};for _,tile in ipairs(state.fallout or {}) do fallout[tile]=true;if not self.fallout[tile] then self.world:markTerritory(tile) end end
-    for tile in pairs(self.fallout or {}) do if not fallout[tile] then self.world:markTerritory(tile) end end
-    self.fallout=fallout;self.world.map.fallout=fallout
+    if state.fallout~=self.falloutSource or state.fallout==nil or self.world.map.fallout~=self.fallout then
+        local fallout={};for _,tile in ipairs(state.fallout or {}) do fallout[tile]=true;if not self.fallout[tile] then self.world:markTerritory(tile) end end
+        for tile in pairs(self.fallout or {}) do if not fallout[tile] then self.world:markTerritory(tile) end end
+        self.fallout=fallout;self.world.map.fallout=fallout;self.falloutSource=state.fallout
+    end
     if changed then for _,c in ipairs(self.world.chunks) do buffer.fill(c.raster.finishBuffer,0,0) end end
 end
 local function peak(w,src,dst)

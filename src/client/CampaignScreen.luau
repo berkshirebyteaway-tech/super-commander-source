@@ -3,6 +3,7 @@ local Icons=require(script.Parent.OutgameIcons)
 local Currency=require(script.Parent.CurrencyChip)
 local Step=require(script.Parent.TelemetryStep)
 local Campaign=require(script.Parent.Parent.Core.CampaignRules)
+local Lessons=require(script.Parent.Parent.Core.CampaignLessons)
 local Flow=require(script.Parent.Parent.Core.PlayFlow)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
 local Maps=require(script.Parent.Parent.Maps.MapLoader)
@@ -83,7 +84,8 @@ local function detail(hub,body,x,y,w,phone,v,stage)
     local rules=Campaign.rulesLine(stage)
     regular(label(c,'Rules',string.format('%s  %s',meta and meta.label or stage.map,rules),13,C.accent,textX,ty+62,textW,20)).TextTruncate=Enum.TextTruncate.AtEnd
     local brief=regular(label(c,'Brief',stage.brief,14,C.ink,textX,ty+84,textW,phone and 58 or 38));brief.TextWrapped=true;brief.TextYAlignment=Enum.TextYAlignment.Top
-    local tip=regular(label(c,'Tip',string.format('요령  %s',stage.tip),13,C.muted,textX,ty+(phone and 144 or 122),textW,phone and 36 or 20));tip.TextWrapped=true;tip.TextYAlignment=Enum.TextYAlignment.Top
+    local lesson=Lessons.of(stage.id)
+    local tip=regular(label(c,'Tip',lesson and string.format('배울 것  %s',lesson.learned)or string.format('요령  %s',stage.tip),13,lesson and C.accent or C.muted,textX,ty+(phone and 144 or 122),textW,phone and 36 or 20));tip.TextWrapped=true;tip.TextYAlignment=Enum.TextYAlignment.Top
     local rows={{1,'승리'},{2,string.format('%d분 안에 승리',ch.minutes)},{4,stage.task.label}}
     local sy=ty+(phone and 244 or 150)
     local rowW=(not phone and sy+24>h-64)and textW-216 or textW
@@ -104,11 +106,14 @@ local function detail(hub,body,x,y,w,phone,v,stage)
     local go=UI.button(c,'Deploy','',function()M.start(hub,stage.id)end,true)
     UI.box(go,phone and textX or textX+textW-bw,phone and ty+184 or by,bw,48)
     if not unlocked then go.BackgroundColor3=C.raised end
-    label(go,'Action',unlocked and (first and '출전'or '다시 출전')or '잠겨 있어요',18,unlocked and C.bg or C.muted,0,0,bw,48,Enum.TextXAlignment.Center)
+    label(go,'Action',unlocked and (first and '출전'or '다시 출전')or '잠김',18,unlocked and C.bg or C.muted,0,0,bw,48,Enum.TextXAlignment.Center)
     UI.enabled(go,unlocked and hub.account.ready==true and not hub.busy)
     if not unlocked then
-        local need=ch.unlockStars and (v.total or 0)<ch.unlockStars and string.format('별 %d개가 필요해요',ch.unlockStars)or '앞 작전을 이기면 열려요'
-        regular(label(c,'Locked',need,13,GOLD,phone and textX or textX+(first and 276 or 0),phone and by+40 or by+12,phone and textW or textW-bw-(first and 284 or 8),24)).TextTruncate=Enum.TextTruncate.AtEnd
+        local prev=Campaign.stages[stage.index-1]
+        local need=ch.unlockStars and (v.total or 0)<ch.unlockStars and string.format('★ %d/%d',v.total or 0,ch.unlockStars)or prev and string.format('%s 승리',prev.id)or ''
+        local lx,ly=phone and textX or textX+(first and 276 or 0),phone and by+40 or by+12
+        local ic=Icons.create(c,'lock',16,GOLD);UI.box(ic,lx,ly+4,16,16)
+        regular(label(c,'Locked',need,13,GOLD,lx+22,ly,(phone and textW or textW-bw-(first and 284 or 8))-22,24)).TextTruncate=Enum.TextTruncate.AtEnd
     end
     return y+h+(phone and 12 or 16)
 end
@@ -141,7 +146,8 @@ function M.draw(hub,body,x,w,y,phone)
         label(body,'ChapterStars'..ch.id,string.format('★ %d/15',got),14,got>0 and GOLD or C.muted,x+w-(phone and 62 or 110),y,phone and 62 or 110,28,Enum.TextXAlignment.Right)
         y+=34
         if ch.unlockStars and (v.total or 0)<ch.unlockStars then
-            local lk=regular(label(body,'ChapterLock'..ch.id,string.format('별 %d개를 모으면 열려요. 지금 %d개예요.',ch.unlockStars,v.total or 0),13,C.muted,x,y-4,w,20));lk.TextWrapped=false;lk.TextScaled=true;UI.make('UITextSizeConstraint',lk,{MaxTextSize=13,MinTextSize=10});y+=20
+            local ic=Icons.create(body,'lock',14,C.muted);UI.box(ic,x,y-1,14,14)
+            regular(label(body,'ChapterLock'..ch.id,string.format('★ %d/%d',v.total or 0,ch.unlockStars),13,C.muted,x+20,y-4,w-20,20)).TextWrapped=false;y+=20
         end
         local i=0
         for _,s in ipairs(Campaign.stages)do if s.chapter==ch.id then

@@ -134,7 +134,8 @@ function M:step(now,onLanding,onRecovery)
             if p.altitude<=1e-6 then land(id)end
         end end
     end
-    if elapsed>=M.seconds then
+    local down=self.quick and elapsed>=M.planeSeconds;if down then for _,p in ipairs(self.players)do if not p.landed then down=false;break end end end
+    if elapsed>=M.seconds or down then
         for id in ipairs(self.players)do land(id,true)end
         for id,p in ipairs(self.players)do if not p.landed and onRecovery then
             local wanted=math.clamp(math.floor(p.y),0,h-1)*w+math.clamp(math.floor(p.x),0,w-1)

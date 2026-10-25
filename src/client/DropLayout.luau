@@ -18,9 +18,14 @@ function M.wideWeight(height01)
     local x=math.clamp((height01-M.wideFrom)/(M.wideFull-M.wideFrom),0,1)
     return x*x*(3-2*x)
 end
-function M.wideFocus(ax,az,spanX,spanZ,height,aspect,fov)
-    local hz=height*math.tan(math.rad((fov or M.wideFov)/2));local hx=hz*aspect
-    local function axis(a,half,view)if view>=half then return 0 end;return math.clamp(a,view-half,half-view)end
-    return axis(ax,spanX/2,hx),axis(az,spanZ/2,hz)
+function M.wideFocus(ax,az,spanX,spanZ,height,aspect,fov,lift)
+    local tan=math.tan(math.rad((fov or M.wideFov)/2))
+    local hz=height*tan;local hx=hz*aspect
+    local near=math.max(0,height-(lift or 0))*tan
+    local function axis(a,half,view,keep)
+        local f=view>=half and 0 or math.clamp(a,view-half,half-view)
+        return lift and math.clamp(f,a-keep,a+keep)or f
+    end
+    return axis(ax,spanX/2,hx,near*math.max(.2,aspect)*.92),axis(az,spanZ/2,hz,near*.78)
 end
 return M

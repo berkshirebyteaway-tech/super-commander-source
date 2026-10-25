@@ -8,7 +8,8 @@ function M.sealed(progress,event)
 end
 function M.compact(progress,event)
     local r=progress.receipts[event.id];if not r or not event.final then return end
-    progress.receipts[event.id]={sealed=true,revision=r.revision,xp=r.xp,medals=r.medals,paidXP=r.paidXP,grantedXP=r.grantedXP,grantedMedals=r.grantedMedals,totalsComplete=r.totalsComplete,won=r.won,counted=r.counted,firstWin=r.firstWin,parts=r.parts,time=event.time}
+    progress.receipts[event.id]={sealed=true,revision=r.revision,xp=r.xp,medals=r.medals,paidXP=r.paidXP,grantedXP=r.grantedXP,grantedMedals=r.grantedMedals,totalsComplete=r.totalsComplete,won=r.won,counted=r.counted,firstWin=r.firstWin,parts=r.parts,time=event.time,
+        supply=r.supply,daily=r.daily}
 end
 M.window=30*86400
 function M.prune(progress,now,unpaid)

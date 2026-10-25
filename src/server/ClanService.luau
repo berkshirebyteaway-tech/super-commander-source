@@ -9,14 +9,14 @@ local Archive=if script then require(script.Parent.ReceiptArchive)else require('
 local S={};S.__index=S
 local Decision=if script then Enum.ProductPurchaseDecision else {PurchaseGranted='granted',NotProcessedYet='retry'}
 local messages={
-    ['invalid-name']='클랜 이름은 2~16자의 글자나 숫자로 정해 주세요.',['invalid-tag']='약칭은 2~4자의 글자나 숫자로 정해 주세요.',
-    ['filtered']='쓸 수 없는 이름이에요. 다른 이름을 써 주세요.',['unit-full']='클랜이 가득 찼어요(100명).',['unit-missing']='클랜을 찾지 못했어요. 코드를 확인하세요.',
-    ['already-member']='이미 클랜에 있어요. 먼저 클랜을 나가세요.',['prime']='클랜은 커맨더 프라임 보유자만 만들고 가입할 수 있어요.',['not-leader']='클랜장만 할 수 있어요.',
-    ['storage-unavailable']='저장에 연결하지 못했어요. 잠시 뒤 다시 시도하세요.',['busy']='잠시 뒤 다시 시도하세요.',['invalid-request']='요청을 확인하세요.',['paused']='클랜 기능을 잠시 점검 중이에요. 조금 뒤 다시 시도하세요.',
-    ['not-member']='클랜에 가입하면 출석할 수 있어요.',['attended']='오늘 출석은 이미 했어요.',['free-first']='오늘 무료 출석을 먼저 해 주세요.',['extra-done']='오늘 추가 출석을 모두 했어요.',
-    ['sale-closed']='추가 출석은 판매 준비 중이에요.',['war-size']='클랜전은 같은 클랜 2~5명이 파티로 들어가요.',['war-clan']='클랜전 파티는 같은 클랜원끼리만 들어갈 수 있어요.',
+    ['invalid-name']='이름 2~16자',['invalid-tag']='약칭 2~4자',
+    ['filtered']='쓸 수 없는 이름',['unit-full']='클랜이 가득 찼어요(100명).',['unit-missing']='클랜 없음',
+    ['already-member']='이미 클랜 소속',['prime']='🔒 프라임 전용',['not-leader']='클랜장 전용',
+    ['storage-unavailable']='저장 연결 실패',['busy']='다시 시도',['invalid-request']='잘못된 요청',['paused']='클랜 점검 중',
+    ['not-member']='클랜 가입 필요',['attended']='출석 완료',['free-first']='무료 출석 먼저',['extra-done']='추가 출석 완료',
+    ['sale-closed']='판매 준비 중',['war-size']='클랜전은 같은 클랜 2~5명이 파티로 들어가요.',['war-clan']='같은 클랜원만',
 }
-messages['banned']='이 클랜에서 내보내져 7일 동안 다시 가입할 수 없어요.'
+messages['banned']='가입 제한 7일'
 local function memoryStore(mem)
     return {GetAsync=function(_,k)return mem[k]end,SetAsync=function(_,k,v)mem[k]=v end,RemoveAsync=function(_,k)mem[k]=nil end,
         UpdateAsync=function(_,k,fn)local v=fn(mem[k]);if v~=nil then mem[k]=v end;return v end,
@@ -224,7 +224,7 @@ function S:view(player)
     local uid=player.UserId;local now=self.a.time()
     if not self.loaded[uid]then
         if not self.loading[uid]then self.a.spawn(function()self:load(player)end)end
-        return {ok=false,reason='busy',message='클랜 정보를 불러오는 중이에요. 잠시 뒤 다시 불러오세요.'}
+        return {ok=false,reason='busy',message='불러오는 중'}
     end
     local id=self.byUser[uid];local cached=id and self.units[id]
     local u=id and (cached and self.a.clock()-cached.at<Guards.unitViewSeconds and cached.unit or self:fetch(id))
