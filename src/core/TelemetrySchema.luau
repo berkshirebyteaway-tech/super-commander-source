@@ -16,7 +16,7 @@ M.enums={
  stage=set('client_ready lobby_ready map_ready profile ownership request seat reserved sending admitted combat command capture grow settled ready move land rally start stop shown selected opened closed accepted rejected locked unlocked warning clear outcome checkpoint load save mutate retry flush shutdown status prompt benefit queue arrived'),
  category=set('nil_index call_nil arithmetic compare bad_argument missing_member infinite_yield timeout http datastore memorystore teleport stack script_timeout cast asset deprecated game_warn other'),
  side=set('client server'),channel=set('lobby account'),device_class=set('phone tablet desktop console unknown'),
- area=set('shop cosmetics gacha solo custom queue drop input character map_ui settings social lobby result tutorial match other clan ranked commerce vip progression goals comms hud mobile perf spectate season journey ops campaign'),
+ area=set('shop cosmetics gacha solo custom queue drop input character map_ui settings social lobby result tutorial match other clan ranked commerce vip progression goals comms hud mobile perf spectate season journey ops campaign event'),
  entry=set('home list quick solo custom result party station shortcut automatic unknown'),
  format=set('ffa team coop custom unknown'),spawn_style=set('selected random shifted unknown'),
  kind=set('City DefensePost Port Factory Railroad MissileSilo SAMLauncher TransportShip Warship TradeShip Train AtomBomb HydrogenBomb MIRV MIRVWarhead other'),

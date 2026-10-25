@@ -34,9 +34,11 @@ function M.new(lobby)
     for _,p in ipairs(Players:GetPlayers())do watch(p)end
     self.added=Players.PlayerAdded:Connect(watch)
     self.removed=Players.PlayerRemoving:Connect(function(p)self.prompts[p]=nil;if self.taps[p]then self.taps[p].gui:Destroy();self.taps[p]=nil end;if self.target==p then self:hide()end end)
+    self:watchHall()
     task.spawn(function()
         while lobby.frame.Parent do
             local open=self:inPlaza()
+            if not open and self.glow.Enabled then self.glow.Enabled=false;self.glow.Adornee=nil end
             for p,prompt in pairs(self.prompts)do
                 local head=p.Character and p.Character:FindFirstChild('Head');local hidden=head~=nil and head.LocalTransparencyModifier>=1
                 if prompt.Parent then prompt.Enabled=open and p:GetAttribute('FrontierRoom')==nil and not hidden else self.prompts[p]=nil end
@@ -46,13 +48,62 @@ function M.new(lobby)
             if self.target then if not open or self.target:GetAttribute('FrontierRoom')~=nil then self:hide()else self:fill()end end
             task.wait(.5)
         end
-        self.added:Disconnect();self.removed:Disconnect()
+        self.added:Disconnect();self.removed:Disconnect();for _,c in ipairs(self.hallLinks)do c:Disconnect()end;self.glow:Destroy()
     end)
     return self
 end
 function M:inPlaza()
     local l=self.lobby;local d=l.deployment
     return l.frame.Visible and l.inMenu~=false and not l.page and not(d and d.expanded)and Me:GetAttribute('FrontierRoom')==nil
+end
+local PICK_MIN=26
+function M:pick(at)
+    local Stage=require(script.Parent.LobbyStage);if not Stage.active then return nil end
+    local camera=workspace.CurrentCamera;if not camera then return nil end
+    local list={}
+    for _,s in pairs(Stage.stand)do if s.player~=Me and s.clone and s.clone.Parent then table.insert(list,{p=s.player,c=s.clone,kind='pad'})end end
+    for _,p in ipairs(Players:GetPlayers())do
+        local c=p.Character;local head=c and c:FindFirstChild('Head')
+        if p~=Me and head and head.LocalTransparencyModifier<1 and p:GetAttribute('FrontierRoom')==nil then table.insert(list,{p=p,c=c,kind='balcony'})end
+    end
+    local best,bestD=nil,math.huge
+    for _,o in ipairs(list)do
+        local root,head=o.c:FindFirstChild('HumanoidRootPart'),o.c:FindFirstChild('Head')
+        if root and head then
+            local top,a=camera:WorldToScreenPoint(head.Position+Vector3.new(0,head.Size.Y*.5,0))
+            local feet,b=camera:WorldToScreenPoint(root.Position-Vector3.new(0,3,0))
+            if a or b then
+                local t0,f0=Vector2.new(top.X,top.Y),Vector2.new(feet.X,feet.Y);local seg=f0-t0;local len=seg.Magnitude
+                local k=len>0 and math.clamp((at-t0):Dot(seg)/(len*len),0,1)or 0
+                local d=(at-(t0+seg*k)).Magnitude
+                if d<=math.max(PICK_MIN,len*.33)and top.Z<bestD then best,bestD=o,top.Z end
+            end
+        end
+    end
+    return best
+end
+function M:watchHall()
+    local UIS=game:GetService('UserInputService')
+    self.glow=Instance.new('Highlight');self.glow.Name='CommanderCardHover';self.glow.FillTransparency=1;self.glow.OutlineColor=UI.colors.accent
+    self.glow.OutlineTransparency=.15;self.glow.DepthMode=Enum.HighlightDepthMode.Occluded;self.glow.Enabled=false;self.glow.Parent=Me:WaitForChild('PlayerGui')
+    local down
+    local function tapType(i)return i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch end
+    self.hallLinks={
+        UIS.InputBegan:Connect(function(i,used)if tapType(i)then down=not used and self:inPlaza()and{at=Vector2.new(i.Position.X,i.Position.Y),t=os.clock()}or nil end end),
+        UIS.InputEnded:Connect(function(i,used)
+            if not tapType(i)or not down then return end
+            local d=down;down=nil;local at=Vector2.new(i.Position.X,i.Position.Y)
+            if used or (at-d.at).Magnitude>12 or os.clock()-d.t>.5 or not self:inPlaza()then return end
+            local o=self:pick(at);if not o then return end
+            require(script.Parent.TelemetryStep).step('social','commanderCard',{result='shown',item=o.kind})
+            require(script.Parent.ToyAudio).play('click');self:show(o.p)
+        end),
+        UIS.InputChanged:Connect(function(i,used)
+            if i.UserInputType~=Enum.UserInputType.MouseMovement then return end
+            local o=not used and self:inPlaza()and self:pick(Vector2.new(i.Position.X,i.Position.Y))
+            self.glow.Adornee=o and o.c or nil;self.glow.Enabled=o~=nil and o~=false
+        end),
+    }
 end
 function M:attach(p,c)
     local root=c:FindFirstChild('HumanoidRootPart');if not root or root:FindFirstChild('CommanderCardPrompt')then return end

@@ -4,6 +4,7 @@ local S=require(script.Parent.Sheet20)
 local Maps=require(script.Parent.Parent.Maps.MapLoader)
 local Raster=require(script.Parent.RasterMap)
 local TeamFormat=require(script.Parent.Parent.Core.TeamFormat)
+local Tags=require(script.Parent.TagChips)
 local Party=require(script.Parent.Parent.Core.PartyFormation)
 local PartyPlay=require(script.Parent.Parent.Core.PartyPlay)
 local QueueUI=require(script.Parent.Parent.Core.QueuePresentation)
@@ -16,9 +17,14 @@ local function SF()return require(script.Parent.LobbyHomeB).START_FLOW end
 local function clock(n)local s=math.max(0,math.ceil(n or 0));return string.format('%d:%02d',s//60,s%60)end
 local function title(f)return (Maps.meta(f.rules.map)or {}).label or f.rules.map end
 local function modeKey(f)return f.rules.mode=='teams'and 'teams'or f.rules.mode=='coop'and 'coop'or 'ffa'end
+local function teamWord(r,plan)
+    if r.teamFormat==TeamFormat.humansVsNations then return '사람 대 국가'end
+    if TeamFormat.labels[r.teamFormat]then return TeamFormat.labels[r.teamFormat]end
+    local n=tonumber(plan and plan.count or r.teamCount);return n and n>=2 and string.format('팀전 %d팀',n)or '팀전'
+end
 local function modeText(f)
     if f.kind=='custom'then return '커스텀'end
-    return (f.rules.special and '특수 'or '')..(f.rules.mode=='teams'and '팀전'or f.rules.mode=='coop'and '협동'or '개인전')
+    return (f.rules.special and '특수 'or '')..(f.rules.mode=='teams'and teamWord(f.rules,f.teamPlan)or f.rules.mode=='coop'and '협동'or '개인전')
 end
 local function sideCap(r)
     if r.mode~='teams'or r.teamFormat==TeamFormat.humansVsNations then return r.maximum end
@@ -226,6 +232,11 @@ function M:paintCard(c,x,y,w,h,elapsed,highlight)
         c.chip=S.modeChip(c.press.face,'ModeChip',modeText(f),ink,fill,chh,11,.18);c.chip.ZIndex=4;for _,o in ipairs(c.chip:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=5 end end
     end
     c.chip.Position=UDim2.fromOffset(tx,ty+th+2);c.mode.Visible=false
+    local main=f.kind~='custom'and f.rules.special and Tags.mainModifier(f.rules.modifiers);local rule=main and Tags.modifierShort[main]
+    if c.ruleKey~=tostring(rule)..c.fmt then c.ruleKey=tostring(rule)..c.fmt;if c.rule then c.rule:Destroy();c.rule=nil end
+        if rule then c.rule=S.modeChip(c.press.face,'RuleChip',rule,C.gold,C.gold,chh,11,.18);c.rule.ZIndex=4;for _,o in ipairs(c.rule:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=5 end end end
+    end
+    if c.rule then local rx=tx+c.chip.Size.X.Offset+6;c.rule.Position=UDim2.fromOffset(rx,ty+th+2);c.rule.Visible=rx+c.rule.Size.X.Offset<=right end
     c.teams.Visible=teamsShown
     if teamsShown then K.box(c.teams,tx-6,ty+th+2-6,c.chip.Size.X.Offset+12,chh+12)end
 end
@@ -246,7 +257,8 @@ function M:render()
         self.quick:setEnabled(not self.busy and pick~=nil)
     end
     local listTop=self.listTop+(pt and self.quick and self.quick.button.Visible and 68 or 0)
-    K.box(self.list,self.listX-4,listTop-4,self.listW+8,self.listBottom-listTop+8)
+    K.box(self.list,self.listX-12,listTop-4,self.listW+24,self.listBottom-listTop+8)
+    local pad=self.list:FindFirstChild('Pad20');if pad then pad.PaddingLeft=UDim.new(0,12);pad.PaddingRight=UDim.new(0,12)end
     local lw=self.listW
     for id,c in pairs(self.cards)do if not self.lookup[id]or c.fmt~=fmt then c.raster:destroy();c.frame:Destroy();self.cards[id]=nil else c.frame.Visible=false end end
     local rh=pt and 76 or ph and 50 or 72;local gap=pt and 6 or ph and 5 or 10

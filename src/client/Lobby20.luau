@@ -146,7 +146,22 @@ function M.dots(l)
     local p=l.account and l.account.progress
     local ok,status=pcall(function()return require(script.Parent.CollectionBadges).status(l)end);status=ok and status or {}
     local free=require(script.Parent.FreeDraw).ready(l.account and l.account.billing)
-    return {missions=require(script.Parent.GoalClaims).count(p)>0,wardrobe=status.wardrobe~=nil,shop=free or status.shop~=nil}
+    return {missions=require(script.Parent.GoalClaims).count(p)>0,wardrobe=status.wardrobe~=nil,shop=free or status.shop~=nil,clan=M.clanDot(l)}
+end
+function M.clanDot(l)
+    local Me=game:GetService('Players').LocalPlayer
+    local unit=Me:GetAttribute('CommanderClan');if type(unit)~='string'or unit==''then return false end
+    local v=l.unitView
+    if not l.unitBusy and l.page~='clan'and not l.clanPeeking and (not v or os.clock()-(l.clanPeekAt or 0)>1800)then
+        l.clanPeeking=true;l.clanPeekAt=os.clock()
+        task.spawn(function()
+            local ok,r=pcall(function()return game.ReplicatedStorage.FrontierNative:WaitForChild('ClanRequest',5):InvokeServer('read')end)
+            l.clanPeeking=false
+            if ok and type(r)=='table'and r.ok and not l.unitBusy and l.page~='clan'then l.unitView=r;if l.layout then l:layout()end end
+        end)
+    end
+    local a=v and v.unit and v.attend
+    return a~=nil and a.free~=true
 end
 
 local function door(f,name,filled,iconKey,label,onPress)
@@ -185,6 +200,9 @@ local function buildFloor(home)
     c.cancel.button.Visible=false
     c.tag=K.chip(f,'CampaignTag20','캠페인 1-1','campaign',{size=13});c.tag.ZIndex=c.single.b.face.ZIndex+4
     for _,o in ipairs(c.tag:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=c.tag.ZIndex+1 end end
+    c.halloween=K.chip(f,'HalloweenTag20','🎃 0/5','gold',{size=13,filled=true,icon=false});c.halloween.BackgroundColor3=Color3.fromRGB(255,140,40)
+    c.halloween.ZIndex=c.multi.b.face.ZIndex+4;c.halloween.Visible=false
+    for _,o in ipairs(c.halloween:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=c.halloween.ZIndex+1 end end
     c.party=K.button(f,'PartyPill20',{kind='none',r=10},function()l:openPage('friends')end)
     c.party.face.BackgroundColor3=C.panel;c.party.face.BackgroundTransparency=.15;c.party.baseFill=C.panel;c.party.baseAlpha=.15
     c.party.faceStroke.Enabled=true;c.party.faceStroke.Color=C.line;c.party.faceStroke.Transparency=0;c.party.baseStroke=C.line
@@ -213,7 +231,7 @@ M.folded=false
 function M.toggleFold(home)
     local c=home.c20;M.folded=not M.folded
     require(script.Parent.TelemetryStep).step('lobby',M.folded and 'foldStart'or 'unfoldStart',{})
-    for _,o in ipairs({c.single.b.button,c.multi.b.button,c.party.button,c.tag})do
+    for _,o in ipairs({c.single.b.button,c.multi.b.button,c.party.button,c.tag,c.halloween})do
         if M.folded then K.leave(o,{dy=16,t=.12})end
     end
     if M.folded then task.delay(.13,function()home.lobby:layout()end)else home.lobby:layout();M.enter(home,true)end
@@ -250,6 +268,12 @@ function M.refresh(home)
     c.cancel:setEnabled(not l.busy and not(q and q.locked))
     local st=campaignNext(l);c.stage=st
     if st then local t=string.format('캠페인 %s',st.id);local l2=c.tag:FindFirstChild('Text');if l2 and l2.Text~=t then l2.Text=t;c.layoutDirty=true end end
+    local hv=require(script.Parent.Parent.Core.HalloweenEvent).view(acct.billing and acct.billing.owned,workspace:GetServerTimeNow(),script.Parent.Parent:GetAttribute('HalloweenEndsAt'),acct.billing and acct.billing.halloween)
+    local hw=hv.live and not hv.granted
+    if hw then local t=string.format('🎃 %d/%d',hv.progress,hv.total);local l2=c.halloween:FindFirstChild('Text');if l2 and l2.Text~=t then l2.Text=t;c.layoutDirty=true end end
+    if c.halloweenWanted~=hw then c.halloweenWanted=hw;c.layoutDirty=true
+        if hw then require(script.Parent.TelemetryStep).once('halloween:tag','event','halloweenTag',{result='shown'})end end
+    if hv.granted then pcall(require(script.Parent.HalloweenGift).check,l)end
     local users=party and party.users or {me};local key=table.concat(users,',')
     if c.partyKey~=key then c.partyKey=key;c.layoutDirty=true
         for i,seat in ipairs(c.seats)do local id=users[i]
@@ -314,6 +338,10 @@ function M.home(home,w,h,short,q,lift,portrait)
         c.tag.Size=UDim2.fromOffset(c.tag.Size.X.Offset,th);local tw=rechip(c.tag,ts)
         local icon=c.tag:FindFirstChild('Icon');if icon then local is=fmt=='pc'and 14 or fmt=='ph'and 12 or 13;K.box(icon,6,math.floor((th-is)/2),is,is);local t=c.tag:FindFirstChild('Text');K.box(t,6+is+4,0,K.width(t.Text,ts,t)+2,th);tw=6+is+4+K.width(t.Text,ts,t)+6;c.tag.Size=UDim2.fromOffset(tw,th)end
         K.box(c.tag,x1+(fmt=='pt'and 10 or 12),y-(fmt=='pc'and 13 or 11),tw,th)end
+    c.halloween.Visible=show and c.halloweenWanted==true
+    if c.halloween.Visible then local ts=fmt=='pc'and 13 or fmt=='ph'and 11 or 12;local th=fmt=='pc'and 24 or fmt=='ph'and 20 or 22
+        c.halloween.Size=UDim2.fromOffset(c.halloween.Size.X.Offset,th);local tw=rechip(c.halloween,ts)
+        K.box(c.halloween,x2+(fmt=='pt'and 10 or 12),y-(fmt=='pc'and 13 or 11),tw,th)end
     local tablet=fmt=='pc'and require(script.Parent.InputMode).touch()
     local seat=fmt=='pc'and 42 or fmt=='ph'and 34 or 40;local open=tablet and 2 or fmt=='pc'and 4 or fmt=='ph'and 1 or 2
     local pad=fmt=='pc'and 10 or 8;local sg=fmt=='pc'and 8 or fmt=='ph'and 6 or 8;local pillH=seat+(fmt=='pt'and 12 or fmt=='pc'and 18 or 16)
@@ -355,12 +383,12 @@ function M.home(home,w,h,short,q,lift,portrait)
 end
 function M.enter(home,quick)
     local c=home.c20;if not c or not c.floor then return end
-    local list={c.party.button,c.single.b.button,c.multi.b.button,c.tag}
+    local list={c.party.button,c.single.b.button,c.multi.b.button,c.tag,c.halloween}
     for i,o in ipairs(list)do if o.Visible then K.rehome(o);K.appear(o,{dy=16,t=.18,delay=quick and 0 or(i-1)*.04})end end
 end
 function M.hide(home)
     local c=home.c20;if not c or not c.floor then return end
-    for _,o in ipairs({c.single.b.button,c.multi.b.button,c.party.button,c.tag,c.fold.button,c.notice,c.cancel.button})do o.Visible=false end
+    for _,o in ipairs({c.single.b.button,c.multi.b.button,c.party.button,c.tag,c.halloween,c.fold.button,c.notice,c.cancel.button})do o.Visible=false end
     c.homeShown=false
     local V=require(script.Parent.VipLock);if V.spot then V.spot=nil;if V.wanted~=nil then V.hqPill(V.wanted)end end
     if home.single then home.single.open=false;home.single.frame.Visible=false end

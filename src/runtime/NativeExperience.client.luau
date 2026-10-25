@@ -1267,7 +1267,7 @@ end
 renderer:bind({
     enabled=function() return gamePanel.Visible and not modal.Visible and not armsUI.drop.introActive end,
     blocked=blocked,changed=function() dirty=true;hover.Visible=false end,select=selectTile,
-    wheel=function(z)if not armsUI.shiftHeld()then return false end;setFraction(math.floor((fraction+(z>0 and .1 or -.1))*100+.5)/100);return true end,
+    wheel=function(z)if not armsUI.shiftHeld()then return false end;setFraction(armsUI.commandBar:wheel(fraction,z));return true end,
     hover=function(tile,pos)
         hoveredUnit=nil
         if armsUI.drop.active or armsUI.input.touch() or not tile or not state then return end

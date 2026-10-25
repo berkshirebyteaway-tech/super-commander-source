@@ -168,8 +168,9 @@ function M.watch()
         heartbeat+=dt
         if heartbeat>=.25 then
             heartbeat=0
+            local Stage=require(script.Parent.LobbyStage)
             for _,p in ipairs(Players:GetPlayers())do
-                local character=p.Character;local style=p:GetAttribute('CommanderTrailStyle')or 'classic';local old=states[p]
+                local stand=Stage.standFor(p);local character=stand and stand.clone or p.Character;local style=p:GetAttribute('CommanderTrailStyle')or 'classic';local old=states[p]
                 if old and (old.character~=character or old.style~=style)then if old.fx then old.fx:destroy()end;states[p]=nil;old=nil end
                 if character and character.PrimaryPart and not old then states[p]={character=character,style=style,fx=M.attach(character,style)}end
             end

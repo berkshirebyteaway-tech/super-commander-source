@@ -21,6 +21,7 @@ local Benefits=require(pack.Core.BenefitRewards)
 local Billing=require(script.Parent.LaunchBilling)
 local Sale=require(pack.Core.LaunchSale)
 local Guards=require(pack.Core.AbuseGuards)
+local Halloween=require(pack.Core.HalloweenEvent)
 local S={};S.__index=S
 local messages={
     ["busy"]="저장 중",
@@ -331,11 +332,13 @@ function S:applyProgress(id,event,unpaid)
     local observedAt=os.clock()
     local boost=self.live.xpBoost()
     if boost>1 and type(event)=='table'then event=table.clone(event);event.boost=boost end
-    local supplied,goalPaid
+    local supplied,goalPaid,haunted
+    local halloweenOn=self.live.get('halloween')
     local saved,err=self:updateProgress(id,function(p)
-        supplied,goalPaid=nil,nil
+        supplied,goalPaid,haunted=nil,nil,nil
         if Retention.sealed(p.outgame,event)then return p end
         local out,err=O.apply(p.outgame,event);if not out then return nil,err end
+        haunted=Halloween.apply(p,event,halloweenOn)
         local r=out.receipts[event.id];local was=p.outgame and p.outgame.receipts and p.outgame.receipts[event.id]
         supplied=r and r.supply and not(was and was.supply)and r.supply or nil
         goalPaid=ResultPresentation.goalPaid(out,p.outgame,event)
@@ -346,6 +349,8 @@ function S:applyProgress(id,event,unpaid)
     self.analytics:emit(actor,'reward_commit_result',{operation='profile_mutate',result=saved and 'ok'or 'failed',reason=saved and 'none'or require(pack.Core.TelemetrySchema).reason(err),duration_ms=(os.clock()-observedAt)*1000},
         {id='reward:'..self.analytics.key(tostring(id)..':'..tostring(event and event.id)..':'..tostring(event and event.revision))..':'..(saved and 'ok'or 'failed'),context={actor_key=self.analytics.actorKey(id)}})
     if saved and supplied and actor then local steps=O.dailySupply.steps;pcall(self.analytics.flow,self.analytics,actor,'goals','dailySupply',{item='step'..supplied,position=supplied,total=#steps,value=steps[supplied],result='granted'})end
+    if saved and haunted=='counted'and actor then pcall(self.analytics.flow,self.analytics,actor,'event','halloweenMatch',{position=Halloween.count(saved.commerce),total=Halloween.need,mode=event.official and 'official'or event.mode,elapsed_seconds=event.seconds,result='accepted'})end
+    if saved and haunted=='granted'and actor then pcall(self.analytics.flow,self.analytics,actor,'event','halloweenGrant',{item=Halloween.style,rarity='legendary',position=Halloween.need,total=Halloween.need,mode=event.official and 'official'or event.mode,elapsed_seconds=event.seconds,result='granted'})end
     if saved and goalPaid and actor then pcall(self.analytics.flow,self.analytics,actor,'goals','goalClaim',{item='auto',value=goalPaid.medals,amount=goalPaid.xp,result='granted'})end
     if saved and type(event)=='table'and type(event.daily)=='number'and Daily.score(event)then
         local player=Players:GetPlayerByUserId(id);if player then self.analytics:custom(player,'DailyOpCleared',event.map,event.outcome,1)end

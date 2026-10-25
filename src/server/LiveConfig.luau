@@ -14,6 +14,7 @@ M.defaults={
     commsOpen=false,
     sale=true,
     saleEndsAt='',
+    halloween=true,
     spectate=true,
     replays=true,
     bigMaps=true,
@@ -75,6 +76,7 @@ function M.publish()
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
     pack:SetAttribute('LiveRankedScreen',M.get('rankedScreen')==true);pack:SetAttribute('LiveSeasonScreen',M.get('seasonScreen')==true)
     pack:SetAttribute('LaunchSaleEndsAt',M.salesOpen()and M.saleEndsAt()or 0)
+    pack:SetAttribute('HalloweenEndsAt',require(pack.Core.HalloweenEvent).publishedEnd(M.get('halloween'),os.time()))
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
     require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())
     require(pack.Core.BattlefieldRules).bigMaps=M.get('bigMaps')~=false
@@ -82,6 +84,10 @@ end
 local started=false
 function M.start()
     if started then return M end;started=true
+    task.spawn(function()
+        local ok,H=pcall(function()return require(game.ReplicatedStorage.FrontierNative.Core.HalloweenEvent)end);if not ok then return end
+        for _,edge in ipairs({H.startsAt,H.endsAt})do local wait=edge-os.time();if wait>0 then task.wait(wait+1);M.publish()end end
+    end)
     task.spawn(function()load();M.publish();while not snapshot and not(Run:IsStudio()or game.GameId==0)do task.wait(60);load();if snapshot then M.publish()end end end)
     return M
 end

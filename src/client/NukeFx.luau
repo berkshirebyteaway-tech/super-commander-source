@@ -96,7 +96,9 @@ local function meshWarhead(b,model,style,owner,s,info)
     local names={Body=true,Shell=true,Shaft=true,Hull=true,Casing=true};local body
     for _,e in ipairs(Meshes.rig(key).parts)do local z=e.def.size;if names[e.def.name]then body=e;break end
         if math.max(z[1],z[2])<=1.6 and(not body or z[3]>body.def.size[3])then body=e end end
-    local bz=body.home.Position.Z*k;local bl=body.def.size[3]*k;local br=math.min(body.def.size[1],body.def.size[2])*k/2
+    local bz,bl,br
+    if body then bz=body.home.Position.Z*k;bl=body.def.size[3]*k;br=math.min(body.def.size[1],body.def.size[2])*k/2
+    else bz=(st.lo.Z+st.hi.Z)/2*k;bl=(st.hi.Z-st.lo.Z)*k;br=math.min(st.hi.X-st.lo.X,st.hi.Y-st.lo.Y)*k/2 end
     local rate=tier>=5 and 1.6 or 1.2;local phases=false
     local crest=Meshes.crestKind(key,tier,'nuclear')
     if crest then Meshes.crest(model,list,crest,CFrame.new(0,0,bz+bl*.3)*CFrame.Angles(math.pi/2,0,0),br*1.8,rgb(style.accent))end

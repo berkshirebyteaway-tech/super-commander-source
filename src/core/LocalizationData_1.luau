@@ -1267,6 +1267,7 @@ return {
     {"먼지 바람","Dust Wind"},
     {"멀리 보기 = 건물이 세력색 아이콘","Zoom out = faction-colored icons"},
     {"멀수록 많이 벌어요","Farther Pays More"},
+    {"멀티 5판으로 획득","Earn in 5 multiplayer matches"},
     {"멀티 출전","Multiplayer"},
     {"멈춤","Stops"},
     {"멋진 플레이예요!","Great play!"},
@@ -2605,5 +2606,4 @@ return {
     {"전우","Comrade"},
     {"전우가 밀리면 병력을 보내 줘요.","Send troops when your ally is losing ground."},
     {"전우단","Band of Comrades"},
-    {"전우에게 병력과 골드를 보낼 수 있어요","You can send troops and gold to teammates"},
 }

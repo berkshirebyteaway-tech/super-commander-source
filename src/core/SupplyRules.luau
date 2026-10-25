@@ -24,7 +24,7 @@ function M.pool(kind,items)
     local groups={};for _,r in ipairs(Config.rarityOrder)do groups[r]={}end
     local ids={}
     for _,item in ipairs(items or Catalog.items)do
-        if item.ready==true and item.season==nil then
+        if item.ready==true and item.season==nil and item.event==nil then
             if type(item.id)~='string'or ids[item.id]or not groups[item.rarity]or type(item.name)~='string'or type(item.loadout)~='table'then return nil,'invalid-catalog'end
             if next(item.loadout)==nil and item.standard~=true then return nil,'invalid-catalog'end
             for slot,style in pairs(item.loadout)do if not Styles.validSlot(slot)or not Styles.styles[style]or Styles.styles[style].access=='free'then return nil,'invalid-catalog'end end

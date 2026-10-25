@@ -147,7 +147,8 @@ local function card(view,grid,e,x,y,cw,ch)
     end
     local rightW=0;local function corner(o,w,h)
         if fmt=='pt'then K.box(o,cw-7-w,7,w,h)else K.box(o,cw-1-P.cardPad-w,ch-1-P.cardPad-h,w,h)end;rightW=w end
-    if e.motion and not e.owned or (not e.motion and not e.owned and not e.supply)then
+    if e.event and not e.owned then local i=K.text(f,'Event','🎃',P.chestS,C.ink,700);corner(i,P.chestS,P.chestS)
+    elseif e.motion and not e.owned or (not e.motion and not e.owned and not e.supply)then
         local lc,w,h=K.lock(f,e.level and string.format('Lv.%d',e.level)or '',0,0,P.lockS);corner(lc,w,h)
     elseif e.motion and not e.club then local lc,w,h=K.lock(f,'VIP',0,0,P.lockS);corner(lc,w,h)
     elseif not e.owned and e.supply then local i=K.icon(f,'chest',P.chestS,C.muted,'Crate');corner(i,P.chestS,P.chestS)end
@@ -200,6 +201,10 @@ local function action(view,parent,e,x,y,w,h)
     if e.worn then stateChip(parent,'장착 중','accent','check',P,x,y,w,h);return end
     if e.plate then pri('장착',function(btn)K.confirm(btn,true);require(script.Parent.CareerWardrobe).pick(hub,'plate',e.id)end);return end
     if e.owned then pri('장착',function(btn)K.confirm(btn,true);S.step('equip',{item=e.id});e.equip()end);return end
+    if e.event then
+        local b=K.button(parent,'GetEvent',{kind='plain',text=short and '🎃 멀티 5판 ›'or '🎃 멀티 5판으로 얻기 ›',size=view.fmt=='pt'and 14 or P.btnFont-2,weight=800},function()S.step('toEvent',{item=e.id});hub:closePage()end)
+        b:place(x,y,w,h);return
+    end
     if e.supply then
         local b=K.button(parent,'GetSupply',{kind='plain',text=short and '보급 상자 ›'or '보급 상자에서 얻기 ›',size=view.fmt=='pt'and 14 or P.btnFont-2,weight=800,icon=view.fmt~='pt'and 'chest'or nil,iconSize=P.btnFont},function()S.step('toShop',{item=e.id});hub:openPage('shop')end)
         b:place(x,y,w,h);return

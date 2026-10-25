@@ -165,8 +165,12 @@ M.flat={
     {key='filigree_territory',name='금실 아라베스크',rarity='legendary',tier=4,motif='filigree',desc='금실 격자와 빛나는 매듭이 영토 전체에 수놓여요.',primary={58,46,24},secondary={255,226,150},accent={255,200,70}},
     {key='galaxy_territory',name='은하 소용돌이',rarity='mythic',tier=5,motif='galaxy',desc='나선 은하가 돌고, 영토가 넓어질수록 별이 늘고 밝아져요.',primary={20,22,48},secondary={230,226,255},accent={255,143,216}},
 }
+M.events={
+    {key='halloween_territory',name='호박등 밤',rarity='legendary',tier=4,motif='lanterns',event='halloween2026',desc='호박등과 박쥐 무늬가 영토를 덮고, 호박등 눈이 깜빡여요.',primary={30,22,44},secondary={255,196,110},accent={255,140,40}},
+}
 M.names={};for key,t in pairs(M.themes)do M.names[key]=t.name end
 for _,f in ipairs(M.flat)do M.names[f.key]=f.name end
+for _,f in ipairs(M.events)do M.names[f.key]=f.name end
 M.familyNames={commanderStandard='깃발',territory='영토',buildings='건물',nuclear='핵',commanderTrail='트레일',parachute='낙하산',vehicle='탈것',motion='지휘 연출'}
 function M.styles()
     local out={}
@@ -177,11 +181,11 @@ function M.styles()
             primary=t.primary or series.primary,secondary=t.secondary or series.secondary,accent=t.accent or series.accent,territory={54,226,208},border={191,239,255},
             architecture=series.id,theme=t.theme,motif=t.motif,desc=t.desc,orderShape='rings',trail='line',impact='rings',features=M.features[series.tier],slots=family.slots}
     end end
-    for _,f in ipairs(M.flat)do
-        out[f.key]={id=f.key,name=f.name,access='collection',category='territory',rarity=f.rarity,tier=f.tier,flat=true,
+    for _,list in ipairs({M.flat,M.events})do for _,f in ipairs(list)do
+        out[f.key]={id=f.key,name=f.name,access='collection',category='territory',rarity=f.rarity,tier=f.tier,flat=true,event=f.event,
             primary=f.primary,secondary=f.secondary,accent=f.accent,territory={54,226,208},border={191,239,255},
             architecture='carbon',motif=f.motif,desc=f.desc,orderShape='rings',trail='line',impact='rings',features=M.features[f.tier],slots={'territory'}}
-    end
+    end end
     return out
 end
 function M.items()
@@ -191,9 +195,9 @@ function M.items()
         table.insert(out,{id='supply:'..key,name=M.names[key],category=family.id,rarity=series.rarity,tier=series.tier,
             style=key,loadout=loadout,ready=true,artVersion=1})
     end end
-    for _,f in ipairs(M.flat)do
-        table.insert(out,{id='supply:'..f.key,name=f.name,category='territory',rarity=f.rarity,tier=f.tier,style=f.key,loadout={territory=f.key},ready=true,artVersion=1})
-    end
+    for _,list in ipairs({M.flat,M.events})do for _,f in ipairs(list)do
+        table.insert(out,{id='supply:'..f.key,name=f.name,category='territory',rarity=f.rarity,tier=f.tier,style=f.key,loadout={territory=f.key},ready=true,artVersion=1,event=f.event})
+    end end
     for _,f in ipairs(Standards.series)do
         table.insert(out,{id=Standards.supplyId(f.id),name=f.name,category='commanderStandard',rarity=f.rarity,tier=f.tier,style=f.id,standard=true,loadout={},ready=true,artVersion=1})
     end

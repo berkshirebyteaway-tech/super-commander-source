@@ -9,6 +9,7 @@ local Supply=require(script.Parent.Parent.Core.SupplyCatalog)
 local Defs=require(script.Parent.Parent.Core.CollectionDefinitions)
 local Launch=require(script.Parent.Parent.Core.LaunchCommerce)
 local Standards=require(script.Parent.Parent.Core.CommanderStandardRules)
+local Halloween=require(script.Parent.Parent.Core.HalloweenEvent)
 local M={}
 local function step(name,data)local ok,T=pcall(require,script.Parent.TelemetryClient);if ok and T.step then pcall(T.step,'cosmetics',name,data)end end
 M.tabs={{'commanderStandard','깃발'},{'territory','영토'},{'city','건물'},{'projectile','핵'},{'commanderTrail','트레일'},{'parachute','낙하산'},{'vehicle','탈것'},{'commanderOrder','지휘 연출'}}
@@ -71,10 +72,12 @@ local function entries(hub,slot,shop)
     local rank={normal=1,rare=2,epic=3,legendary=4,mythic=5};local items={}
     for i,item in ipairs(Supply.items)do if item.category==family.id then table.insert(items,{item=item,i=i})end end
     table.sort(items,function(x,y)local a,b=rank[x.item.rarity]or 0,rank[y.item.rarity]or 0;if a~=b then return a<b end;return x.i<y.i end)
-    for _,row in ipairs(items)do local item=row.item;do
-        local owned=a.billing and a.billing.owned and a.billing.owned[item.id]==true;local style=C.get(item.style)
-        table.insert(out,{id=item.style,name=item.name,color=Reveal.colors[item.rarity],grade=Launch.rarityNames[item.rarity],owned=owned,rarity=item.rarity,supply=item.id,item=item,worn=wearing(a,slots,item.style),
-            lock='보급 상자에서 획득',desc=style.desc,note=note,key=owned and 'skin:'..slot..':'..item.style or nil,preview=preview(item),
+    local eventLive=Halloween.view(nil,workspace:GetServerTimeNow(),script.Parent.Parent:GetAttribute('HalloweenEndsAt')).live
+    for _,row in ipairs(items)do local item=row.item;local owned=a.billing and a.billing.owned and a.billing.owned[item.id]==true
+    if not item.event or owned or eventLive then
+        local style=C.get(item.style)
+        table.insert(out,{id=item.style,name=item.name,color=Reveal.colors[item.rarity],grade=Launch.rarityNames[item.rarity],owned=owned,rarity=item.rarity,supply=not item.event and item.id or nil,item=item,worn=wearing(a,slots,item.style),
+            lock=item.event and '멀티 5판으로 획득'or '보급 상자에서 획득',event=item.event,desc=style.desc,note=note,key=owned and 'skin:'..slot..':'..item.style or nil,preview=preview(item),
             equip=function()shop:run(function()shop:request('equipSupply',item.id)end)end})
     end end
     return out

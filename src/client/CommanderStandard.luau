@@ -18,13 +18,15 @@ function M.watch(context)
     Run.RenderStepped:Connect(function(dt)
         scan+=dt
         if scan>=.25 then scan=0
+            local Stage=require(script.Parent.LobbyStage)
             for _,p in ipairs(Players:GetPlayers())do
-                local c=p.Character;local hand=c and(c:FindFirstChild('RightHand')or c:FindFirstChild('Right Arm'))
+                local s=Stage.standFor(p);local c=s and s.clone or p.Character;local hand=c and(c:FindFirstChild('RightHand')or c:FindFirstChild('Right Arm'))
                 local raw=p:GetAttribute('CommanderStandardStyle');local item=Rules.find(raw)
                 local id=item and item.supply and raw or Rules.effective(raw,p:GetAttribute('CommanderLevel')or 1)
                 local old=states[p]
                 if old and(old.character~=c or old.id~=id)then old.rig:destroy();states[p]=nil;old=nil end
                 if hand and not old then states[p]={character=c,hand=hand,id=id,rig=Rig.new(folder,id,Color3.fromRGB(54,226,208)),plant=0}end
+                if states[p]then states[p].real=s and s.real or nil end
             end
         end
         local camera=workspace.CurrentCamera;if not camera then return end
@@ -37,7 +39,7 @@ function M.watch(context)
                 local visible=shown and distance<300 and root.LocalTransparencyModifier<.99 and point.Z>0 and point.X>=-80 and point.X<=view.X+80 and point.Y>=-80 and point.Y<=view.Y+80
                 if v.visible~=visible then v.visible=visible;v.lastAt=nil;v.rig.model.Parent=visible and folder or nil end
                 if visible then
-                    v.emote=emoting(c)
+                    v.emote=emoting(v.real or c)
                     v.rig:recolor(color or Color3.fromRGB(54,226,208))
                     local at=root.Position;local last=v.lastAt;v.lastAt=at
                     local raw=last and dt>0 and (at-last).Magnitude<40 and Vector3.new(at.X-last.X,0,at.Z-last.Z).Magnitude/dt or 0

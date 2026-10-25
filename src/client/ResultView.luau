@@ -352,7 +352,8 @@ function M:paintCard(v,fmt,cw,ch,cx,cy)
     local card=self.card;if not card then return end
     local corner=card:FindFirstChildOfClass('UICorner')or K.make('UICorner',card);corner.CornerRadius=UDim.new(0,fmt=='pc'and 14 or 0)
     local stroke=card:FindFirstChildOfClass('UIStroke');if stroke then set(stroke,'Color',C.line);set(stroke,'Thickness',1);set(stroke,'Transparency',fmt=='pc'and 0 or 1)end
-    set(card,'BackgroundColor3',fmt=='pc'and CARD or Color3.fromRGB(9,13,18));set(card,'BackgroundTransparency',fmt=='pc'and 0 or fmt=='ph'and .06 or 1)
+    set(card,'BackgroundColor3',fmt=='pc'and CARD or Color3.fromRGB(9,13,18))
+    set(card,'BackgroundTransparency',fmt=='pc'and 0 or .06)
     K.box(card,cx,cy,cw,ch)
     if self.modal and self.modal:IsA('GuiObject')then set(self.modal,'BackgroundColor3',Color3.fromRGB(5,8,12));set(self.modal,'BackgroundTransparency',fmt=='pt'and .2 or .38)end
     if self.titleObj then self.titleObj.Visible=false end

@@ -15,7 +15,7 @@ function M.collection(hub,body,w,y,shop,slot)
         for i,f in ipairs(Definitions.families)do local id=f.id;local b=UI.button(body,'Family_'..id,f.name,function()hub.collectionFamily=id;hub:drawPage()end,id==selected);UI.box(b,(i-1)%cols*(cw+6),y+math.floor((i-1)/cols)*50,cw,44);b.TextSize=w<480 and 11 or 13 end
         y+=math.ceil(#Definitions.families/cols)*50+6;family=Definitions.family(selected)or Definitions.families[1]
     end
-    local items={};for _,item in ipairs(Catalog.items)do if item.category==family.id then table.insert(items,item)end end
+    local items={};for _,item in ipairs(Catalog.items)do if item.category==family.id and (not item.event or billing.owned[item.id]==true)then table.insert(items,item)end end
     local cols=w>=600 and 3 or 2;local gap=12;local cw=(w-gap*(cols-1))/cols;local h=242
     for i,item in ipairs(items)do
         local owned=billing.owned[item.id]==true;local equipped=true

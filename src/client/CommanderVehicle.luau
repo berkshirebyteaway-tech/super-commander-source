@@ -286,20 +286,25 @@ function M.watch(context)
     game:GetService('RunService').RenderStepped:Connect(function(dt)
         scan+=dt;budget+=dt;local art=budget>=1/30;if art then budget=math.min(budget-1/30,1/30)end
         local now=os.clock();local me=Players.LocalPlayer
+        local Stage=require(script.Parent.LobbyStage)
         if scan>=.25 then scan=0;for _,p in ipairs(Players:GetPlayers())do
-            local c=p.Character;local id=p:GetAttribute('CommanderCosmetic_vehicle')or 'classic';local old=states[p]
+            local stand=Stage.standFor(p);local c=stand and stand.clone or p.Character;local id=p:GetAttribute('CommanderCosmetic_vehicle')or 'classic';local old=states[p]
             for _,slot in ipairs(prefetchSlots)do Meshes.prefetch(p:GetAttribute('CommanderCosmetic_'..slot))end;Meshes.prefetchStandard(p:GetAttribute('CommanderStandardStyle'))
-            if old and(old.character~=c or old.id~=id)then old.model:Destroy();M.riders[old.character]=nil;states[p]=nil;old=nil end
+            if old and(old.character~=c or old.id~=id)then old.model:Destroy();M.riders[old.character]=nil;if old.real then M.riders[old.real]=nil end;states[p]=nil;old=nil end
             local s=C.styles[id]
             if not old and c and c.PrimaryPart and s and s.category=='vehicle'then
                 states[p]={character=c,id=id,model=M.model(s),style=s,time=0}
+            end
+            local v=states[p];if v then local real=stand and stand.real or nil
+                if v.real~=real then if v.real then M.riders[v.real]=nil end;v.real=real end
+                if real then M.riders[real]=v.visible or nil end
             end
         end end
         local camera=workspace.CurrentCamera;if not camera then return end
         local reduced=me:GetAttribute('CommanderReducedEffects')==true
         for p,v in pairs(states)do
             local c=v.character;local root=c.PrimaryPart;local hum=c:FindFirstChildOfClass('Humanoid')
-            if not p.Parent or not c.Parent or not root then v.model:Destroy();M.riders[c]=nil;states[p]=nil
+            if not p.Parent or not c.Parent or not root then v.model:Destroy();M.riders[c]=nil;if v.real then M.riders[v.real]=nil end;states[p]=nil
             else
                 local shown=context(p);local point=camera:WorldToViewportPoint(root.Position);local far=(root.Position-camera.CFrame.Position).Magnitude
                 local visible=shown and root.LocalTransparencyModifier<.95 and far<180 and point.Z>0 and point.X>=-60 and point.X<=camera.ViewportSize.X+60 and point.Y>=-60 and point.Y<=camera.ViewportSize.Y+60

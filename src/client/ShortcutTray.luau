@@ -328,7 +328,11 @@ function M:layout20(w,h,touch,shown,sheet)
         local x0,y0=w-12-48-8-48,h-12-48-8-48
         local spots={{x0,y0},{x0+56,y0},{x0,y0+56},{x0+56,y0+56}}
         for i,b in ipairs(list)do if b then UI.box(b,spots[i][1],spots[i][2],48,48);b.Visible=shown;b.ZIndex=19
-            local tip=b:FindFirstChild('Tip');if tip then tip.Visible=b:GetAttribute('Hover')==true;UI.box(tip,(48-112)/2,-30,112,24)end end end
+            local tip=b:FindFirstChild('Tip')
+            if tip then tip.Visible=b:GetAttribute('Hover')==true
+                local tw=math.max(56,K.width(require(script.Parent.Localization).text(tip.Text),tip.TextSize,tip)+20);local tx=math.min((48-tw)/2,w-8-spots[i][1]-tw)
+                UI.box(tip,tx,-30,tw,24)
+            end end end
         self.open=false;self.menuShown=shown;self:aside();return
     end
     if not self.burger then

@@ -171,7 +171,7 @@ function M.build(self)
     local ready=self.preview~=nil and self.preview.valid==true and not self.preview.guess
     if touch()then
         local sh=self.bar.Parent and self.bar.Parent:FindFirstChild('ActionSheet')
-        local conf=sh and sh.Visible and sh:FindFirstChild('Confirm')
+        local conf=sh and sh.Visible and sh:FindFirstChild('Confirm')or nil
         if conf and conf~=self.preview20 then M.unpreview(self)end
         if conf then self.preview20=conf;conf:SetAttribute('Preview20',true);conf.Interactable=false end
         ready=conf~=nil and conf.Visible and conf.Active and conf:GetAttribute('Enabled')~=false

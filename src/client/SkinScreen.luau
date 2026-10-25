@@ -66,18 +66,20 @@ local function categories(hub,root,x,y,w,h,slim,key)
 end
 local function source(e,key)
     if e.none then return '기본값'end
+    if e.event then return '할로윈 이벤트'end
     if e.supply then return '보급 상자에서 얻음'end
     if e.level then return e.level>1 and string.format('Lv.%d 해금',e.level)or '기본 지급'end
     if e.rarity=='rare'then return '출시 기념'end
     return '기본 지급'
 end
-local function actionable(e)return not e.worn and (e.owned or e.supply)end
+local function actionable(e)return not e.worn and (e.owned or e.supply or e.event)end
 local function actionBar(hub,root,bar,e,shop,w,h,slim)
     for _,o in ipairs(bar:GetChildren())do if not o:IsA('UICorner')and not o:IsA('UIStroke')then o:Destroy()end end
     bar.Visible=actionable(e)==true;if not bar.Visible then return end
     local bw=slim and w-16 or math.min(320,w-24);local bx=(w-bw)/2;local bh=slim and 48 or 56;local by=(h-bh)/2;local tight=bw<130
     local label,primary,fn
     if e.owned then label,primary,fn='장착',true,function()step('equip',{item=e.id});e.equip()end
+    elseif e.event then label,fn=tight and '🎃 멀티 5판 ›'or '🎃 멀티 5판으로 얻기 ›',function()step('toEvent',{item=e.id});hub:closePage()end
     else label,fn=tight and '보급 상자 ›'or '보급 상자에서 얻기 ›',function()step('toShop',{item=e.id});hub:openPage('shop')end end
     local b=UI.button(bar,primary and 'Equip'or 'GetSupply',label,fn,primary);UI.box(b,bx,by,bw,bh);K.round(b,8)
     b.TextSize=tight and 15 or slim and 16 or 19;b.Font=K.heavy;UI.enabled(b,not primary or not shop.busy)
@@ -158,6 +160,7 @@ local function card(hub,grid,e,x,y,cw,ch,slim,pick)
     local state,sc,lock
     if e.worn then state,sc='✓ 장착 중',UI.colors.accent
     elseif e.owned then state,sc='보유',UI.colors.muted
+    elseif e.event then state,sc='🎃 멀티 5판',UI.colors.muted
     elseif e.supply then state,sc='보급 상자',UI.colors.muted
     else state,sc,lock=e.level and string.format('Lv.%d',e.level)or '잠김',UI.colors.muted,true end
     local sx=10;if lock then UI.box(Icons.create(b,'lock',12,UI.colors.muted),10,ch-20,12,12);sx=26 end

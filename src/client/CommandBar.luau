@@ -58,6 +58,10 @@ function M:ratio(f)
     for i=2,#s do if f<=s[i][1]then local a,b=s[i-1],s[i];return a[2]+(f-a[1])/(b[1]-a[1])*(b[2]-a[2])end end
     return 1
 end
+function M:wheel(fraction,z)
+    if self.v2 and self.v2.fmt then return require(script.Parent.Hud20).wheel(fraction,z)end
+    return math.floor((fraction+(z>0 and .1 or -.1))*100+.5)/100
+end
 function M:fraction(x,width)
     if self.v2 and self.v2.fmt then return require(script.Parent.Hud20).fraction(self,x,width)end
     local t=math.clamp(x/math.max(1,width),0,1)
@@ -266,7 +270,7 @@ function M:leavePhone()
     local line=e.controls:FindFirstChildOfClass('UIStroke');if line then line.Enabled=true end
 end
 function M:restore()
-    if self.v2 then self.v2.fmt=nil;self.v2.seg.Visible=false;self.v2.line.Visible=false;self.e.dock.v2=nil;self.e.troopBar:SetAttribute('V2',false);self.portrait=false
+    if self.v2 then self.v2.fmt=nil;self.v2.seg.Visible=false;if self.v2.ratePlate then self.v2.ratePlate.Visible=false end;self.v2.line.Visible=false;self.e.dock.v2=nil;self.e.troopBar:SetAttribute('V2',false);self.portrait=false
         local g=self.e.troopBar:FindFirstChild('Bar20');if g then g:Destroy()end
         local fill=self.e.troopBar:FindFirstChild('Fill');if fill then fill.BackgroundTransparency=0 end
         if self.v2.coin then self.v2.coin.Visible=false end;self.coin.Visible=true

@@ -18,6 +18,11 @@ function M.shot()
     return CFrame.lookAt(H.world(pos),H.world(look)),w.fov+(t.fov-w.fov)*k
 end
 function M.focus()return CFrame.new(H.world(H.dais+Vector3.new(0,3,0)))end
+function M.standFor(player)
+    if not M.active then return nil end
+    for _,s in pairs(M.stand)do if s.player==player and s.clone and s.clone.Parent then return s end end
+    return nil
+end
 function M.commanderRoot()local s=M.stand[1];return s and s.clone and s.clone:FindFirstChild('HumanoidRootPart')end
 
 local SHOWN={ParticleEmitter=true,Beam=true,Trail=true,PointLight=true,SpotLight=true,SurfaceLight=true,BillboardGui=true}
@@ -61,9 +66,9 @@ end
 local function joints(real,clone)
     local list={}
     for _,m in ipairs(real:GetDescendants())do
-        if m:IsA('Motor6D')and m.Parent then
+        if (m:IsA('Motor6D')or m:IsA('AnimationConstraint'))and m.Parent then
             local host=clone:FindFirstChild(m.Parent.Name,true);local twin=host and host:FindFirstChild(m.Name)
-            if twin and twin:IsA('Motor6D')then table.insert(list,{m,twin})end
+            if twin and twin.ClassName==m.ClassName then table.insert(list,{m,twin})end
         end
     end
     return list
@@ -73,6 +78,17 @@ local function feetOn(clone,spot,yaw)
     local lift=hum and hum.RigType==Enum.HumanoidRigType.R15 and hum.HipHeight+root.Size.Y/2 or 3*clone:GetScale()
     local at=H.world(spot);local face=CFrame.lookAt(at,at+Vector3.new(0,0,1))*CFrame.Angles(0,math.rad(-(yaw or 0)),0)
     clone:PivotTo(face*CFrame.new(0,lift,0))
+end
+
+local IDLE_JOINTS={Waist={'Waist'},Neck={'Neck'},RightShoulder={'RightShoulder','Right Shoulder'},RightElbow={'RightElbow'},LeftShoulder={'LeftShoulder','Left Shoulder'},LeftElbow={'LeftElbow'}}
+local function idleRig(clone)
+    local out={}
+    for _,o in ipairs(clone:GetDescendants())do if o:IsA('Motor6D')or o:IsA('AnimationConstraint')then
+        for key,names in pairs(IDLE_JOINTS)do if not out[key]and table.find(names,o.Name)then
+            local rot=(if o:IsA('Motor6D')then o.C0 else (o.Attachment0 and o.Attachment0.CFrame or CFrame.identity)).Rotation;out[key]={j=o,rot=rot,inv=rot:Inverse()}
+        end end
+    end end
+    return out
 end
 
 local function release(i)
@@ -92,7 +108,33 @@ local function build(i,player)
     table.insert(s.watch,c.DescendantAdded:Connect(function(o)if not o:IsA('Sound')and not o:IsA('LuaSourceContainer')then touched()end end))
     table.insert(s.watch,c.DescendantRemoving:Connect(function(o)if o:IsA('Accessory')or o:IsA('Clothing')or o:IsA('BasePart')or o:IsA('Decal')then touched()end end))
     hide(c);M.stand[i]=s
+    s.idle=idleRig(clone);s.phase=(player.UserId%97)*.37
     s.skin={};for _,o in ipairs(c:GetDescendants())do if o:IsA('BasePart')or o:IsA('Decal')then table.insert(s.skin,o)end end
+end
+local function emoting(c)
+    local hum=c and c:FindFirstChildOfClass('Humanoid');local animator=hum and hum:FindFirstChildOfClass('Animator');if not animator then return false end
+    for _,t in ipairs(animator:GetPlayingAnimationTracks())do
+        local pr=t.Priority;if t.IsPlaying and t.WeightCurrent>.3 and (pr==Enum.AnimationPriority.Action or pr==Enum.AnimationPriority.Action2 or pr==Enum.AnimationPriority.Action3 or pr==Enum.AnimationPriority.Action4)then return true end
+    end
+    return false
+end
+local rad=math.rad
+local function idle(s,t,dt,still)
+    local rig=s.idle;if not rig then return end
+    s.idleW=math.clamp((s.idleW or 0)+(s.emote and -dt or dt)*3,0,1);local w=s.idleW*s.idleW*(3-2*s.idleW);if w<=0 then return end
+    local m=still and 0 or 1;t+=s.phase
+    local breathe=math.sin(t*math.pi*2/4.2)*m;local shift=math.sin(t*math.pi*2/7.5)*m;local look=math.sin(t*math.pi*2/9.7)*m
+    local want={
+        Waist=CFrame.Angles(rad(-1.4*breathe),rad(2.5*shift),rad(1.2*shift)),
+        Neck=CFrame.Angles(rad(1*breathe+1.5*math.sin(t*math.pi*2/6.1)*m),rad(7*look),0),
+        RightShoulder=CFrame.Angles(rad(22+2*breathe),0,rad(-6)),
+        RightElbow=CFrame.Angles(rad(68+3*shift),0,0),
+        LeftShoulder=CFrame.Angles(rad(4-1.5*breathe),0,rad(5+1.5*shift)),
+        LeftElbow=CFrame.Angles(rad(14),0,0),
+    }
+    for key,r in pairs(want)do local e=rig[key]
+        if e and e.j.Parent then local base=e.j.Transform;e.j.Transform=base:Lerp(e.inv*r*e.rot*base,w)end
+    end
 end
 local function cast()
     local list={me}
@@ -165,13 +207,14 @@ function M.attach(model,o)
             if camera.CameraType~=Enum.CameraType.Scriptable then camera.CameraType=Enum.CameraType.Scriptable end
             camera.CFrame=cf;camera.FieldOfView=fov
         end
+        local still=opts.reduced and opts.reduced()
         for _,s in pairs(M.stand)do
             for _,j in ipairs(s.map)do j[2].Transform=j[1].Transform end
+            idle(s,clock,dt,still)
             for _,o in ipairs(s.skin)do if o.LocalTransparencyModifier<1 then o.LocalTransparencyModifier=1 end end
         end
         clock+=dt;acc+=dt
-        if acc>=.5 then acc=0;sync()end
-        local still=opts.reduced and opts.reduced()
+        if acc>=.5 then acc=0;sync();for _,s in pairs(M.stand)do s.emote=emoting(s.real)end end
         for _,b in ipairs(breathe)do b.p.Transparency=math.clamp(b.base+(still and 0 or math.sin(clock*math.pi/2)*.1),0,1)end
     end)
     M.attached=true

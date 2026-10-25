@@ -70,7 +70,18 @@ local function controlsRow(cb,fmt,ty,troopX,troopW,segX,segW,goldX,goldW,rowH)
     local rateW=fmt=='ph'and 52 or 58
     local badge=e.growthBadge;K.box(badge,troopX+troopW-rateW-(fmt=='ph'and 7 or 7),ty,rateW,rowH);badge.ZIndex=7
     e.statsTroopsSub.Visible=true;e.statsTroopsSub.TextSize=rs;if K.fonts.num then e.statsTroopsSub.FontFace=K.fonts.num end
-    e.statsTroopsSub.TextXAlignment=Enum.TextXAlignment.Right;K.box(e.statsTroopsSub,0,0,rateW,rowH);e.statsTroopsSub.ZIndex=8
+    e.statsTroopsSub.TextXAlignment=Enum.TextXAlignment.Right;K.box(e.statsTroopsSub,0,0,rateW-6,rowH);e.statsTroopsSub.ZIndex=8
+    if not v.ratePlate then
+        local sub=e.statsTroopsSub
+        v.ratePlate=K.make('Frame',badge,{Name='RatePlate20',AnchorPoint=Vector2.new(1,.5),BackgroundColor3=C.bg,BackgroundTransparency=.3,BorderSizePixel=0,ZIndex=7});K.round(v.ratePlate,'pill')
+        v.fitRate=function()
+            local pw=math.ceil(sub.TextBounds.X)+10
+            v.ratePlate.Visible=cb.v2.fmt~=nil and sub.Visible and sub.Text~=''
+            v.ratePlate.Size=UDim2.fromOffset(pw,math.max(14,v.rateRow-8));v.ratePlate.Position=UDim2.fromOffset(sub.Size.X.Offset+5,v.rateRow/2)
+        end
+        sub:GetPropertyChangedSignal('TextBounds'):Connect(v.fitRate);sub:GetPropertyChangedSignal('Visible'):Connect(v.fitRate)
+    end
+    v.rateRow=rowH;v.fitRate()
     local nx=(fmt=='pt'and 10 or 7)+is+4
     local n=e.statsTroops;n.Visible=true;n.TextSize=fs;if K.fonts.num then n.FontFace=K.fonts.num end;n.TextColor3=C.ink
     n.TextXAlignment=Enum.TextXAlignment.Left;n.TextWrapped=false;n.ZIndex=6;n.TextStrokeColor3=Color3.new(0,0,0);n.TextStrokeTransparency=.6
@@ -159,11 +170,9 @@ function M.dispatch(cb,fraction,instant)
     local v=cb.v2;if not v or not v.cellW then return end
     local idx,best=1,math.huge
     for i,p in ipairs(M.PRESETS)do local d=math.abs(math.log(p)-math.log(math.max(.01,fraction)));if d<best then best=d;idx=i end end
-    local exact=math.abs(M.PRESETS[idx]-fraction)<.005
     for i,l in ipairs(v.cells)do
-        local on=i==idx
-        l.Text=on and not exact and (math.floor(fraction*100+.5)..'%')or (math.floor(M.PRESETS[i]*100)..'%')
-        l.TextColor3=on and C.bg or C.muted
+        l.Text=math.floor(M.PRESETS[i]*100)..'%'
+        l.TextColor3=i==idx and C.bg or C.muted
     end
     local ow,oh=math.floor(v.cellW+.5),v.segH-6;local ax,ay=math.floor(ow/2),math.floor(oh/2)
     local goal=UDim2.fromOffset(math.floor(3+(idx-1)*(v.cellW+3)+.5)+ax,3+ay)
@@ -176,12 +185,13 @@ function M.dispatch(cb,fraction,instant)
     if n and n.Visible and cb.myTroops then n.Text=require(script.Parent.Theme).troops(fraction*cb.myTroops)end
 end
 function M.fraction(cb,x,width)
-    local t=math.clamp(x/math.max(1,width),0,1)
-    local centres={.125,.375,.625,.875}
-    for i,cx in ipairs(centres)do if math.abs(t-cx)<=.25*.3 then return M.PRESETS[i]end end
-    local stops={{0,.01},{.125,.1},{.375,.2},{.625,.5},{.875,1},{1,1}}
-    for i=2,#stops do local a,b=stops[i-1],stops[i];if t<=b[1]then local f=a[2]+(t-a[1])/(b[1]-a[1])*(b[2]-a[2]);return math.clamp(math.floor(f*100+.5),1,100)/100 end end
-    return 1
+    local t=math.clamp(x/math.max(1,width),0,.9999)
+    return M.PRESETS[math.floor(t*#M.PRESETS)+1]
+end
+function M.wheel(fraction,z)
+    local idx,best=1,math.huge
+    for i,p in ipairs(M.PRESETS)do local d=math.abs(math.log(p)-math.log(math.max(.01,fraction)));if d<best then best=d;idx=i end end
+    return M.PRESETS[math.clamp(idx+(z>0 and 1 or -1),1,#M.PRESETS)]
 end
 function M.update(cb,s)
     if not cb.v2 or not cb.v2.fmt then return end
