@@ -41,6 +41,7 @@ local function image(layer,key,shape,box,motif,size)
     end
     return images[id]
 end
+M.image=image
 local function label(parent,name,size,z)
     local l=Instance.new('ImageLabel');l.Name=name;l.AnchorPoint=Vector2.new(.5,.5);l.Position=UDim2.fromScale(.5,.5)
     l.Size=UDim2.fromScale(size,size);l.BackgroundTransparency=1;l.ScaleType=Enum.ScaleType.Stretch;l.ZIndex=z;l.Visible=false;l.Parent=parent;return l

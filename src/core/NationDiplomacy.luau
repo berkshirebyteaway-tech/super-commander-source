@@ -75,7 +75,7 @@ function M:decision(id,response)
     if other.isTraitor and r:nextInt(0,100)>=10 then return reject() end
     if C.smart(d) then
         local count=0;for _,pl in ipairs(w.sim.players) do if pl.kind~="BOT" and pl.tiles.size>0 then count+=1 end end
-        if #C.allies(w,id)>=count*(d=="Hard" and .5 or .25) then return false end
+        if #C.allies(w,id)-(C.allied(w,a.id,id) and 1 or 0)>=count*(d=="Hard" and .5 or .25) then return false end
     end
     if C.leader(w,a.id)==id then return false end
     local threat=d=="Medium" and other.troops>p.troops*2.5 or d=="Hard" and other.troops>p.troops and w:maxTroops(id)>w:maxTroops(a.id)*2 or d=="Impossible" and (other.troops>p.troops*1.5 or other.troops>p.troops and (w:maxTroops(id)>w:maxTroops(a.id)*1.5 or other.tiles.size>p.tiles.size*1.5))

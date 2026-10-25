@@ -154,9 +154,9 @@ function M:handleDeadDefender(e)
 end
 function M:tickAttack(e)
     local troops=e.troops
+    if not e.attackActive then e.active=false;return end
     if e.retreated then self:retreat(e,e.target~=0 and 25 or 0);return end
     if e.retreating then return end
-    if not e.attackActive then e.active=false;return end
     if self.isFriendly and self.isFriendly(e.owner,e.target) then self:retreat(e);return end
     local borderSize=e.border.size+e.random:nextInt(0,5)
     local budget=1

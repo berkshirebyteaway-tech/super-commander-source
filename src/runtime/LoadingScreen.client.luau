@@ -3,7 +3,7 @@ local RF=game:GetService("ReplicatedFirst")
 local TweenService=game:GetService("TweenService")
 local me=Players.LocalPlayer
 local playerGui=me:WaitForChild("PlayerGui")
-playerGui.ScreenOrientation=Enum.ScreenOrientation.LandscapeSensor
+playerGui.ScreenOrientation=Enum.ScreenOrientation.Sensor
 local korean=tostring(me.LocaleId or ""):sub(1,2)=="ko"
 local bg,line,ink,muted,accent=Color3.fromRGB(10,33,73),Color3.fromRGB(64,104,170),Color3.fromRGB(240,245,252),Color3.fromRGB(196,212,236),Color3.fromRGB(54,226,208)
 local yellow,outline,paper=Color3.fromRGB(255,216,74),Color3.fromRGB(10,8,6),Color3.fromRGB(248,248,244)
@@ -190,6 +190,7 @@ end)end
 advance(.75,korean and "지휘 화면을 준비하는 중" or "Preparing the war room")
 local ui=playerGui:WaitForChild("FrontierNativeUI",math.max(1,25-(os.clock()-started)))
 while ui and ui:GetAttribute("Phase")==nil and os.clock()-started<25 do task.wait(.05)end
+pcall(function()me:SetAttribute('LoadCoverClocks',string.format('%.3f,%.3f',loadedAt,os.clock()))end)
 pcall(function()me:SetAttribute('LoadCoverStages',string.format('%d,%d,%d,%d',math.floor((loadedAt-started)*1000),math.floor((os.clock()-started)*1000),ui and 1 or 0,os.clock()-started>=25 and 1 or 0))end)
 task.wait()
 if ui and ui:GetAttribute("Loading")==true then

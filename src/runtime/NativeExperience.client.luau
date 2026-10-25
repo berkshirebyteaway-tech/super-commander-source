@@ -2,6 +2,7 @@ local Players=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 local RunService=game:GetService("RunService")
 local me=Players.LocalPlayer
+local bootClocks={os.clock()}
 local pack=game.ReplicatedStorage:WaitForChild("FrontierNative")
 local UI=require(pack.Client.Theme)
 local L=require(pack.Client.Localization)
@@ -41,7 +42,8 @@ local make,box,label,button=UI.make,UI.box,UI.label,UI.button
 pcall(function()
     for _,kind in ipairs({Enum.CoreGuiType.PlayerList,Enum.CoreGuiType.Chat,Enum.CoreGuiType.Backpack,Enum.CoreGuiType.Health}) do game.StarterGui:SetCoreGuiEnabled(kind,false) end
 end)
-me.PlayerGui.ScreenOrientation=Enum.ScreenOrientation.LandscapeSensor
+bootClocks[2]=os.clock()
+me.PlayerGui.ScreenOrientation=Enum.ScreenOrientation.Sensor
 local gui=make("ScreenGui",me.PlayerGui,{Name="FrontierNativeUI",DisplayOrder=5,IgnoreGuiInset=false,ResetOnSpawn=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
 L.bind(gui)
 require(pack.Client.FullBleed).watch(gui)
@@ -1213,6 +1215,7 @@ local function selectTile(tile,pos,secondary)
     if armsUI.ghostClick(tile,secondary)then return end
     if not armsUI.input.touch()and(armsUI.closeRadial()or secondary and action=="moveWarship"and armsUI.moving)then armsUI.telemetry.step('match','menuClosed',{result=secondary and'right'or'left',item=armsUI.moving and'move'or'ring'});armsUI.moving=nil;action="inspect";refreshContext();return end
     if pos and not secondary and not sheet.Visible and action=="inspect"and not armsUI.input.touch()and not getUnit(tile,pos)and require(pack.Client.ClickAttack).pick(state,terrainInfo(tile),factions[owners[tile]],owners[tile])then send("attack",fraction,tile);return end
+    if not armsUI.input.touch()then require(pack.Client.RightClickStep).note(state,secondary)end
     if pos and action=="inspect"then local u=getUnit(tile,pos);if not(u and(u.owner or 1)==1)then tile=require(pack.Client.TapSnap).land(tile,(pos-map.AbsolutePosition)/UI.scale,currentMap,renderer,owners,armsUI.input.touch())or tile end end
     local last=armsUI.lastTap
     local target=factions[owners[tile]]
@@ -1650,6 +1653,7 @@ armsUI.resolveOverlays=function()
 end
 local resyncing=false
 render=function(s)
+    if not bootClocks[4]then bootClocks[4]=os.clock();pcall(function()me:SetAttribute("LoadUiClocks",string.format("%.3f,%.3f,%.3f,%.3f",bootClocks[1],bootClocks[2],bootClocks[3]or bootClocks[4],bootClocks[4]))end)end
     if type(s)~='table'or s.busy then return end
     armsUI.stateStream=armsUI.stateStream or {}
     if not require(pack.Core.StateDelta).decode(armsUI.stateStream,s)then
@@ -2097,4 +2101,5 @@ pack:WaitForChild("VisualEvent").OnClientEvent:Connect(function(e) effects:recei
 layout()
 pack:WaitForChild("State").OnClientEvent:Connect(function(v)armsUI.probe.start("Snapshot");render(v);armsUI.probe.stop("Snapshot")end)
 require(pack.Client.MapStuck).attach(root.LoadingCover,{inMatch=function()return state~=nil and state.phase~="menu"end,retry=function()task.spawn(function()local ok,f=pcall(read.InvokeServer,read);if ok then render(f)end end)end,lobby=function()armsUI.veil.show("로비로 이동 중…");send("menu")end})
+bootClocks[3]=os.clock()
 task.spawn(function() local ok,s=pcall(function() return read:InvokeServer() end);if ok then render(s) else notify("서버 연결 실패",true) end end)

@@ -72,12 +72,14 @@ local function entries(hub,slot,shop)
     local rank={normal=1,rare=2,epic=3,legendary=4,mythic=5};local items={}
     for i,item in ipairs(Supply.items)do if item.category==family.id then table.insert(items,{item=item,i=i})end end
     table.sort(items,function(x,y)local a,b=rank[x.item.rarity]or 0,rank[y.item.rarity]or 0;if a~=b then return a<b end;return x.i<y.i end)
-    local eventLive=Halloween.view(nil,workspace:GetServerTimeNow(),script.Parent.Parent:GetAttribute('HalloweenEndsAt')).live
+    local now=workspace:GetServerTimeNow()
+    local eventLive=Halloween.view(nil,now,script.Parent.Parent:GetAttribute('HalloweenEndsAt')).live
     for _,row in ipairs(items)do local item=row.item;local owned=a.billing and a.billing.owned and a.billing.owned[item.id]==true
-    if not item.event or owned or eventLive then
+    local limited=item.event==Halloween.id and not eventLive and Halloween.ended(now)
+    if not item.event or owned or eventLive or limited then
         local style=C.get(item.style)
         table.insert(out,{id=item.style,name=item.name,color=Reveal.colors[item.rarity],grade=Launch.rarityNames[item.rarity],owned=owned,rarity=item.rarity,supply=not item.event and item.id or nil,item=item,worn=wearing(a,slots,item.style),
-            lock=item.event and '멀티 5판으로 획득'or '보급 상자에서 획득',event=item.event,desc=style.desc,note=note,key=owned and 'skin:'..slot..':'..item.style or nil,preview=preview(item),
+            lock=limited and '한정'or item.event and '멀티 5판으로 획득'or '보급 상자에서 획득',event=item.event,limited=limited or nil,desc=style.desc,note=note,key=owned and 'skin:'..slot..':'..item.style or nil,preview=preview(item),
             equip=function()shop:run(function()shop:request('equipSupply',item.id)end)end})
     end end
     return out

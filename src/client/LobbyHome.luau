@@ -287,7 +287,8 @@ function M:layout(w,h)
     if l.page=='room'and menu then lift=0 end
     if docked then lift=0 end
     self.top.Visible=menu and not(short and open);self.left.Visible=home and not narrow;self.bottom.Visible=home
-    UI.box(self.top,0,0,w,short and 72 or 120);UI.box(self.left,0,0,short and 320 or 460,h);UI.box(self.bottom,0,h-(narrow and 320 or 160),w,narrow and 320 or 160)
+    local il,ir,ib=require(script.Parent.Lobby20).sideInsets(l)
+    UI.box(self.top,-il,0,w+il+ir,short and 72 or 120);UI.box(self.left,-il,0,(short and 320 or 460)+il,h+ib);UI.box(self.bottom,-il,h-(narrow and 320 or 160),w+il+ir,(narrow and 320 or 160)+ib)
     for _,o in ipairs({self.start,self.select})do o.Visible=home end
     self.party.Visible=home and not(self.listOpen and not short and not narrow)
     self.list.Visible=home and self.listOpen;l.friends.Visible=false

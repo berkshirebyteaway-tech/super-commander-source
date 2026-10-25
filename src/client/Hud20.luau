@@ -70,14 +70,14 @@ local function controlsRow(cb,fmt,ty,troopX,troopW,segX,segW,goldX,goldW,rowH)
     local rateW=fmt=='ph'and 52 or 58
     local badge=e.growthBadge;K.box(badge,troopX+troopW-rateW-(fmt=='ph'and 7 or 7),ty,rateW,rowH);badge.ZIndex=7
     e.statsTroopsSub.Visible=true;e.statsTroopsSub.TextSize=rs;if K.fonts.num then e.statsTroopsSub.FontFace=K.fonts.num end
-    e.statsTroopsSub.TextXAlignment=Enum.TextXAlignment.Right;K.box(e.statsTroopsSub,0,0,rateW-6,rowH);e.statsTroopsSub.ZIndex=8
+    e.statsTroopsSub.TextXAlignment=Enum.TextXAlignment.Center;K.box(e.statsTroopsSub,0,0,rateW,rowH);e.statsTroopsSub.ZIndex=8
     if not v.ratePlate then
         local sub=e.statsTroopsSub
-        v.ratePlate=K.make('Frame',badge,{Name='RatePlate20',AnchorPoint=Vector2.new(1,.5),BackgroundColor3=C.bg,BackgroundTransparency=.3,BorderSizePixel=0,ZIndex=7});K.round(v.ratePlate,'pill')
+        v.ratePlate=K.make('Frame',badge,{Name='RatePlate20',AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=C.bg,BackgroundTransparency=.3,BorderSizePixel=0,ZIndex=7});K.round(v.ratePlate,'pill')
         v.fitRate=function()
-            local pw=math.ceil(sub.TextBounds.X)+10
+            local bw=sub.Size.X.Offset;local pw=math.max(bw-4,math.ceil(sub.TextBounds.X)+10)
             v.ratePlate.Visible=cb.v2.fmt~=nil and sub.Visible and sub.Text~=''
-            v.ratePlate.Size=UDim2.fromOffset(pw,math.max(14,v.rateRow-8));v.ratePlate.Position=UDim2.fromOffset(sub.Size.X.Offset+5,v.rateRow/2)
+            v.ratePlate.Size=UDim2.fromOffset(pw,math.max(14,v.rateRow-8));v.ratePlate.Position=UDim2.fromOffset(bw/2,v.rateRow/2)
         end
         sub:GetPropertyChangedSignal('TextBounds'):Connect(v.fitRate);sub:GetPropertyChangedSignal('Visible'):Connect(v.fitRate)
     end

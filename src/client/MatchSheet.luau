@@ -480,6 +480,7 @@ local function focusRow(row,fn)
     row.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then fn()end end)
 end
 local function share(v)v=(v or 0)*100;return string.format(v>=10 and '%.1f%%'or '%.2f%%',v)end
+M.RANK_PIN=5
 function M:drawRanks20(w)
     local s=self.state;local list={};local mine
     for _,f in ipairs(self.sorted)do if f.kind~='BOT'and(f.tiles or 0)>0 and not f.eliminated then table.insert(list,f);if f.id==1 then mine=#list end end end
@@ -526,11 +527,12 @@ function M:drawRanks20(w)
         focusRow(rw,function()if f.labelTile and self.a.focusTile then Step.step('hud','rankFocus',{value=rank});self.a.focusTile(f.labelTile)end end)
         return rw
     end
-    for i,f in ipairs(list)do if f.id~=1 then row(body,f,i,y,false);y+=rh+4 end end
+    local pin=mine~=nil and mine>M.RANK_PIN
+    for i,f in ipairs(list)do if f.id~=1 or not pin then row(body,f,i,y,f.id==1);y+=rh+4 end end
     body.CanvasSize=UDim2.fromOffset(0,y+4)
     for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
-    if mine then row(self.pinned,list[mine],mine,0,true)end
-    return mine and rh+6 or 0
+    if pin then row(self.pinned,list[mine],mine,0,true)end
+    return pin and rh+6 or 0
 end
 function M:drawTeams20(w,y)
     local s=self.state;local list=Teams.build(s,self.sorted);local mine
@@ -560,11 +562,12 @@ function M:drawTeams20(w,y)
         end)
         return rw
     end
-    for i,t in ipairs(list)do if not t.mine then row(body,t,i,y,false);y+=rh+4 end end
+    local pin=mine~=nil and mine>M.RANK_PIN
+    for i,t in ipairs(list)do if not t.mine or not pin then row(body,t,i,y,t.mine==true);y+=rh+4 end end
     body.CanvasSize=UDim2.fromOffset(0,y+4)
     for _,o in ipairs(self.pinned:GetChildren())do o:Destroy()end
-    if mine then row(self.pinned,list[mine],mine,0,true)end
-    return mine and rh+6 or 0
+    if pin then row(self.pinned,list[mine],mine,0,true)end
+    return pin and rh+6 or 0
 end
 function M:drawDiplomacy20(w)
     local s=self.state;local d=s.diplomacy or {};local body=self.body;local y=0;local send=self.send

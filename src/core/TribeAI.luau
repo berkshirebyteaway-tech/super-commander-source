@@ -16,11 +16,11 @@ function M.new(world,id,key)
     self.trigger=r:nextInt(50,60)/100;self.reserve=r:nextInt(30,40)/100;self.expand=r:nextInt(10,20)/100
     return self
 end
-function M:traitor()
+function M:traitor(includeAllies)
     if self.world.settings.disableAlliances then return nil end
     local candidates={}
     for _,id in ipairs(self.world:nearby(self.id)) do
-        if id~=0 and not self.world:friendly(self.id,id) and self.world.sim.players[id].isTraitor then table.insert(candidates,id) end
+        if id~=0 and (includeAllies or not self.world:friendly(self.id,id)) and self.world.sim.players[id].isTraitor then table.insert(candidates,id) end
     end
     return #candidates>0 and self.random:randElement(candidates) or nil
 end
@@ -58,7 +58,7 @@ function M:tick(tick)
     if not self.initialized then self.initialized=true;self:send(0);return end
     w:acceptBotAlliances(self.id)
     w:deleteBotStructure(self.id)
-    local traitor=self:traitor()
+    local traitor=self:traitor(true)
     if traitor and self.random:chance(w:friendly(self.id,traitor) and 6 or 3) then
         w:breakAlliance(self.id,traitor)
         if self:send(traitor) then return end

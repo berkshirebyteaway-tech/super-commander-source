@@ -86,9 +86,9 @@ function M:convert(tiles)
             if x<mini.width and y<mini.height then local mt=y*mini.width+x;if not miniSeen[mt]then miniSeen[mt]=true;table.insert(candidates,mt)end end
         end
         for _,mt in ipairs(candidates)do if S.water(mini,mt)then continue end
-            local x,y=mt%mini.width*2,mt//mini.width*2;local water,total=0,0
-            for dy=0,1 do for dx=0,1 do if x+dx<g.width and y+dy<g.height then total+=1;if S.water(g,(y+dy)*g.width+x+dx)then water+=1 end end end end
-            if water>=math.min(3,total)then buffer.writeu8(mini.terrain,mt,0);table.insert(miniTiles,mt)end
+            local x,y=mt%mini.width*2,mt//mini.width*2;local water=false
+            for dy=0,1 do for dx=0,1 do if not water and x+dx<g.width and y+dy<g.height and S.water(g,(y+dy)*g.width+x+dx)then water=true end end end
+            if water then buffer.writeu8(mini.terrain,mt,0);table.insert(miniTiles,mt)end
         end
         if #miniTiles>0 then ocean(mini,miniTiles,nil);self:magnitudes(mini,miniTiles,false,nil)end
     else miniTiles=table.clone(tiles)end

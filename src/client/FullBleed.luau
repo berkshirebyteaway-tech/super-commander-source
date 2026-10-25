@@ -5,7 +5,10 @@ function M.insets(gui)
     local view=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.zero
     local ok,area=pcall(function()return GuiService:GetInsetArea(gui.ScreenInsets)end)
     if ok and area and area.Max.X>area.Min.X and area.Max.Y>area.Min.Y then
-        return math.max(0,area.Min.X),math.max(0,area.Min.Y),math.max(0,view.X-area.Max.X),math.max(0,view.Y-area.Max.Y)
+        local okAll,all=pcall(function()return GuiService:GetInsetArea(Enum.ScreenInsets.None)end)
+        local x0,y0,x1,y1=0,0,view.X,view.Y
+        if okAll and all and all.Max.X>all.Min.X and all.Max.Y>all.Min.Y then x0,y0,x1,y1=all.Min.X,all.Min.Y,all.Max.X,all.Max.Y end
+        return math.max(0,area.Min.X-x0),math.max(0,area.Min.Y-y0),math.max(0,x1-area.Max.X),math.max(0,y1-area.Max.Y)
     end
     if gui.ScreenInsets==Enum.ScreenInsets.None then return 0,0,0,0 end
     local size=gui.AbsoluteSize;local w,h=math.max(0,view.X-size.X),math.max(0,view.Y-size.Y)

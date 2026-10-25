@@ -64,7 +64,7 @@ function M:cells(kind,g,anchor,flipX,flipY)
         if b and b.Visible then
             local centre=s[2]==0 and s[3]==0
             local size=centre and g.big or Input.minorSlots[s[1]]and g.minor or g.size
-            table.insert(out,{x=anchor.X+s[2]*g.radius-size/2,y=anchor.Y+s[3]*g.radius-size/2,w=size,h=size+(centre and 0 or 16)})
+            table.insert(out,{x=anchor.X+s[2]*g.radius-size/2,y=anchor.Y+s[3]*g.radius-size/2,w=size,h=size})
         end
     end
     local reach=(kind=='nation'and math.max(g.radius+g.face/2,g.low+g.minorFace/2)or g.radius+g.face/2)+8

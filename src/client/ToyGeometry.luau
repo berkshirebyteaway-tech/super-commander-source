@@ -52,7 +52,7 @@ end
 local kinds={"soft","key","dish","board","armor"}
 for i=1,8 do table.insert(kinds,'standard'..i)end
 if Run:IsClient()then
-    local library=script.Parent.Parent:WaitForChild("ToyMeshLibrary",20)
+    local library=script.Parent.Parent:FindFirstChild("ToyMeshLibrary")
     for _,kind in ipairs(kinds)do
         local p=library and library:WaitForChild(kind,5)
         if p and p:IsA("MeshPart")then M.templates[kind]=p end

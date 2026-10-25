@@ -91,6 +91,7 @@ function M:press()
 end
 function M:mine()
     local q=self.q;local p=self.pending
+    if not q then return p~=nil and p.want or false end
     if p and (q.ready==p.want or os.clock()>p.until_)then self.pending=nil;p=nil end
     if p then return p.want end
     return q.ready==true
@@ -311,7 +312,7 @@ end
 
 function M:members()
     local q=self.q;local order={}
-    for _,m in ipairs(q.members or {})do
+    for _,m in ipairs(q and q.members or {})do
         if m.userId==Me.UserId then m=table.clone(m);m.ready=self:mine();m.me=true;table.insert(order,1,m)else table.insert(order,m)end
     end
     return order

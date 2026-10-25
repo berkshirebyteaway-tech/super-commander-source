@@ -15,7 +15,13 @@ local roles={City="skyline",DefensePost="star-bastion",Port="gantry-crane",Facto
 M.roles=roles
 local blocks
 M.previewOrder={"City","Port","MissileSilo","Factory","DefensePost","SAMLauncher"}
+local make
 function M.create(kind,style,level,detail,ownerColor)
+    local model=make(kind,style,level,detail,ownerColor)
+    pcall(require(script.Parent.PlinthSkin).dress,model,kind,style,detail~=false)
+    return model
+end
+make=function(kind,style,level,detail,ownerColor)
     level=math.clamp(level or 1,1,3);local detailed=detail~=false
     if not roles[kind]then error("Unknown building model: "..tostring(kind))end
     if Themes.has(style)then

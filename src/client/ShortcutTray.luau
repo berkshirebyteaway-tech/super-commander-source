@@ -91,7 +91,7 @@ function M.feel20(b,face)
     local Tween=game:GetService('TweenService')
     local s=face:FindFirstChild('Press20')or K.make('UIScale',face,{Name='Press20'})
     s:GetPropertyChangedSignal('Scale'):Connect(function()
-        for _,o in ipairs(b:GetChildren())do if o~=face and o.Name~='Caption'and o:IsA('GuiObject')then
+        for _,o in ipairs(b:GetChildren())do if o~=face and o:IsA('GuiObject')then
             local u=o:FindFirstChild('Press20')or K.make('UIScale',o,{Name='Press20'});u.Scale=s.Scale
         end end
     end)
@@ -230,16 +230,22 @@ function M:radial20()
                 end
                 if breaking then cap.Text='파기'end
                 local pad=cap:FindFirstChildOfClass('UIPadding');if pad then pad.PaddingLeft=UDim.new(0,0);pad.PaddingRight=UDim.new(0,0)end
-                cap.Visible=not primary and not preview;cap.Size=UDim2.fromOffset(s+24,14)
-                local top=b.AbsolutePosition.Y+b.AbsoluteSize.Y/2-sheet.AbsolutePosition.Y-sheet.AbsoluteSize.Y/2<-g.radius*.7*sheet.AbsoluteSize.X/math.max(1,d)
-                put(cap,s,-14,top and (s-faceSize)/2-16 or (s+faceSize)/2+2,s+24,14,true)
+                cap.Visible=not primary and not preview
+                local cw=faceSize-8;local ch=faceSize>=44 and 12 or 10
+                cap.TextWrapped=false;cap.TextTruncate=Enum.TextTruncate.AtEnd;cap.TextScaled=true
+                local lim=cap:FindFirstChild('Fit20')or K.make('UITextSizeConstraint',cap,{Name='Fit20'})
+                lim.MaxTextSize=faceSize>=44 and 11 or 10;lim.MinTextSize=8
+                put(cap,s,(s-cw)/2,(s-faceSize)/2+math.floor(faceSize*.6),cw,ch,true)
                 cap.TextXAlignment=Enum.TextXAlignment.Center;cap.TextTransparency=enabled and 0 or .5
             end
             for _,o in ipairs(b:GetChildren())do if not o:IsA('GuiObject')then continue end
                 if (o:IsA('ImageLabel')or o:IsA('ViewportFrame'))and o.Name~='Face20'and o.Visible then
                     local is=primary and g.bigIcon or g.icon
                     o.ZIndex=b.ZIndex+2
-                    if primary then put(o,s,(s-is)/2,math.floor((s-faceSize)/2+faceSize*.14),is,is)else put(o,s,(s-is)/2,(s-is)/2,is,is)end
+                    if not primary and not preview and cap and cap.Visible then is=math.min(is,math.floor(faceSize*.42))end
+                    if primary then put(o,s,(s-is)/2,math.floor((s-faceSize)/2+faceSize*.14),is,is)
+                    elseif not preview and cap and cap.Visible then put(o,s,(s-is)/2,math.floor((s-faceSize)/2+faceSize*.14),is,is)
+                    else put(o,s,(s-is)/2,(s-is)/2,is,is)end
                     if o:IsA('ImageLabel')then o.ImageColor3=(primary or ally)and K.colors.bg or breaking and K.colors.danger or o.ImageColor3;o.ImageTransparency=enabled and 0 or .6
                     elseif o:IsA('ViewportFrame')then o.ImageTransparency=enabled and 0 or .6 end
                 elseif o.Visible and o:IsA('TextLabel')and string.sub(o.Name,1,5)=='Icon_'then

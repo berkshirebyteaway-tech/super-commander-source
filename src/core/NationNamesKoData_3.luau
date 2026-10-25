@@ -1110,7 +1110,7 @@ return {
 ["Welgemoed"]="벨헤무트",
 ["Wellfleet"]="웰플리트",
 ["Wellington"]="웰링턴",
-["Wemickes Area"]="베르니케 영역",
+["Wernicke Area"]="베르니케 영역",
 ["Werra-Meißner-Kreis"]="베라마이스너 군",
 ["Wesel"]="베젤",
 ["Wesermarsch"]="베저마르슈",

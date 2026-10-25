@@ -65,6 +65,12 @@ local function build(home)
     return c
 end
 
+function M.sideInsets(l)
+    local gui=l.frame and l.frame:FindFirstAncestorOfClass('ScreenGui');if not gui then return 0,0,0 end
+    local ok,a,_,c,d=pcall(require(script.Parent.FullBleed).insets,gui);if not ok then return 0,0,0 end
+    local s=gui:GetAttribute('UIScale')or 1
+    return a/s,c/s,d/s
+end
 local sign
 function M.hallSign(on)
     if not sign or not sign[1].Parent then
@@ -86,7 +92,8 @@ function M.chrome(home,w,h,lift)
     local show=menu and l.frame.Visible and not(open and fmt~='pc')and not covered
     local barH=fmt=='pc'and 58 or fmt=='ph'and 46 or 0
     c.bar.Visible=show and fmt~='pt';c.thumb.Visible=show and fmt=='pt'
-    if fmt~='pt'then K.box(c.bar,0,0,w,barH);K.box(c.barLine,0,barH-1,w,1)end
+    local il,ir=M.sideInsets(l)
+    if fmt~='pt'then K.box(c.bar,-il,0,w+il+ir,barH);K.box(c.barLine,0,barH-1,w+il+ir,1)end
     local onHome=menu and not l.page and not open
     c.logo.Visible=show and(fmt=='pc'or fmt=='pt'and onHome)
     local logoX=math.max(24,math.floor((l.topbarLeft or 12)+4))

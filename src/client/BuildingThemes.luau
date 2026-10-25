@@ -1018,6 +1018,7 @@ local function meshSwap(model,kind,style,level,detailed,owner)
     model.WorldPivot=CFrame.identity
     local state=meshFill(model,kind,style,level,detailed,owner);if not state then return end
     states[model]=state
+    pcall(require(script.Parent.PlinthSkin).dress,model,kind,style,detailed)
     if scale~=1 then model:ScaleTo(scale)end
     model:PivotTo(pivot)
     local building=model:GetAttribute('Building')==true

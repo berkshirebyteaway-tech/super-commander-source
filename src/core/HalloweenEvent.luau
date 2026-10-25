@@ -10,6 +10,7 @@ M.need=5
 M.minSeconds=120
 M.outcomes={won=true,lost=true}
 M.custom=false
+function M.ended(now)return type(now)=='number'and now>=M.endsAt end
 function M.active(on,now)return on~=false and type(now)=='number'and now>=M.startsAt and now<M.endsAt end
 function M.qualifies(event)
     if type(event)~='table'or not M.outcomes[event.outcome]or (tonumber(event.seconds)or 0)<M.minSeconds then return false end

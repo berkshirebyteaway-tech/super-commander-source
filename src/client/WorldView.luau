@@ -19,6 +19,7 @@ local Pattern=require(script.Parent.TerritoryCollection)
 local PoseBatch=require(script.Parent.RenderPoseBatch)
 local Probe=require(script.Parent.FrameProbe)
 local Glints=require(script.Parent.TerritoryGlints)
+local Plinth=require(script.Parent.PlinthSkin)
 local M={};M.__index=M
 M.detailSwapsPerState=3
 M.studio=RunService:IsStudio()
@@ -392,6 +393,7 @@ function M:step(dt)
             if hum and not hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)then hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)end end
         return end
     self.visualTime=(self.visualTime or 0)+(self.paused and 0 or dt)
+    Plinth.step(os.clock(),self.reducedEffects==true)
     local batch=self.poseBatch or PoseBatch.new();self.poseBatch=batch
     Probe.start('World.seals')
     local view=self.frameCamera.ViewportSize;local seals,depths=self.sealList or {},self.sealDepth or {};table.clear(seals);self.sealList=seals;self.sealDepth=depths

@@ -38,17 +38,18 @@ function M.new(lobby)
     task.spawn(function()
         while lobby.frame.Parent do
             local open=self:inPlaza()
-            if not open and self.glow.Enabled then self.glow.Enabled=false;self.glow.Adornee=nil end
-            for p,prompt in pairs(self.prompts)do
+            if not open and self.glow.Enabled then self.glow.Enabled=false;self.glow.Adornee=nil;self.tip.Visible=false end
+            for p,root in pairs(self.prompts)do
                 local head=p.Character and p.Character:FindFirstChild('Head');local hidden=head~=nil and head.LocalTransparencyModifier>=1
-                if prompt.Parent then prompt.Enabled=open and p:GetAttribute('FrontierRoom')==nil and not hidden else self.prompts[p]=nil end
-                self:syncTap(p,prompt.Enabled)
+                local live=root.Parent~=nil and open and p:GetAttribute('FrontierRoom')==nil and not hidden
+                if not root.Parent then self.prompts[p]=nil end
+                self:syncTap(p,live)
             end
             for _,p in ipairs(Players:GetPlayers())do if p~=Me and not self.prompts[p]and p.Character then self:attach(p,p.Character)end end
             if self.target then if not open or self.target:GetAttribute('FrontierRoom')~=nil then self:hide()else self:fill()end end
             task.wait(.5)
         end
-        self.added:Disconnect();self.removed:Disconnect();for _,c in ipairs(self.hallLinks)do c:Disconnect()end;self.glow:Destroy()
+        self.added:Disconnect();self.removed:Disconnect();for _,c in ipairs(self.hallLinks)do c:Disconnect()end;self.glow:Destroy();self.tipGui:Destroy()
     end)
     return self
 end
@@ -86,6 +87,12 @@ function M:watchHall()
     local UIS=game:GetService('UserInputService')
     self.glow=Instance.new('Highlight');self.glow.Name='CommanderCardHover';self.glow.FillTransparency=1;self.glow.OutlineColor=UI.colors.accent
     self.glow.OutlineTransparency=.15;self.glow.DepthMode=Enum.HighlightDepthMode.Occluded;self.glow.Enabled=false;self.glow.Parent=Me:WaitForChild('PlayerGui')
+    self.tipGui=UI.make('ScreenGui',nil,{Name='CommanderHoverTip',ResetOnSpawn=false,IgnoreGuiInset=false,DisplayOrder=40,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+    self.tip=skip(UI.label(self.tipGui,'Tip',L.text('지휘관 정보 보기'),13,UI.colors.ink));self.tip.TextWrapped=false
+    self.tip.BackgroundColor3=UI.colors.bg;self.tip.BackgroundTransparency=.12;self.tip.AutomaticSize=Enum.AutomaticSize.X
+    self.tip.Size=UDim2.fromOffset(0,26);self.tip.Visible=false;self.tip.Active=false;UI.make('UICorner',self.tip,{CornerRadius=UDim.new(.5,0)})
+    UI.make('UIPadding',self.tip,{PaddingLeft=UDim.new(0,10),PaddingRight=UDim.new(0,10)})
+    self.tipGui.Parent=Me:WaitForChild('PlayerGui')
     local down
     local function tapType(i)return i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch end
     self.hallLinks={
@@ -96,23 +103,20 @@ function M:watchHall()
             if used or (at-d.at).Magnitude>12 or os.clock()-d.t>.5 or not self:inPlaza()then return end
             local o=self:pick(at);if not o then return end
             require(script.Parent.TelemetryStep).step('social','commanderCard',{result='shown',item=o.kind})
-            require(script.Parent.ToyAudio).play('click');self:show(o.p)
+            require(script.Parent.ToyAudio).play('click');self.tip.Visible=false;self:show(o.p)
         end),
         UIS.InputChanged:Connect(function(i,used)
             if i.UserInputType~=Enum.UserInputType.MouseMovement then return end
             local o=not used and self:inPlaza()and self:pick(Vector2.new(i.Position.X,i.Position.Y))
             self.glow.Adornee=o and o.c or nil;self.glow.Enabled=o~=nil and o~=false
+            self.tip.Visible=self.glow.Enabled and not self.frame.Visible
+            if self.tip.Visible then self.tip.Position=UDim2.fromOffset(i.Position.X+16,i.Position.Y+18)end
         end),
     }
 end
 function M:attach(p,c)
-    local root=c:FindFirstChild('HumanoidRootPart');if not root or root:FindFirstChild('CommanderCardPrompt')then return end
-    local prompt=Instance.new('ProximityPrompt');prompt.Name='CommanderCardPrompt'
-    prompt.ActionText=L.text('지휘관 카드');prompt.ObjectText=p.DisplayName;prompt.HoldDuration=0
-    prompt.MaxActivationDistance=12;prompt.RequiresLineOfSight=false;prompt.KeyboardKeyCode=Enum.KeyCode.F
-    prompt:SetAttribute('LocalizationSkip',true);prompt.Enabled=false;prompt.Parent=root
-    prompt.Triggered:Connect(function()require(script.Parent.TelemetryStep).step('social','commanderCard',{result='shown',item='prompt'});self:show(p)end)
-    self.prompts[p]=prompt
+    local root=c:FindFirstChild('HumanoidRootPart');if not root or self.prompts[p]==root then return end
+    self.prompts[p]=root
     local old=self.taps[p];if old then old.gui:Destroy()end
     local gui=Instance.new('BillboardGui');gui.Name='CommanderTap';gui.Active=true;gui.Enabled=false;gui.ResetOnSpawn=false
     gui.Size=UDim2.fromOffset(320,48);gui.StudsOffsetWorldSpace=Vector3.new(0,3.5,0);gui.MaxDistance=60;gui.Adornee=root
