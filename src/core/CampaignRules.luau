@@ -1,7 +1,7 @@
 local M={}
 M.version=2
 M.chapters={
-    {id=1,name='땅의 법칙',difficulty='Easy',flames=1,minutes=6,timer=8,coins=60,xp=60},
+    {id=1,name='땅의 법칙',difficulty='Easy',flames=1,minutes=6,timer=8,coins=60,xp=60,randomSpawn=true},
     {id=2,name='건설과 육지 무역',difficulty='Easy',flames=1,minutes=12,coins=80,xp=80},
     {id=3,name='바다와 해상 무역',difficulty='Medium',flames=2,minutes=12,coins=80,xp=80},
     {id=4,name='외교',difficulty='Medium',flames=3,minutes=15,coins=100,xp=100},
@@ -14,17 +14,19 @@ M.allClearPlate={kind='plate',id='campaign:hell',name='불지옥',color={214,72,
 M.perfectPlate={kind='plate',id='campaign:perfect',name='만점 사령관',color={232,184,72}}
 M.introStage='1-1'
 M.introMinutes=3
+M.growthBand={.25,.65}
+M.shareWindow=180
 local NUKES={'MissileSilo','AtomBomb','HydrogenBomb','MIRV','SAMLauncher'}
 M.stages={
-    {id='1-1',name='첫 작전',map='korea',nations=0,bots=15,intro=true,task={kind='count',key='countriesConquered',n=2,label='부족 2곳 흡수'},
+    {id='1-1',name='첫 작전',map='korea',nations=0,bots=20,intro=true,task={kind='count',key='countriesConquered',n=2,label='부족 2곳 흡수'},
         brief='빈 땅부터 넓혀요. 병력이 차오르면 이웃 부족을 흡수해요.',tip='부족 2곳을 흡수하면 바로 이겨요.'},
-    {id='1-2',name='충원의 법칙',map='yellowsea',nations=3,bots=40,task={kind='count',key='growthGreen',n=60,label='충원 초록 시간 60%'},
-        brief='병력은 상한의 절반쯤일 때 가장 빨리 차요. 꽉 차면 멈춰요.',tip='병력 숫자가 초록일 때 보내요.'},
-    {id='1-3',name='넓을수록 큰 군대',map='caucasus',nations=3,bots=40,task={kind='built',unit='City',n=2,label='도시 2개 짓기'},
+    {id='1-2',name='충원의 법칙',map='yellowsea',nations=1,bots=40,startingGold=150000,task={kind='count',key='growthGreen',n=60,label='충원 초록 시간 60%'},
+        brief='병력은 상한의 절반쯤일 때 가장 빨리 차요. 꽉 차면 멈춰요.',tip='병력 막대가 초록일 때 보내요.'},
+    {id='1-3',name='넓을수록 큰 군대',map='caucasus',nations=3,bots=40,startingGold=250000,task={kind='built',unit='City',n=2,label='도시 2개 짓기'},
         brief='땅이 넓을수록 병력 상한이 올라가요. 도시는 상한을 크게 올려요.',tip='도시는 국경에서 먼 안쪽에 지어요.'},
-    {id='1-4',name='험한 땅',map='lemnos',nations=3,bots=40,task={kind='share',key='earlyShare',n=.1,label='3분 안에 영토 10%'},
+    {id='1-4',name='험한 땅',map='lemnos',nations=3,bots=40,startingGold=150000,task={kind='share',key='earlyShare',n=.1,label='3분 안에 영토 10%'},
         brief='산은 평지보다 느리고 병력도 1.5배 들어요. 평지부터 먼저 차지해요.',tip='진한 산줄기는 돌아가요.'},
-    {id='1-5',name='보스: 첫 정복',map='asia',nations=5,bots=80,boss=true,task={kind='share',key='earlyShare',n=.12,label='3분 안에 영토 12%'},
+    {id='1-5',name='보스: 첫 정복',map='asia',nations=5,bots=80,startingGold=250000,boss=true,task={kind='share',key='earlyShare',n=.12,label='3분 안에 영토 12%'},
         brief='넓은 대륙에 국가 다섯이 기다려요. 지금까지 배운 걸 모두 써요.',tip='공격 비율은 낮게 자주 보내요.'},
     {id='2-1',name='국경 지키기',map='italia',nations=4,bots=60,task={kind='built',unit='DefensePost',n=3,label='방어 시설 3개 짓기'},
         brief='방어 시설 근처를 치는 적은 병력을 5배 잃고 느려져요.',tip='공격받는 국경과 좁은 길목에 세워요.'},
@@ -102,7 +104,7 @@ function M.settings(stage)
     s.spawnImmunityDuration=stage.peace or (gold>=25000000 and 1500)or (gold>=5000000 and 450)or nil
     if ch.timer then s.maxTimerValue=ch.timer end
     if stage.mapSize then s.mapSize=stage.mapSize end
-    if stage.randomSpawn then s.randomSpawn=true end
+    if stage.randomSpawn or ch.randomSpawn then s.randomSpawn=true end
     if stage.disableAlliances then s.disableAlliances=true end
     if stage.waterNukes then s.waterNukes=true end
     if stage.doomsday then s.doomsdayClock=true;s.doomsdayClockSpeed=stage.doomsday end

@@ -26,7 +26,7 @@ function M.teamMatchWinner(self,tick)
     for _,p in ipairs(self.sim.players) do if p.team and p.tiles.size>0 then if not totals[p.team] then totals[p.team]=0;table.insert(order,p.team) end;totals[p.team]+=p.tiles.size end end
     local leader;for _,team in ipairs(order) do if not leader or totals[team]>totals[leader] then leader=team end end
     if not leader then return nil end
-    local won,reason=Win.hasWon(self.settings,tick/10,totals[leader],self:landTiles(),self.falloutTiles or 0)
+    local won,reason=Win.hasWon(self.settings,Win.seconds(self.settings,tick),totals[leader],self:landTiles(),self.falloutTiles or 0)
     if not won then return nil end
     self.winnerTeam=leader
     if self.sim.players[1].team==leader then return 1,reason end
@@ -500,7 +500,7 @@ function M:state(full)
     local labelRevision,stableLabels=TerritoryLabels.environmentRevision(self)
     TerritoryLabels.limit(self.labelCache,TerritoryLabels.snapshotTiles)
     state.winnerId=self.winnerId;state.winnerName=self.winnerId and self.resources[self.winnerId].name or nil
-    state.winReason=self.winReason;state.winThreshold=Win.threshold(self.settings,math.max(0,self.sim.ticks-1)/10)
+    state.winReason=self.winReason;state.winThreshold=Win.threshold(self.settings,Win.seconds(self.settings,math.max(0,self.sim.ticks-1)))
     state.operations={}
     state.battlefronts=Presentation.snapshot(self.sim,1,function(id)return id end)
     local function operation(a,direction)

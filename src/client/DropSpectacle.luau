@@ -11,7 +11,7 @@ end
 local jet
 function M.new(parent)
     local self=setmetatable({jets={},fx={},streaks={},escorts={},wing={},cloudEmitters={},shake=0,time=0},M)
-    local gui=Instance.new('ScreenGui');gui.Name='DropSpectacle';gui.IgnoreGuiInset=true;gui.ScreenInsets=Enum.ScreenInsets.None;gui.ResetOnSpawn=false;gui.DisplayOrder=6
+    local gui=Instance.new('ScreenGui');gui.Name='DropSpectacle';gui.IgnoreGuiInset=true;gui.ScreenInsets=Enum.ScreenInsets.None;gui.ClipToDeviceSafeArea=false;gui.ResetOnSpawn=false;gui.DisplayOrder=6
     gui.Parent=parent:FindFirstAncestorOfClass('PlayerGui');self.gui=gui
     self.flash=Instance.new('Frame');self.flash.Name='CloudFlash';self.flash.Size=UDim2.fromScale(1,1);self.flash.BorderSizePixel=0;self.flash.BackgroundColor3=Color3.fromRGB(236,244,250);self.flash.BackgroundTransparency=1;self.flash.Parent=gui
     self.wind=Instance.new('Sound');self.wind.Name='DropWind';self.wind.SoundId='rbxassetid://'..WIND;self.wind.Looped=true;self.wind.Volume=0;self.wind.Parent=Sound

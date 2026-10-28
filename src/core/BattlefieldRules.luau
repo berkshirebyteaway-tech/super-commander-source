@@ -5,6 +5,7 @@ local Format=if script then require(script.Parent.TeamFormat)else require('./Tea
 local Catalog=if script then require(script.Parent.Parent.Maps.Catalog)else require('../maps/Catalog')
 local M={version=1,emptySeconds=60,waitSeconds=60,fullSeconds=5,leaseSeconds=35,maxTickets=80,maxMatches=8}
 M.waitMaxSeconds=60;M.readySeconds=10;M.joinFloorSeconds=7
+M.minHumans=2
 function M.majority(n)return math.floor((n or 0)/2)+1 end
 M.fillTarget={[10]=10,[20]=20}
 M.rookieGames=3

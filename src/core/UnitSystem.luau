@@ -8,6 +8,7 @@ local Nuclear=if script then require(script.Parent.NuclearSystem) else require("
 local Rail=if script then require(script.Parent.RailSystem) else require("./RailSystem")
 local Doomsday=if script then require(script.Parent.DoomsdaySystem) else require("./DoomsdaySystem")
 local Comms=if script then require(script.Parent.CommsSystem) else require("./CommsSystem")
+local GameSpeed=if script then require(script.Parent.GameSpeed) else require("./GameSpeed")
 local M={};M.__index=M
 function M.new(w)
     local self=setmetatable({w=w,nav=Navigation.new(w),mirvsLaunched=0,effects={},effectId=0,terrainChanges={},terrainRevision=0,unitIndex={}},M)
@@ -137,8 +138,16 @@ function M:upgradeOnce(owner,id)
 end
 function M:tick()
     local count=#self.w.units
+    if self.unitPace==nil then self.unitPace=GameSpeed.unitPace(self.w.settings)or false;self.paceCarry={} end
+    local pace=self.unitPace
     for i=1,count do local u=self.w.units[i]
-        if u.active and not u.building and (u.createdTick or -1)<self.w.sim.ticks then self.naval:tick(u);if u.active then self.nuclear:tick(u) end end
+        if u.active and not u.building and (u.createdTick or -1)<self.w.sim.ticks then
+            local f=pace and pace[u.kind]
+            if f then
+                local carry=(self.paceCarry[u.id]or 0)+f;local n=math.floor(carry);self.paceCarry[u.id]=carry-n
+                for _=1,n do self.naval:tick(u);if u.active then self.nuclear:tick(u)end;if not u.active then break end end
+            else self.naval:tick(u);if u.active then self.nuclear:tick(u) end end
+        end
     end
     self.rail:tick()
     self.doomsday:tick()
@@ -150,7 +159,7 @@ function M:prune()
     self.unitIndex=self.unitIndex or {};table.clear(self.unitIndex)
     for _,u in ipairs(self.w.units) do
         if u.active then table.insert(live,u);self.unitIndex[u.id]=#live
-        else self.naval.data[u.id]=nil;self.nuclear.data[u.id]=nil end
+        else self.naval.data[u.id]=nil;self.nuclear.data[u.id]=nil;if self.paceCarry then self.paceCarry[u.id]=nil end end
     end
     self.w.units=live
     self.naval.portLevelMemo=nil

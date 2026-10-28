@@ -14,6 +14,12 @@ function M.dynamicSamRange(u,tick)
     if not u.rangeStart or tick>=u.rangeStart+45 then return M.samRange(u.level) end
     return u.rangeFrom+(M.samRange(u.level)-u.rangeFrom)*(tick-u.rangeStart)/45
 end
+M.reloadTicks=90
+function M.reloadLeft(u,tick)
+    local q=u.missileQueue
+    if u.building or not q or #q<(u.level or 1)or not q[1]then return 0 end
+    return math.max(0,q[1]+M.reloadTicks-(tick or 0))
+end
 function M.magnitude(kind) if kind=="HydrogenBomb" then return 80,100 elseif kind=="MIRVWarhead" then return 12,18 else return 12,30 end end
 function M.nukeSpeed(kind) return ({AtomBomb=10,HydrogenBomb=10,MIRV=15,MIRVWarhead=22})[kind] end
 function M.nukeDeaths(kind,troops,tiles,cap)

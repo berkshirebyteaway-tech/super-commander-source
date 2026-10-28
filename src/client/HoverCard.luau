@@ -7,6 +7,7 @@ local Honor=require(script.Parent.CommanderHonor)
 local L=require(script.Parent.Localization)
 local Glyphs=require(script.Parent.ActionGlyphs)
 local Teams=require(script.Parent.TeamStandings)
+local U=require(script.Parent.Parent.Core.UnitRules)
 local C=UI.colors
 local M={};M.__index=M
 M.ships={TransportShip=true,Warship=true,TradeShip=true}
@@ -31,7 +32,7 @@ local function attitude(v)
     if v< -50 then return "적대",C.danger elseif v<0 then return "불신",C.gold elseif v<50 then return "중립",C.muted end
     return "우호",C.good
 end
-local function clock(ticks)local s=math.max(0,math.ceil(ticks/10));return string.format("%d:%02d",math.floor(s/60),s%60)end
+local function clock(ticks,state)local s=math.max(0,math.ceil(ticks/10/(state and state.settings and tonumber(state.settings.simSpeed)or 1)));return string.format("%d:%02d",math.floor(s/60),s%60)end
 local function share(v)v=(v or 0)*100;return string.format(v>=10 and "%.1f%%" or "%.2f%%",v)end
 local function hex(c)return string.format("#%02X%02X%02X",math.floor(c.R*255+.5),math.floor(c.G*255+.5),math.floor(c.B*255+.5))end
 function M.new(parent)
@@ -107,7 +108,8 @@ function M:show(ctx)
         if self.unitKind~=u.kind then self.unitKind=u.kind;if b then Glyph.draw(self.unitGlyph,u.kind,C.bg)else self.unitGlyph:ClearAllChildren()end end
         self.unitName.Text=b and b.name or mobile[u.kind]or u.kind
         self.unitRole.Text=u.kind=="City"and not u.building and L.text("병력 상한 +")..UI.troops((u.level or 1)*250000)or b and b.role or (u.troops and u.troops>0 and string.format("병력 %s",UI.troops(u.troops)))or ""
-        self.unitState.Text=u.building and "건설 중" or u.kind=="MissileSilo" and string.format("준비 %d/%d",u.readyMissiles or 0,u.level or 1)or b and "Lv."..(u.level or 1)or ""
+        local reload=u.kind=="MissileSilo"and not u.building and U.reloadLeft(u,s and s.tick)or 0
+        self.unitState.Text=u.building and "건설 중" or reload>0 and string.format("장전 %d초",math.ceil(reload/10))or u.kind=="MissileSilo" and string.format("준비 %d/%d",u.readyMissiles or 0,u.level or 1)or b and "Lv."..(u.level or 1)or ""
         self.unitState.TextColor3=u.building and C.gold or C.accent
         local nw=width(self.unitName,self.unitName.Text);self.unitNeed=x0+30+nw+6+width(self.unitRole,self.unitRole.Text)+math.max(84,8+width(self.unitState,self.unitState.Text)+12)
         UI.box(self.unitIcon,x0,y,22,22);UI.box(self.unitName,x0+30,y,nw,22);UI.box(self.unitRole,x0+30+nw+6,y+1,math.max(0,w-x0-30-nw-6-84),20);UI.box(self.unitState,w-12-76,y+3,76,16)
@@ -128,7 +130,7 @@ function M:show(ctx)
     local rel,relColor,filled
     if f then
         rel,relColor,filled=relation(f)
-        if f.allied and not f.teammate and f.allianceExpires and s.tick then local left=f.allianceExpires-s.tick;rel=L.text(rel).." "..clock(left);if left<=300 then relColor=C.gold end end
+        if f.allied and not f.teammate and f.allianceExpires and s.tick then local left=f.allianceExpires-s.tick;rel=L.text(rel).." "..clock(left,s);if left<=300 then relColor=C.gold end end
         self.swatch.BackgroundColor3=FactionColors.get(f.id,f.kind,ctx.ownColor);self.name.Text=f.name or ""
         local honor=f.id~=1 and Honor.of(f);self.honor=honor
         self.sub.Text=f.id==1 and "내 영토" or honor and Honor.line(honor)or kinds[f.kind]or "플레이어"
@@ -183,7 +185,7 @@ function M:show(ctx)
     if status then table.insert(chips,{L.text(status),dot==C.muted and C.muted or C.ink})end
     if f and f.id~=1 then
         if f.attitude~=nil and not f.allied then local t,color=attitude(f.attitude);table.insert(chips,{"AI "..L.text(t),color})end
-        if f.traitor and f.traitorUntil and s.tick then table.insert(chips,{L.text("배신자").." "..clock(f.traitorUntil-s.tick),C.danger})end
+        if f.traitor and f.traitorUntil and s.tick then table.insert(chips,{L.text("배신자").." "..clock(f.traitorUntil-s.tick,s),C.danger})end
         if f.embargoed or f.embargoedBy then table.insert(chips,{L.text("금수"),C.danger})end
     end
     local counts=f and self:structures(s,f.id)
@@ -382,7 +384,8 @@ function M:unitLine20(u,b,x0,right)
     if v.glyphKind~=u.kind then if v.glyph then v.glyph:Destroy()end;v.glyphKind=u.kind;v.glyph=X.orig(f,u.kind,16,K.colors.ink,'UnitGlyph20');v.glyph.ZIndex=f.ZIndex+1 end
     v.glyph.Visible=true;K.box(v.glyph,x0,4,16,16)
     local role=u.kind=='City'and not u.building and L.text('병력 상한 +')..UI.troops((u.level or 1)*250000)or b.role or ''
-    local state=u.building and '건설 중'or u.kind=='MissileSilo'and string.format('%d/%d',u.readyMissiles or 0,u.level or 1)or 'Lv.'..(u.level or 1)
+    local reload=u.kind=='MissileSilo'and not u.building and U.reloadLeft(u,self.tick20)or 0
+    local state=u.building and '건설 중'or reload>0 and string.format('장전 %d초',math.ceil(reload/10))or u.kind=='MissileSilo'and string.format('%d/%d',u.readyMissiles or 0,u.level or 1)or 'Lv.'..(u.level or 1)
     v.uName.Visible=true;v.uName.Text=b.name;v.uRole.Visible=role~='';v.uRole.Text=role
     v.uState.Visible=true;v.uState.Text=state;v.uState.TextColor3=u.building and K.colors.muted or K.colors.accent
     if u.building then if K.fonts[800]then v.uState.FontFace=K.fonts[800]end else if K.fonts.num then v.uState.FontFace=K.fonts.num end end
@@ -395,7 +398,7 @@ function M:unitLine20(u,b,x0,right)
 end
 function M:show20(ctx)
     local s,f,info,u=ctx.state,ctx.faction,ctx.info,ctx.unit
-    local v=self:build20()
+    local v=self:build20();self.tick20=s and s.tick
     if not s then self:conceal();return false end
     if u and M.ships[u.kind]then self.ownColor=ctx.ownColor or self.ownColor;return self:chip20(u,factionOf(s,u.owner)or f,true)end
     local b=u and catalog[u.kind]
@@ -421,7 +424,7 @@ function M:show20(ctx)
     local ts=m.ts
     local rel,relLook=rel20(f)
     local relText=rel and L.text(rel)
-    if f and f.allied and not f.teammate and f.allianceExpires and s.tick then relText=L.text('동맹')..' '..clock(f.allianceExpires-s.tick)end
+    if f and f.allied and not f.teammate and f.allianceExpires and s.tick then relText=L.text('동맹')..' '..clock(f.allianceExpires-s.tick,s)end
     local tags={}
     local team=f and Teams.of(f,s)
     if team then table.insert(tags,{t=v.team,text=L.text(team),look='team'})

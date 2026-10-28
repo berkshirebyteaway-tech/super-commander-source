@@ -451,6 +451,9 @@ function M:step(dt)
     if self.dropActive and self.dropCamera then
         camera.CFrame=self.dropCamera.cf;camera.Focus=CFrame.new(self.dropCamera.focus);camera.FieldOfView=self.dropCamera.fov or 50
         self.focus=self.dropCamera.focus
+        if self.dropSpan then self.liveW=self.dropSpan end
+    elseif self.cinemaCamera then
+        camera.CFrame=self.cinemaCamera.cf;camera.Focus=CFrame.new(self.cinemaCamera.focus);camera.FieldOfView=50
     elseif self.dropExitCamera then
         local t=math.clamp((os.clock()-self.dropExitCamera.at)/.4,0,1)
         camera.CFrame=self.dropExitCamera.cf:Lerp(camera.CFrame,t*t*(3-2*t))
@@ -488,7 +491,7 @@ function M:bind(callbacks,inputService)
     local function mouse() return inputService:GetMouseLocation()-game:GetService("GuiService"):GetGuiInset() end
     local function drag(p,slop)
         if not press.dragging and (p-press.start).Magnitude>=slop then press.dragging=true;self.dragging=true end
-        if press.dragging and self.dropActive then self.dropSteer=p-press.start
+        if press.dragging and self.dropActive then self.dropPan=(self.dropPan or Vector2.zero)+(p-press.last);press.last=p
         elseif press.dragging then self:dragAvatar(press.last,p);press.last=p;if callbacks.changed then callbacks.changed() end end
     end
     inputService.InputBegan:Connect(function(input,processed)

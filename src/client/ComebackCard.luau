@@ -129,8 +129,8 @@ function M.open(lobby,rows,thenFavorite)
     return card
 end
 function M.watch(lobby,before,p)
-    local game1,win1=Rules.firstGame(before,p),Rules.favorite(before,p)
-    if not game1 and not win1 then return end
+    local card,fav=Rules.unlocked(before,p),Rules.favorite(before,p)
+    if not card and not fav then return end
     if lobby.comebackWaiting then return end;lobby.comebackWaiting=true
     task.spawn(function()
         local Intro=require(script.Parent.LobbyIntro);local untilAt=os.clock()+1800
@@ -141,7 +141,7 @@ function M.watch(lobby,before,p)
             if ready()then task.wait(.8);if ready()then
                 lobby.comebackWaiting=false
                 local a=lobby.account or {};local billing=a.billing or {}
-                if game1 then M.open(lobby,Rules.rows(a.progress or p,billing.freeDrawAt,now()),win1)else prompt('favorite',lobby.root,lobby)end
+                if card then M.open(lobby,Rules.rows(a.progress or p,billing.freeDrawAt,now()),fav)else prompt('favorite',lobby.root,lobby)end
                 return
             end end
         end

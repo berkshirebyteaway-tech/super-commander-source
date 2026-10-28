@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 -- © OpenFront and Contributors. Pinned Config and WinCheckExecution FFA rules.
 local M={}
+function M.seconds(settings,tick)return tick/10/(tonumber(settings.simSpeed)or 1)end
 function M.lastCommander(settings,tick,players)
     if not settings.lastCommanderWins or tick<=0 or tick%10~=0 then return nil end
     local survivor
@@ -34,7 +35,7 @@ function M.ffa(settings,tick,players,land,fallout)
     if tick%10~=0 then return nil end
     local goal,why=M.goal(settings,players)
     if goal then return goal,why end
-    if settings.goalConquer and settings.maxTimerValue and tick/10>=settings.maxTimerValue*60 then
+    if settings.goalConquer and settings.maxTimerValue and M.seconds(settings,tick)>=settings.maxTimerValue*60 then
         for _,p in ipairs(players)do if p.kind~='BOT'and p.tiles.size>0 then return p.id,'timer'end end
     end
     local survivor,reason=M.lastCommander(settings,tick,players)
@@ -42,7 +43,7 @@ function M.ffa(settings,tick,players,land,fallout)
     local leader=nil
     for _,p in ipairs(players) do if p.tiles.size>0 and (not leader or p.tiles.size>leader.tiles.size) then leader=p end end
     if not leader then return nil end
-    local won,reason=M.hasWon(settings,tick/10,leader.tiles.size,land,fallout)
+    local won,reason=M.hasWon(settings,M.seconds(settings,tick),leader.tiles.size,land,fallout)
     if won then return leader.id,reason end
     return nil
 end

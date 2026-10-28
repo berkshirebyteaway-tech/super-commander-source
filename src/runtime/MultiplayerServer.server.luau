@@ -88,6 +88,7 @@ local Replay=require(pack.Core.RoomReplay)
 local SpawnRules=require(pack.Core.SpawnRules)
 local TeamFormat=require(pack.Core.TeamFormat)
 local MatchOptions=require(pack.Core.MatchOptions)
+local GameSpeed=require(pack.Core.GameSpeed)
 local RoomCommands=require(pack.Core.RoomCommands)
 local ReplayLog=require(pack.Core.ReplayLog)
 local replayStore=require(services.ReplayStore).new()
@@ -207,7 +208,8 @@ local function snapshot(e,full,shared,context)
         if progress.campaign then local C=Outgame.campaign;local stage=C.stage(progress.campaign);local saved=a.progress and a.progress.campaign
             local mask=C.stars(stage,progress);local best=bit32.bor(mask,saved and saved.stars and saved.stars[stage.id]or 0)
             local nxt=Replay.campaignNext(room,e.player.UserId,saved)
-            s.personalResult.campaign={id=stage.id,name=stage.name,stars=mask,best=best,task=stage.task.label,taskValue=C.taskValue(stage,progress),taskDone=C.taskDone(stage,progress),next=nxt~=stage.id and nxt or nil}
+            s.personalResult.campaign={id=stage.id,name=stage.name,stars=mask,best=best,task=stage.task.label,taskValue=C.taskValue(stage,progress),taskDone=C.taskDone(stage,progress),
+                taskLeft=stage.task.kind=='share'and math.max(0,C.shareWindow-(progress.spawnedAt and os.time()-progress.spawnedAt or 0))or nil,next=nxt~=stage.id and nxt or nil}
             if progress.ended then pcall(analytics.flowOnce,analytics,e.player,'campaign:'..tostring(progress.id),'campaign','campaignEnd',{item='stage_'..stage.id:gsub('%-','_'),value=C.count(mask),level=C.count(best),result=progress.outcome=='won'and 'won'or 'lost',map_key=progress.map,active=s.personalResult.campaign.taskDone==true})end
         end
         if progress.ended and a.ready and not progress.unrecorded then
@@ -451,10 +453,14 @@ local function createRoom(selection,single)
     if selection.intro and not selection.unrecorded and not selection.campaign then selection.campaign=Outgame.campaign.introStage end
     if selection.campaign then local seed=cfg.seed;cfg=Outgame.campaign.settings(Outgame.campaign.stage(selection.campaign));cfg.seed=seed end
     if selection.practice then cfg={difficulty="Medium",nations=3,bots=30,startingGold=125000,goldMultiplier=1,customAllianceDuration=5,seed=cfg.seed}end
-    if selection.intro then local n=Outgame.campaign.stage(Outgame.campaign.introStage).task.n;cfg={difficulty='Easy',nations=0,bots=60,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=Outgame.campaign.introMinutes,goalConquer=n,seed=cfg.seed}end
+    if selection.intro then local n=Outgame.campaign.stage(Outgame.campaign.introStage).task.n;cfg={difficulty='Easy',nations=0,bots=20,randomSpawn=true,besideTribes=true,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=Outgame.campaign.introMinutes,goalConquer=n,seed=cfg.seed}end
     if single then cfg=require(pack.Core.SoloChallenge).resolve(Maps.meta(selection.map),cfg)end
     if not selection.intro and (selection.official or selection.goal or selection.campaign and not Outgame.campaign.stage(selection.campaign).team)then cfg.lastCommanderWins=true end
     if selection.ranked or selection.clanwar then cfg.lastCommanderWins=nil end
+    do local Live=require(services.LiveConfig);local modes=Live.get('gameSpeedModes')
+        cfg.simSpeed=GameSpeed.forMatch(Live.get('gameSpeed'),modes,selection,single)
+        cfg.simUnits=GameSpeed.unitsForMatch({nuke=Live.get('nukeSpeed'),transport=Live.get('transportSpeed'),warship=Live.get('warshipSpeed')},modes,selection,single)
+    end
     preparing+=1
     for _,id in ipairs(selection.users)do local e=entries[id];e.loading=true;e.loadingMap=selection.map;e.loadingCampaign=selection.campaign;updates:FireClient(e.player,baseState(e))end
     task.wait()
@@ -1257,7 +1263,7 @@ local function stepRoom(room,dt,now)
         if not room.single and s.phase=="spawn" and now>=room.spawnUntil then if room.replayLog then room.replayLog:add(s.sim.ticks,0,'start')end;s:startBattle();participants(room,function(p,e)placeCharacter(p,s.spawned[e.faction],room)end);sendRoom(room,true)end
         if room.paused and room.pauseLimit and os.clock()>room.pauseLimit then room.paused=false;room.pauseLimit=nil;if room.pauseFrom then room.pauseSpent=(room.pauseSpent or 0)+os.clock()-room.pauseFrom;room.pauseFrom=nil end end
         if s.phase=="playing" and not room.paused and not room.awaitFirst then
-            local speed=room.replay and room.replay.speed or room.single and room.speed or 1
+            local speed=math.min(8,(room.replay and room.replay.speed or room.single and room.speed or 1)*GameSpeed.of(s.settings))
             room.accumulator=math.min(room.accumulator+dt*speed,.5*math.max(1,speed));local ticks=math.min(5*math.max(1,speed),math.floor(room.accumulator/.1))
             for _=1,ticks do if room.replay then ReplayLog.feed(room.replay.cursor,s,RoomCommands.replay)end;local c0=os.clock();s:step();PerfStats.add(room,'tick',os.clock()-c0);room.accumulator-=.1 end
             pushOwnership(room)
@@ -1270,7 +1276,7 @@ local function stepRoom(room,dt,now)
                 e.markedAway=true;if s:markDisconnected(faction,true) and room.replayLog then room.replayLog:add(s.sim.ticks,faction,'disconnect')end
             end
             pr:step(s,faction,math.min(dt,.5),os.time(),connected,room.paused)
-            if (room.daily or room.campaign) and not pr.ended then pr.gameSeconds=s.sim.ticks//10 end
+            if (room.daily or room.campaign) and not pr.ended then pr.gameSeconds=math.floor(GameSpeed.seconds(s.settings,s.sim.ticks))end
             if connected then analytics:observe(e.player,pr,s.map.meta.key,pr.mode)end
             local guide=room.guides[id]
             if guide then

@@ -107,7 +107,7 @@ function M:checkMatchWinner(tick)
         for _,p in ipairs(self.sim.players) do if p.team and p.tiles.size>0 then if not totals[p.team] then totals[p.team]=0;table.insert(order,p.team)end;totals[p.team]+=p.tiles.size end end
         local leader;for _,team in ipairs(order)do if not leader or totals[team]>totals[leader] then leader=team end end
         if leader then
-            local won,reason=Win.hasWon(self.settings,tick/10,totals[leader],self:landTiles(),self.falloutTiles or 0)
+            local won,reason=Win.hasWon(self.settings,Win.seconds(self.settings,tick),totals[leader],self:landTiles(),self.falloutTiles or 0)
             if won then self.winnerTeam=leader;for id,p in ipairs(self.sim.players)do if p.team==leader and p.tiles.size>0 then return id,reason end end end
         end
         return nil

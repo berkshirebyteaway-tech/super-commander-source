@@ -35,6 +35,7 @@ function M:target(s,id)
     end
     if self.targetTile and (free(self.targetTile)or self.stage~='settle'and rival(self.targetTile))then return self.targetTile end
     local p=s.sim.players[id];local w,h=s.map.meta.width,s.map.meta.height
+    if self.stage=='settle'and p and p.spawnTile and p.tiles.size>0 then return p.spawnTile end
     if self.stage=='settle'then
         local cx,cy=math.floor(w/2),math.floor(h/2)
         for r=0,math.max(w,h),4 do

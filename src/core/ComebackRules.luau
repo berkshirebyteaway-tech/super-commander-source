@@ -11,6 +11,12 @@ function M.firstWin(before,p)return type(before)=='table'and M.wins(before)==0 a
 M.favoriteStage='1-2'
 local function cleared(p)local c=type(p)=='table'and type(p.campaign)=='table'and p.campaign or {};local s=type(c.stars)=='table'and c.stars or {};return (tonumber(s[M.favoriteStage])or 0)%2==1 end
 function M.favorite(before,p)return type(before)=='table'and not cleared(before)and cleared(p)end
+M.multiGames=2
+function M.multi(p)local st=type(p)=='table'and type(p.stats)=='table'and p.stats or {};local n=0;for _,k in ipairs({'pvp','coop'})do n+=tonumber(type(st[k])=='table'and st[k].games)or 0 end;return n end
+local function opened(p)return cleared(p)or M.multi(p)>=M.multiGames end
+function M.held(p)return not opened(p)end
+function M.unlocked(before,p)return type(before)=='table'and not opened(before)and opened(p)end
+function M.holdCheckIn(p)local login=type(p)=='table'and type(p.login)=='table'and p.login or {};return M.held(p)and (tonumber(login.claims)or 0)<=1 end
 function M.nextReset(now)return (math.floor(now/M.day)+1)*M.day end
 function M.due(leftAt)return math.max(leftAt+M.delay,M.nextReset(leftAt)+600)end
 function M.rows(p,freeAt,now)

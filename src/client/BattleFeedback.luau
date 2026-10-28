@@ -2,6 +2,7 @@ local UI=require(script.Parent.Theme)
 local Icons=require(script.Parent.UIIcons)
 local Tween=game:GetService("TweenService")
 local Tracker=require(script.Parent.Parent.Core.FeedbackTracker)
+local U=require(script.Parent.Parent.Core.UnitRules)
 local M={};M.__index=M
 local V2=require(script.Parent.Hud20).ENABLED
 local K,X
@@ -40,7 +41,7 @@ function M:update(state,factions)
     end
     for _,u in ipairs(state.units or {}) do
         if u.owner~=1 and u.target==1 and (u.kind=="AtomBomb" or u.kind=="HydrogenBomb" or u.kind=="MIRV" or u.kind=="MIRVWarhead") then
-            table.insert(self.incoming,{id=u.id,kind="nuclear",owner=u.owner,troops=0,frontTile=u.targetTile})
+            table.insert(self.incoming,{id=u.id,kind="nuclear",weapon=u.kind,owner=u.owner,troops=0,frontTile=u.targetTile})
             local key="nuclear"..u.id;active[key]=true;if not self.seen[key] then fresh="assault" end
         end
     end
@@ -194,10 +195,12 @@ function M:step()
         if marker then
             marker.Visible=op~=nil and op.kind~='land'and op.frontTile~=nil and not self.obscured
             if marker.Visible then
-                local size=op.kind=="nuclear" and 44 or op.kind=="transport" and 26 or 34;local half=size/2
+                local size=op.kind=="nuclear" and 30 or op.kind=="transport" and 26 or 34;local half=size/2
                 local point=self.renderer:project(op.frontTile,.2,true)
-                local x=math.clamp(point.X-half,12,math.max(12,w-size-12))
-                local y=math.clamp(point.Y-half,124,math.max(124,h-150))
+                local cx,cy=point.X,point.Y
+                if op.kind=="nuclear" then local r=self:ringPixels(op)+half+6;cy=cy-r-half<124 and cy+r or cy-r end
+                local x=math.clamp(cx-half,12,math.max(12,w-size-12))
+                local y=math.clamp(cy-half,124,math.max(124,h-150))
                 UI.box(marker,x,y,size,size);marker.TextSize=math.floor(size*.5)
                 marker.Text=op.kind=="transport" and "⚓" or "!"
                 UI.box(marker.Direction,half-10,-17,20,18)
@@ -206,6 +209,17 @@ function M:step()
         end
     end
     self:fronts(w,h)
+end
+function M:ringPixels(op)
+    local map=self.renderer.map;if not map then return 0 end
+    local _,outer=U.magnitude(op.weapon or "AtomBomb");local mw=map.meta.width
+    local tx,ty=op.frontTile%mw,math.floor(op.frontTile/mw)
+    local c=self.renderer:projectXY(tx,ty,.2,true)
+    local r=0
+    for _,d in ipairs({{0,-outer},{outer,0},{0,outer},{-outer,0}})do
+        local p=self.renderer:projectXY(tx+d[1],ty+d[2],.2,true);if p.X>-1999 then r=math.max(r,math.abs(p.Y-c.Y))end
+    end
+    return r
 end
 function M:fronts(w,h)
     self.frontLabels:step(w,h,self.frontObscured,self.frontBlocks)

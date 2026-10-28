@@ -1,5 +1,6 @@
 local UI=require(script.Parent.Theme)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
+local Speed=require(script.Parent.Parent.Core.GameSpeed)
 local L=require(script.Parent.Localization)
 local M={};M.__index=M
 local V2=require(script.Parent.Hud20).ENABLED
@@ -43,7 +44,7 @@ function M:update20(state)
         alive[key]=true
         if not self.known20[key]then require(script.Parent.TelemetryStep).step('match','allyReqShown',{count=#incoming})end
         local face;for _,f in ipairs(state.factions or {})do if f.id==r.from then face=f end end
-        local left=math.max(0,(r.expires-state.tick)/10);local total=math.max(1,(r.expires-(r.created or state.tick))/10)
+        local pace=Speed.pace(state);local left=math.max(0,(r.expires-state.tick)/pace);local total=math.max(1,(r.expires-(r.created or state.tick))/pace)
         local p=self.pending20[key];if p and now-p>=8 then self.pending20[key]=nil;p=nil end
         table.insert(items,{key=key,kind='request',name=L.text(r.name or ''),userId=face and face.userId,ratio=math.clamp(left/total,0,1),pending=p~=nil,
             enabled=not state.paused and state.phase=='playing',
@@ -77,9 +78,9 @@ function M:update(state)
     if self.request then
         self.title.Text="동맹을 요청했어요"
         self.detail.Text=L.text(self.request.name or '')
-        local left=math.max(0,math.ceil((self.request.expires-state.tick)/10))
+        local left=math.max(0,math.ceil((self.request.expires-state.tick)/Speed.pace(state)))
         self.remaining.Text=string.format('%d:%02d',left//60,left%60)..(#incoming>1 and ' +'..(#incoming-1)or '')
-        local total=math.max(1,(self.request.expires-(self.request.created or state.tick))/10)
+        local total=math.max(1,(self.request.expires-(self.request.created or state.tick))/Speed.pace(state))
         self.timeFraction=math.clamp(left/total,0,1)
         local face
         for _,f in ipairs(state.factions or {})do if f.id==self.request.from then face=f end end
@@ -110,7 +111,7 @@ function M:layout(w,h,obscured,battle,aiming)
         buttons={self.accept,self.reject,self.inspect},color=require(script.Parent.MatchSheet).SKY},w)
     self.hands.Position=UDim2.fromOffset(21,21)
     self.inspect.Text='보기';self.next.Visible=false
-    if self.request then self.title.Text=string.format('동맹 요청 %d초',math.max(0,math.ceil((self.request.expires-self.state.tick)/10)))end
+    if self.request then self.title.Text=string.format('동맹 요청 %d초',math.max(0,math.ceil((self.request.expires-self.state.tick)/Speed.pace(self.state))))end
     self.remaining.Visible=false
 end
 function M.card(panel,parts,w)

@@ -6,7 +6,7 @@ M.byStage={
     ['1-2']={title='충원의 법칙',art='growth',learned='병력은 절반쯤에서 가장 빨리 차요',
         lines={'병력이 상한의 절반쯤일 때 가장 빨리 차요.','꽉 차면 멈춰요. 초록일 때 보내요.'},
         hints={{id='full',text='병력이 거의 꽉 찼어요. 충원이 멈춰요. 지금 보내요',focus='troops'},
-            {id='low',text='병력이 너무 적어요. 충원이 느려요. 잠깐 모아요',focus='troops'}}},
+            {id='low',text='병력이 바닥이에요. 잠깐 모아요',focus='troops',tone='warn'}}},
     ['1-3']={title='넓을수록 큰 군대',art='area',learned='땅이 넓을수록, 도시가 많을수록 상한이 커요',
         lines={'땅이 넓을수록 병력 상한이 올라가요.','도시 하나마다 상한 +25,000이에요.'},
         hints={{id='double',text='땅이 두 배가 됐어요. 병력 상한도 올랐어요',focus='troops'},

@@ -322,7 +322,7 @@ function M:render()
     end
     for _,o in ipairs(self.bar:GetDescendants())do if o:IsA('GuiObject')then o.ZIndex=self.bar.ZIndex+1 end end
     if self.queue then local q=self.queue
-        self.barText.Text=title({rules=q.rules or {map='world'}})..' '..q.count..'/'..q.max..'\n'..(q.phase=='transferring'and '이동 중…'or q.phase=='recovering'and '연결 확인 중…'or q.remaining and '출발 '..clock(q.remaining-elapsed)or q.mode=='custom'and '준비 대기'or q.needsOpponent and '상대 진영 모집 중'or '곧 출발')
+        self.barText.Text=title({rules=q.rules or {map='world'}})..' '..q.count..'/'..q.max..'\n'..(q.phase=='transferring'and '이동 중…'or q.phase=='recovering'and '연결 확인 중…'or q.remaining and '출발 '..clock(q.remaining-elapsed)or q.mode=='custom'and '준비 대기'or q.needsOpponent and '상대 진영 모집 중'or q.room and q.room.missing and '1명 더 모집 중'or '곧 출발')
         if q.mode=='ranked'then self.barText.Text=string.format('랭크 %s  %s',q.ladder=='clanwar'and '클랜전'or q.ladder=='2v2'and '2대2'or q.ladder=='ffa'and '개인전'or '1대1',q.phase=='transferring'and '상대 찾음, 이동 중…'or '상대 찾는 중')end
         self.cancel.Text=q.partyCount and '파티 대기 취소'or '대기 취소';UI.enabled(self.cancel,not self.busy and not q.locked)
     end

@@ -8,7 +8,8 @@ local M={};M.__index=M
 M.KEEP=40
 local GREEN=Color3.fromRGB(150,220,90)
 local KINDS={{'all','전체'},{'battle','전투'},{'diplomacy','외교'},{'build','건설'}}
-local function clock(tick)local s=math.floor((tick or 0)/10);return string.format('%02d:%02d',math.floor(s/60),s%60)end
+local Speed=require(script.Parent.Parent.Core.GameSpeed)
+local function clock(tick)local s=math.floor((tick or 0)/Speed.shown);return string.format('%02d:%02d',math.floor(s/60),s%60)end
 local function has(t,list)for _,w in ipairs(list)do if string.find(t,w,1,true)then return true end end;return false end
 function M.classify(message,warning,kind)
     if kind=='building'or has(message,{'건설','완공','지었','레벨','철거'})then return 'build',GREEN,'City'end

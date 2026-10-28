@@ -185,7 +185,8 @@ function M:checkIn20(info,unlocks,at,nextReward,w,Lobby20)
     return card,tap
 end
 function M:celebrate(before,p,checkIn,recruited)
-    if checkIn and self.checkInShown~=(checkIn.claims or checkIn.streak)then self.checkInShown=checkIn.claims or checkIn.streak;task.spawn(function()
+    local holdCheckIn=checkIn and p and require(pack.Core.ComebackRules).holdCheckIn(p)
+    if checkIn and not holdCheckIn and self.checkInShown~=(checkIn.claims or checkIn.streak)then self.checkInShown=checkIn.claims or checkIn.streak;task.spawn(function()
         local Intro=require(script.Parent.LobbyIntro);local untilAt=os.clock()+3600
         local function ready()return self.frame.Parent and self.frame.Visible and self.inMenu~=false and not Intro.active and not self.firstLesson and not self.page end
         while self.frame.Parent and os.clock()<untilAt do

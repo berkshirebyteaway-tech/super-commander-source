@@ -85,7 +85,7 @@ function M.nukeStatus(self)
         n.kind=self.kind;n.icon:Destroy();n.icon=Hot.create(self.bar,self.kind,22,C.danger);n.icon.ZIndex=self.bar.ZIndex+2
     end
     n.name.Text=U.names[self.kind]or ''
-    n.sub.Text=p and (p.silo and (p.reason and string.format('준비 %d발, %s',p.ready,p.reason)or string.format('준비 %d발',p.ready))or p.reason or '')or (t and '지도 눌러 목표 고정'or '클릭 발사  우클릭 취소')
+    n.sub.Text=p and (p.silo and (p.reloadSeconds and p.reason or p.reason and string.format('준비 %d발, %s',p.ready,p.reason)or string.format('준비 %d발',p.ready))or p.reason or '')or (t and '지도 눌러 목표 고정'or '클릭 발사  우클릭 취소')
     n.sub.TextColor3=p and (p.risk or #(p.breaks or {})>0)and C.danger or C.muted;n.sub.Visible=n.sub.Text~=''
     n.price.Text=UI.number(p and p.cost or (self.state and self.state.costs and self.state.costs[self.kind])or 0)
     local stack=self.kind=='AtomBomb'and self:maxAmount()>1

@@ -15,6 +15,12 @@ M.defaults={
     sale=true,
     saleEndsAt='',
     halloween=true,
+    victoryCinematic=true,
+    gameSpeed=2,
+    nukeSpeed=1,
+    transportSpeed=1,
+    warshipSpeed=1,
+    gameSpeedModes='all',
     spectate=true,
     replays=true,
     bigMaps=true,
@@ -47,6 +53,7 @@ local function load()
 end
 function M.get(key)
     local default=M.defaults[key]
+    if Run:IsStudio()then local v=game:GetService('ServerStorage'):GetAttribute('LiveConfig_'..key);if v~=nil and typeof(v)==typeof(default)then return v end end
     if snapshot and not missing[key]then
         local ok,value=pcall(function()return snapshot:GetValue(key)end)
         if not ok or value==nil then missing[key]=true end
@@ -74,6 +81,7 @@ function M.publish()
     local function short(t)return utf8.len(t)and utf8.len(t)>80 and t:sub(1,utf8.offset(t,81)-1)or t end
     pack:SetAttribute('LiveNotice',short(M.get('notice')));pack:SetAttribute('LiveNoticeEn',short(M.get('noticeEn')))
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
+    pack:SetAttribute('LiveVictoryCinematic',M.get('victoryCinematic')~=false)
     pack:SetAttribute('LiveRankedScreen',M.get('rankedScreen')==true);pack:SetAttribute('LiveSeasonScreen',M.get('seasonScreen')==true)
     pack:SetAttribute('LaunchSaleEndsAt',M.salesOpen()and M.saleEndsAt()or 0)
     pack:SetAttribute('HalloweenEndsAt',require(pack.Core.HalloweenEvent).publishedEnd(M.get('halloween'),os.time()))

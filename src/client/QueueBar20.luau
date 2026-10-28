@@ -48,7 +48,7 @@ function M.paint(view,q,info)
             u.title.Text=info.title or ''
             if q.phase=='transferring'then word='이동 중…'elseif q.phase=='recovering'then word='연결 확인 중…'
             elseif q.remaining then clockText=info.clock(q.remaining-(info.elapsed or 0))
-            elseif q.mode=='custom'then word='준비 대기'elseif q.needsOpponent then word='상대 진영 모집 중'else word='곧 출발'end
+            elseif q.mode=='custom'then word='준비 대기'elseif q.needsOpponent then word='상대 진영 모집 중'elseif q.room and q.room.missing then word='1명 더 모집 중'else word='곧 출발'end
         end
         u.count.Visible=not ranked;u.fill.frame.Visible=not ranked
         if not ranked then u.count.Text=string.format('%d / %d',q.count or 0,q.max or 0);u.fill:set(math.clamp((q.count or 0)/math.max(1,q.max or 1),0,1),false)end

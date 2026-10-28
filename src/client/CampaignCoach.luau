@@ -17,6 +17,7 @@ local function format(w,h)
     if not t or require(script.Parent.Parent.Core.InterfacePlacement).tablet(w,h,t)then return 'pc'end
     return h>w and 'pt'or 'ph'
 end
+local function pct(x)return x>=10 and string.format('%d%%',math.floor(x+1e-6))or string.format('%.1f%%',math.floor(x*10+1e-6)/10)end
 function M:task20(s,stage)
     local def=stage and Campaign.stage(stage);local t=def and def.task
     local show=t~=nil and s~=nil and s.phase=='playing'and not(s.drop and s.drop.active)
@@ -30,6 +31,14 @@ function M:task20(s,stage)
         local star=K.icon(c,'star',15,K.colors.gold,'Star');star.ZIndex=c.ZIndex+1
         local l=K.text(c,'Label','',13,K.colors.ink,800);l.ZIndex=c.ZIndex+1
         local n=K.num(c,'Count','',14,K.colors.gold);n.ZIndex=c.ZIndex+1
+        local of=K.num(c,'Target','',12,K.colors.muted);of.ZIndex=c.ZIndex+1
+        local left=K.num(c,'Left','',12,K.colors.muted);left.ZIndex=c.ZIndex+1
+        local cross=K.icon(c,'x',12,ORANGE,'Cross');cross.ZIndex=c.ZIndex+1;cross.Visible=false
+        local dot=K.make('Frame',c,{Name='Now',BackgroundColor3=K.colors.accent,BorderSizePixel=0,ZIndex=c.ZIndex+1,Visible=false});K.round(dot,4)
+        K.stroke(dot,K.colors.dim,1.5,0,false)
+        local track=K.make('Frame',c,{Name='Track',BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.92,BorderSizePixel=0,ZIndex=c.ZIndex+1,Visible=false});K.round(track,2)
+        local fill=K.make('Frame',track,{Name='Fill',BackgroundColor3=K.colors.accent,BorderSizePixel=0,ZIndex=c.ZIndex+2,Size=UDim2.fromScale(0,1)});K.round(fill,2)
+        K.make('Frame',track,{Name='Goal',AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=K.colors.gold,BorderSizePixel=0,ZIndex=c.ZIndex+3,Visible=false})
         local tag=K.text(c,'Tutorial','튜토리얼',13,K.colors.accent,800);tag.ZIndex=c.ZIndex+1
         self.chip20=c
         c:GetPropertyChangedSignal('Visible'):Connect(function()if c.Visible and c:GetAttribute('Moving20')~='in'then c:SetAttribute('Shown20',false);K.appear(c,{dy=-8,t=.14})end end)
@@ -37,24 +46,54 @@ function M:task20(s,stage)
     local cp=s.personalResult and s.personalResult.campaign
     local v=cp and cp.id==stage and tonumber(cp.taskValue)or 0;local done=cp and cp.id==stage and cp.taskDone==true or false
     local counted=(t.kind=='count'or t.kind=='built')and t.key~='growthGreen'and t.n~=nil
-    local label,count=c.Label,c.Count
-    label.Text=t.label
+    local green=t.key=='growthGreen';local share=t.kind=='share'
+    local left=share and cp and cp.id==stage and tonumber(cp.taskLeft)or nil
+    local broken=not done and (t.kind=='zero'and cp~=nil and cp.id==stage or share and left~=nil and left<=0)
+    local label,count,target,leftL,dot,track,cross=c.Label,c.Count,c.Target,c.Left,c.Now,c.Track,c.Cross
+    label.Text=share and '영토'or green and '충원 초록'or t.label
+    target.Text='';leftL.Text='';dot.Visible=false;track.Visible=false;cross.Visible=false;count.TextColor3=K.colors.gold
     local function progressed(was)
         if was~=nil and v>was then Step.step('campaign','taskProgress',{item=(('s'..stage..'_task'):gsub('%-','_')),value=v,total=t.n,duration_ms=(s.personalResult and s.personalResult.seconds or 0)*1000})end
     end
-    if done then count.Text='✓'
-        if counted and c:GetAttribute('Stage')==stage and c:GetAttribute('Value')~=v then progressed(c:GetAttribute('Value'));c:SetAttribute('Value',v)end
+    if c:GetAttribute('Stage')~=stage then
+        c:SetAttribute('Stage',stage);c:SetAttribute('Value',nil);c:SetAttribute('Broken',nil);c:SetAttribute('Done',nil)
+        local st=c:FindFirstChild('Stroke20');if st then st.Color=K.colors.line;st.Transparency=.1;st.Thickness=1 end;c.Star.ImageColor3=K.colors.gold
+    end
+    if green then
+        local p=s.player;local ratio=p and (tonumber(p.troops)or 0)/math.max(1,tonumber(p.cap)or 1)or 0
+        local inBand=ratio>=Campaign.growthBand[1]and ratio<=Campaign.growthBand[2]
+        count.Text=string.format('%d%%',v);count.TextColor3=v>=t.n and K.colors.gold or K.colors.ink;target.Text='/'..t.n
+        dot.Visible=true;dot.BackgroundTransparency=inBand and 0 or 1;dot.Stroke20.Enabled=not inBand
+        track.Visible=true;track.Fill.Size=UDim2.fromScale(math.clamp(v/100,0,1),1);track.Fill.BackgroundColor3=v>=t.n and K.colors.gold or K.colors.accent
+        track.Goal.Visible=true;track.Goal.Position=UDim2.fromScale(t.n/100,.5)
+    elseif share then
+        if done then count.Text='✓'
+        else count.Text=pct(v*100);count.TextColor3=broken and ORANGE or K.colors.ink;target.Text='/'..math.floor(t.n*100+.5)
+            if broken then cross.Visible=true
+            elseif left then local l=math.ceil(left);leftL.Text=string.format('%d:%02d',l//60,l%60);leftL.TextColor3=K.colors.muted end
+            track.Visible=not broken;track.Fill.Size=UDim2.fromScale(math.clamp(v/t.n,0,1),1);track.Fill.BackgroundColor3=K.colors.accent;track.Goal.Visible=false
+        end
+    elseif t.kind=='zero'then
+        count.Text=done and '✓'or '';count.TextColor3=K.colors.accent;cross.Visible=not done
+    elseif done then count.Text='✓'
+        if counted and c:GetAttribute('Value')~=v then progressed(c:GetAttribute('Value'));c:SetAttribute('Value',v)end
     elseif counted then
         local was=c:GetAttribute('Value');local n=t.n
-        if c:GetAttribute('Stage')~=stage then c:SetAttribute('Stage',stage);was=nil end
         if was~=v then
             progressed(was)
             c:SetAttribute('Value',v)
             K.roll(count,was,math.min(v,n),function(x)return string.format('%d/%d',math.floor(x+.5),n)end,c)
         end
     else count.Text=''end
-    if done and not c:GetAttribute('Done')then
-        c:SetAttribute('Done',true);local st=c:FindFirstChild('Stroke20')
+    local st=c:FindFirstChild('Stroke20')
+    if broken and not c:GetAttribute('Broken')then
+        c:SetAttribute('Broken',true);if st then st.Color=ORANGE;st.Transparency=0 end;c.Star.ImageColor3=K.colors.dim;K.punch(c,1.12,.16)
+    elseif not broken and c:GetAttribute('Broken')then
+        c:SetAttribute('Broken',nil);if st then st.Color=K.colors.line;st.Transparency=.1 end;c.Star.ImageColor3=K.colors.gold
+    end
+    local finishes=t.kind~='zero'and not green
+    if finishes and done and not c:GetAttribute('Done')then
+        c:SetAttribute('Done',true)
         if st then st.Color=K.colors.gold;st.Transparency=0;st.Thickness=1.5
             task.delay(1.2,function()if st.Parent then game:GetService('TweenService'):Create(st,TweenInfo.new(.3,Enum.EasingStyle.Quad),{Color=K.colors.line,Transparency=.1}):Play();st.Thickness=1 end end)end
         K.punch(c,1.12,.16)
@@ -64,16 +103,23 @@ function M:task20(s,stage)
     local y=clock and clock.Visible and clock.Position.Y.Offset+clock.Size.Y.Offset+8 or (pc and 56 or (fmt=='ph'and 84 or 92)-inset())
     local speed=parent:FindFirstChild('Speed_1');if speed and speed.Visible then y=speed.Position.Y.Offset+speed.Size.Y.Offset+8 end
     local h=pc and 36 or 24;local pad=pc and 12 or 8;local gap=pc and 8 or 5;local is=pc and 15 or 11
-    label.TextSize=pc and 13 or 11;count.TextSize=pc and 14 or 12
-    local lw=K.width(L().text(t.label),label.TextSize,label)+2;local cw=count.Text~=''and K.width(count.Text,count.TextSize,count)+2 or 0
+    label.TextSize=pc and 13 or 11;count.TextSize=pc and 14 or 12;target.TextSize=pc and 12 or 10;leftL.TextSize=pc and 12 or 10
+    local function w(l)return l.Text~=''and K.width(l.Text,l.TextSize,l)+2 or 0 end
+    local lw=K.width(L().text(label.Text),label.TextSize,label)+2
     local x=pad
     local tag=c.Tutorial;tag.Visible=def.intro==true;tag.TextSize=label.TextSize
     if tag.Visible then local tw=K.width(L().text(tag.Text),tag.TextSize,tag)+2;K.box(tag,x,0,tw,h);x+=tw+gap+2 end
     K.box(c.Star,x,math.floor((h-is)/2),is,is);c.Star.Size=UDim2.fromOffset(is,is);x+=is+gap
     K.box(label,x,0,lw,h);x+=lw
-    if cw>0 then x+=gap;K.box(count,x,0,cw,h);x+=cw end
+    if dot.Visible then local d=pc and 8 or 7;x+=gap;K.box(dot,x,math.floor((h-d)/2),d,d);x+=d end
+    local cw=w(count);if cw>0 then x+=gap;K.box(count,x,0,cw,h);x+=cw end
+    local tw=w(target);if tw>0 then x+=2;K.box(target,x,1,tw,h);x+=tw end
+    local ew=w(leftL);if ew>0 then x+=gap;K.box(leftL,x,1,ew,h);x+=ew end
+    if cross.Visible then local cs=pc and 12 or 10;x+=gap;K.box(cross,x,math.floor((h-cs)/2),cs,cs);x+=cs end
+    local cwid=x+pad
+    if track.Visible then local th=pc and 3 or 2;K.box(track,pad-4,h-th-(pc and 3 or 2),cwid-2*(pad-4),th);track.Goal.Size=UDim2.fromOffset(2,th+5)end
     local pos=UDim2.fromOffset(12,math.floor(y))
-    c.Size=UDim2.fromOffset(x+pad,h);K.round(c,pc and 10 or 7);c:SetAttribute('Home20',pos);if c:GetAttribute('Moving20')==nil then c.Position=pos end
+    c.Size=UDim2.fromOffset(cwid,h);K.round(c,pc and 10 or 7);c:SetAttribute('Home20',pos);if c:GetAttribute('Moving20')==nil then c.Position=pos end
     c.Visible=true
 end
 function M:hint20()
@@ -97,9 +143,12 @@ function M:layout20(context)
     local top=context and context.hudTop or size.Y-96
     local pos=UDim2.fromOffset(math.floor((size.X-w)/2),math.floor(top-8-h))
     f.Size=UDim2.fromOffset(w,h);f:SetAttribute('Home20',pos);if f:GetAttribute('Moving20')==nil then f.Position=pos end
-    p.bar:setParts({{p=3/w,color=K.colors.accent}})
-    local key=self.current and (self.current.focus=='troops'and 'Soldier'or self.current.focus=='build'and 'City')or 'Crown'
-    if p.key~=key then p.key=key;if p.icon then p.icon:Destroy()end;p.icon=require(script.Parent.HotbarIcons).create(f,key,20,K.colors.accent);p.icon.ZIndex=f.ZIndex+2 end
+    local warn=self.current and self.current.tone=='warn';local tone=warn and ORANGE or K.colors.accent
+    p.bar:setParts({{p=3/w,color=tone}})
+    for _,st in ipairs(f:GetChildren())do if st:IsA('UIStroke')then st.Color=warn and ORANGE or K.colors.line;st.Transparency=warn and 0 or .1 end end
+    local ws=p.bar.frame:FindFirstChild('Warn20')or Instance.new('UIStroke');ws.Name='Warn20';ws.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;ws.Thickness=1;ws.Color=ORANGE;ws.Enabled=warn;ws.Parent=p.bar.frame
+    local key=(self.current and (self.current.focus=='troops'and 'Soldier'or self.current.focus=='build'and 'City')or 'Crown')..(warn and ':warn'or '')
+    if p.key~=key then p.key=key;if p.icon then p.icon:Destroy()end;p.icon=require(script.Parent.HotbarIcons).create(f,(key:gsub(':warn','')),20,tone);p.icon.ZIndex=f.ZIndex+2 end
     p.icon.Position=UDim2.fromOffset(15,math.floor((h-20)/2))
     local t=self.text;t.TextColor3=K.colors.ink;if K.fonts[700]then t.FontFace=K.fonts[700]end;t.TextWrapped=true;t.TextTruncate=Enum.TextTruncate.AtEnd
     t.TextXAlignment=Enum.TextXAlignment.Left;t.TextYAlignment=Enum.TextYAlignment.Center;t.ZIndex=f.ZIndex+2
@@ -208,7 +257,7 @@ end
 function M:stepFrame(reduced)
     local t=self.highlight
     if not(self.frame.Visible and t)then self.focus.Visible=false;return end
-    local new=v2();if new and K then self.focusStroke.Color=K.colors.accent end
+    local new=v2();if new and K then self.focusStroke.Color=self.current and self.current.tone=='warn'and ORANGE or K.colors.accent end
     local wave=(reduced or new)and 0 or (math.sin(os.clock()*4)+1)/2;self.focusStroke.Transparency=wave*.3
     local origin=self.frame.Parent.AbsolutePosition;local s=Theme.scale
     UI.box(self.focus,(t.AbsolutePosition.X-origin.X)/s-4,(t.AbsolutePosition.Y-origin.Y)/s-4,t.AbsoluteSize.X/s+8,t.AbsoluteSize.Y/s+8)

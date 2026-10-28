@@ -1,6 +1,7 @@
 local UI=require(script.Parent.Theme)
 local Style=require(script.Parent.HudStyle)
 local Audio=require(script.Parent.ToyAudio)
+local Speed=require(script.Parent.Parent.Core.GameSpeed)
 local Tween=game:GetService('TweenService')
 local C=UI.colors
 local M={};M.__index=M
@@ -51,7 +52,7 @@ function M:update(state)
     end
     self.active=playing;if not playing then self.heads.Visible=false;return end
     if self.match~=state.version then self.match=state.version;self.warned=false;self.nearWin={};self.overtimeAt=nil;self.headsUntil=nil end
-    local settings=state.settings or {};local seconds=(state.tick or 0)/10
+    local settings=state.settings or {};local pace=Speed.pace(state);Speed.shown=pace;local seconds=(state.tick or 0)/pace
     local limit=settings.maxTimerValue
     self.remaining=limit and limit*60-seconds or nil
     self.time.Text=clock(self.remaining or seconds)
@@ -86,9 +87,9 @@ function M:update(state)
     local overtime=settings.overtime and settings.overtime.enabled and threshold<.8
     if overtime and not self.overtimeAt then self.overtimeAt=state.tick;self:headsUp('연장전  승리 기준 매분 -2%p',5)end
     local immunity=settings.spawnImmunityDuration or 50
-    self.peace=immunity>50 and state.tick<immunity and (immunity-state.tick)/10 or nil
+    self.peace=immunity>50 and state.tick<immunity and (immunity-state.tick)/pace or nil
     self.traitorLeft=nil
-    for _,f in ipairs(state.factions or {})do if f.id==1 and f.traitor and f.traitorUntil then self.traitorLeft=(f.traitorUntil-state.tick)/10 end end
+    for _,f in ipairs(state.factions or {})do if f.id==1 and f.traitor and f.traitorUntil then self.traitorLeft=(f.traitorUntil-state.tick)/pace end end
     if not(self.traitorLeft and self.traitorLeft>0)then self.traitorLeft=nil end
     if state.paused and state.multiplayer then self.headsText.Text='방장이 경기를 일시정지했어요';self.headsText.TextColor3=C.gold;self.headsFixed=true
     elseif self.peace then self.headsText.Text=(state.multiplayer and '평화 시간, 지휘관끼리 공격 금지  'or '평화 시간, 핵 발사 금지  ')..clock(self.peace);self.headsText.TextColor3=C.gold;self.headsFixed=true

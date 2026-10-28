@@ -184,6 +184,8 @@ function M:radial20()
     local disc=sheet:FindFirstChild('Disc20')or K.make('Frame',sheet,{Name='Disc20',BackgroundColor3=GLASS,BorderSizePixel=0,Active=false,ZIndex=sheet.ZIndex})
     local reach=sheet:GetAttribute('Ring20')=='nation'and math.max(g.radius+g.face/2,g.low+g.minorFace/2)or g.radius+g.face/2
     K.round(disc,'pill');disc.BackgroundTransparency=.45;local ds=reach*2+16;K.box(disc,(d-ds)/2,(d-ds)/2,ds,ds)
+    local placing=false;for _,b in ipairs(sheet:GetChildren())do if b:GetAttribute('Preview20')==true and b.Visible then placing=true end end
+    disc.Visible=not placing
     local minor=require(script.Parent.Parent.Core.CommandInteraction).minorSlots
     for _,n in ipairs({'RadialTrack','RadialCore','Close'})do local o=sheet:FindFirstChild(n);if o and o:IsA('GuiObject')then o.Visible=false end end
     local a=self.a
@@ -222,7 +224,7 @@ function M:radial20()
             if cap and cap:IsA('TextLabel')then
                 cap.BackgroundTransparency=1;cap.TextSize=11;cap.ZIndex=b.ZIndex+2
                 if K.fonts[700]then cap.FontFace=K.fonts[700]end
-                cap.TextColor3=ally and K.colors.ally or breaking and K.colors.danger or route and K.colors.accent or b.Name=='SupportGold'and K.colors.gold
+                cap.TextColor3=ally and(enabled and K.colors.bg or K.colors.ally)or breaking and K.colors.danger or route and K.colors.accent or b.Name=='SupportGold'and K.colors.gold
                     or cap.TextColor3==K.colors.gold and K.colors.gold or K.colors.ink
                 if buildKind then
                     cap.Text=buildReason=='골드 부족'and '골드 부족'or b.Text

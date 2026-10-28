@@ -215,6 +215,7 @@ function M:dressCard()
     local g=K.make('Frame',glow,{Name='Light',BackgroundColor3=C.accent,BackgroundTransparency=.7,BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
     K.make('UIGradient',g,{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.15,.85),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(.85,.85),NumberSequenceKeypoint.new(1,1)})})
     self.glow=glow;self.glowLight=g
+    require(script.Parent.FullBleed).edge(card)
     self.details=K.button(card,'Details20',{kind='plain',icon='records',iconSize=19,text=nil},function()self:setDetails(not self.detailsExpanded)end)
     self.detailsText=K.button(card,'DetailsText20',{kind='plain',icon='records',iconSize=16,text='상세 기록',size=13,gap=6},function()self:setDetails(not self.detailsExpanded)end)
     for _,b in ipairs({self.details,self.detailsText})do b.iconColorFixed=true;b.iconImage.ImageColor3=C.muted end
@@ -358,7 +359,12 @@ function M:paintCard(v,fmt,cw,ch,cx,cy)
     if self.modal and self.modal:IsA('GuiObject')then set(self.modal,'BackgroundColor3',Color3.fromRGB(5,8,12));set(self.modal,'BackgroundTransparency',fmt=='pt'and .2 or .38)end
     if self.titleObj then self.titleObj.Visible=false end
     local glowH=fmt=='pc'and 220 or fmt=='ph'and 150 or 260
-    K.box(self.glow,0,0,cw,glowH);K.round(self.glow,fmt=='pc'and 14 or 0)
+    local top=0
+    if fmt~='pc'and cy<=0 then
+        local gui=card:FindFirstAncestorOfClass('ScreenGui')
+        local ok,_,t=pcall(require(script.Parent.FullBleed).insets,gui);if ok and t then top=t/(gui:GetAttribute('UIScale')or 1)end
+    end
+    K.box(self.glow,0,-top,cw,glowH+top);K.round(self.glow,fmt=='pc'and 14 or 0)
     local won=v.won;local steel=not won and v.title~='중단'
     self.glowLight.BackgroundColor3=won and C.accent or steel and STEEL or C.muted;self.glowLight.BackgroundTransparency=won and .7 or steel and .78 or .9
     local hide=self.actions and self.actions:FindFirstChild('Spectate')~=nil
@@ -542,14 +548,19 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
     local B=G.big;local by=(B.y<0 and ch+B.y or B.y+lift)-ay
     local bigWatch=v.continuing and spectate or nil
     local leftW=bigWatch and(B.watchW or B.lobbyW)or B.lobbyW;local bgap=fmt=='ph'and 10 or fmt=='pt'and 8 or 12
-    if bigWatch then local f=adopt(bigWatch,'plain');place(bigWatch,p,by,leftW,B.h);content(f,C.ink,'watch',B.watchIs or B.lobbyIs,L.text('관전'),B.lobbyFs)
-    elseif lobby then local f=adopt(lobby,'plain');place(lobby,p,by,B.lobbyW,B.h);content(f,C.ink,B.lobbyIs and 'back'or nil,B.lobbyIs,L.text('로비'),B.lobbyFs)end
-    if again then
-        local f=adopt(again,'pri');place(again,p+leftW+bgap,by,cw-p*2-leftW-bgap,B.h)
-        local t=again:GetAttribute('Text20')or ''
-        if v.campaign and v.again then t=v.again;again:SetAttribute('Text20',t)end
-        if t=='같은 설정으로 한 판 더'then t='한 판 더'end
-        content(f,C.bg,B.againIs and 'restore'or nil,B.againIs,L.text(t),B.againFs)
+    if v.nextStage and lobby and again and not bigWatch then
+        local f=adopt(again,'plain');place(again,p,by,B.lobbyW,B.h);content(f,C.ink,nil,nil,v.nextStage,B.lobbyFs)
+        f=adopt(lobby,'pri');place(lobby,p+B.lobbyW+bgap,by,cw-p*2-B.lobbyW-bgap,B.h);content(f,C.bg,B.againIs and 'back'or nil,B.againIs,L.text('로비'),B.againFs)
+    else
+        if bigWatch then local f=adopt(bigWatch,'plain');place(bigWatch,p,by,leftW,B.h);content(f,C.ink,'watch',B.watchIs or B.lobbyIs,L.text('관전'),B.lobbyFs)
+        elseif lobby then local f=adopt(lobby,'plain');place(lobby,p,by,B.lobbyW,B.h);content(f,C.ink,B.lobbyIs and 'back'or nil,B.lobbyIs,L.text('로비'),B.lobbyFs)end
+        if again then
+            local f=adopt(again,'pri');place(again,p+leftW+bgap,by,cw-p*2-leftW-bgap,B.h)
+            local t=again:GetAttribute('Text20')or ''
+            if v.campaign and v.again then t=v.again;again:SetAttribute('Text20',t)end
+            if t=='같은 설정으로 한 판 더'then t='한 판 더'end
+            content(f,C.bg,B.againIs and 'restore'or nil,B.againIs,L.text(t),B.againFs)
+        end
     end
     local R1=G.row1
     local watch=not bigWatch and(spectate or self.closeObj)or nil

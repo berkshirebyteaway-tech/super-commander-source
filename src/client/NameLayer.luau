@@ -92,7 +92,7 @@ function M:update(args)
         local x,y,size,m=M.follow(motion,f.id,f.labelTile,f.labelSize,args.mapWidth,now,reduced)
         local raw=M.font(size,ppt)
         local priority=f.id==args.selected or f.combatState~=nil
-        if not (if previous[f.id]then M.kept(raw,viewport.Y)else M.visible(raw,viewport.Y))and not priority then culled[f.id]=true;continue end
+        if not args.pick and not (if previous[f.id]then M.kept(raw,viewport.Y)else M.visible(raw,viewport.Y))and not priority then culled[f.id]=true;continue end
         local pos=args.projectXY(x,y)
         if pos.X<bounds.left-40 or pos.Y<bounds.top-20 or pos.X>bounds.right+40 or pos.Y>bounds.bottom+20 then continue end
         local plate=self:plate(f.id)

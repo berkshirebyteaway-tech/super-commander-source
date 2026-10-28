@@ -209,10 +209,16 @@ function M.update(cb,s)
     end
     if p then local ratio=(tonumber(p.troops)or 0)/math.max(1,tonumber(p.cap)or 1);Icons.tint(cb.barSoldier,ratio>.06 and C.bg or C.ink)end
 end
-function M.paintTroops(track,home,away,low)
+function M.paintTroops(track,home,away,low,band)
     local g=track:FindFirstChild('Bar20')
     if not g then g=K.make('UIGradient',track,{Name='Bar20'});track.BackgroundColor3=Color3.new(1,1,1);track.BackgroundTransparency=0 end
-    local a,b=low and Color3.fromRGB(255,166,64)or FILL_A,low and Color3.fromRGB(255,190,110)or FILL_B
+    for i=1,2 do
+        local tick=track:FindFirstChild('Band20_'..i)
+        if band and not tick then tick=K.make('Frame',track,{Name='Band20_'..i,AnchorPoint=Vector2.new(.5,0),BackgroundColor3=C.accent,BackgroundTransparency=.15,BorderSizePixel=0,ZIndex=2,Size=UDim2.new(0,2,1,0)})end
+        if tick then tick.Visible=band~=nil;if band then tick.Position=UDim2.fromScale(band[i],0)end end
+    end
+    local out=band~=nil and not low and (home<band[1]or home>band[2])
+    local a,b=low and Color3.fromRGB(255,166,64)or out and Color3.fromRGB(59,74,87)or FILL_A,low and Color3.fromRGB(255,190,110)or out and Color3.fromRGB(80,96,110)or FILL_B
     local Stops=require(script.Parent.Parent.Core.FillStops)
     local times,colors,alphas=Stops.build({{p=home,color=a,color2=b},{p=home+away,color=b:Lerp(C.raised,.5)}},C.raised,0)
     local cs,ts={},{}

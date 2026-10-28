@@ -74,7 +74,14 @@ function M:step(factions,plates,shown,tick,now)
         local title=plate:FindFirstChild('Title')
         local w,h=plate.Size.X.Offset*s,plate.Size.Y.Offset*s
         local th=(title and title.Size.Y.Offset or plate.Size.Y.Offset/2)*s
-        local x=math.floor(plate.Position.X.Offset+w/2+M.GAP+.5);local y=math.floor(plate.Position.Y.Offset-h/2+th/2+.5)
+        local right=w/2
+        local nameW=plate:GetAttribute('NameTextWidth')
+        if title and nameW then
+            local tw=math.min(nameW,title.Size.X.Offset)
+            local edge=title.TextXAlignment==Enum.TextXAlignment.Left and title.Position.X.Offset+tw or title.Position.X.Offset+(title.Size.X.Offset+tw)/2
+            right=math.min(w/2,edge*s-w/2)
+        end
+        local x=math.floor(plate.Position.X.Offset+right+M.GAP+.5);local y=math.floor(plate.Position.Y.Offset-h/2+th/2+.5)
         if b.x~=x or b.y~=y then b.x=x;b.y=y;b.root.Position=UDim2.fromOffset(x,y)end
         if not b.fading and now>=(b.next or 0)then
             b.next=now+1/M.HZ

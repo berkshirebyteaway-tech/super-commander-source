@@ -84,6 +84,7 @@ function M.format(w,h)return w<600 and 'pt'or h<500 and 'ph'or 'pc'end
 function M:press()
     local q=self.q;if not q or not q.room or self.busy then return end
     if q.room.state=='go'and not self:mine()then return end
+    if q.room.missing then return end
     local want=not self:mine();self.pressed=true;self.pending={want=want,until_=os.clock()+4}
     local b=self.ui and self.ui.ready
     if want then if b then K.confirm(b);self:sweep()else Audio.play('confirm')end else Audio.play('click')end
@@ -141,12 +142,18 @@ function M:update(q,options)
     if not self.q or self.q.field~=room.field then self.since=os.clock();self.minimized=false;self.pressed=false;self.lastGo=nil;self.pending=nil;self.seen=nil
         Step.step('queue','roomOpen',{value=room.count,item=room.rules.mode})
     end
+    local was=self.q and self.q.field==room.field and self.q.room
+    if was and room.room.missing and not was.missing then
+        Step.step('queue','roomReadyReset',{value=self.q.count,result=was.state,item=self:mine()and 'ready'or 'idle'});self.pending=nil;self.lastGo=nil
+    elseif was and was.missing and not room.room.missing then
+        Step.step('queue','roomPaired',{value=self.since and math.floor(os.clock()-self.since)or nil,count=room.count})
+    end
     self.q=room;self.remaining=options.remaining;self.elapsed=options.elapsed or 0
     self:show(options.menu~=false and not options.page and not self.minimized)
     if self.open then self:layout()end
 end
 function M:closed(next)
-    if not next then Step.step('queue','roomLeave',{value=self.since and math.floor(os.clock()-self.since)or nil,result=self.q.room and self.q.room.state or nil})end
+    if not next then Step.step('queue','roomLeave',{value=self.since and math.floor(os.clock()-self.since)or nil,result=self.q.room and self.q.room.state or nil,item=self.q.room and self.q.room.missing and 'alone'or nil})end
 end
 
 function M:kind()
@@ -276,11 +283,12 @@ function M:draw()
     local room=q.room;local go=room.state=='go';local full=room.reason=='full'and go
     local remaining=math.max(0,(self.remaining or 0))
     local limit=room.limit and math.max(0,room.limit-self.elapsed)or remaining
-    local counting=go or remaining<=10
+    local alone=room.missing~=nil
+    local counting=not alone and(go or remaining<=10)
     local secs=math.ceil(remaining)
     local big=ui.clock
-    big.Text=counting and clock(remaining)or clock(limit)
-    big.TextColor3=counting and(full and C.gold or C.accent)or C.ink
+    big.Text=alone and '-:--'or counting and clock(remaining)or clock(limit)
+    big.TextColor3=alone and C.muted or counting and(full and C.gold or C.accent)or C.ink
     K.box(big,ui.L,ui.clockY,width(big.Text,ui.clockFs,big)+2,ui.clockFs)
     if counting and self.lastSecond and secs<self.lastSecond and secs<=5 and secs>0 then Audio.play('countdown')end
     self.lastSecond=secs
@@ -291,12 +299,16 @@ function M:draw()
     ui.bar:set(n>0 and readyN/n or 0,self.drawnReady~=nil and readyN~=self.drawnReady);self.drawnReady=readyN
     local right=ui.L+ui.lw;local fs=ui.readyFs
     ui.readyN.Text=tostring(readyN);ui.readyM.Text=' / '..tostring(n)
+    local pt=ui.fmt=='pt'
+    ui.readyWord.TextColor3=alone and C.muted or pt and C.ink or C.accent
+    ui.readyN.TextColor3=alone and C.muted or C.accent
+    ui.readyM.TextColor3=alone and C.muted or pt and C.muted or C.accent
     local wm,wn,ww=width(ui.readyM.Text,fs,ui.readyM),width(ui.readyN.Text,fs,ui.readyN),width('레디',fs,ui.readyWord)
     K.box(ui.readyM,right-wm-1,ui.readyY,wm+2,ui.readyH);K.box(ui.readyN,right-wm-wn-1,ui.readyY,wn+2,ui.readyH);K.box(ui.readyWord,right-wm-wn-ww-(ui.fmt=='pt'and 4 or 6),ui.readyY,ww+2,ui.readyH)
     local b=ui.ready;local kind=mine and 'out'or 'pri'
     if b.kind~=kind then b:setEnabled(true);b:setKind(kind)end
     b:setText(mine and '✓ 레디'or '레디')
-    b:setEnabled(not(go and not mine)and not self.busy,self.busy and not(go and not mine))
+    b:setEnabled(not alone and not(go and not mine)and not self.busy,not alone and self.busy and not(go and not mine))
     ui.leave:setEnabled(not self.busy,true)
     if ui.count then setPair(ui.count,tostring(q.count),' / '..tostring(q.max or q.count),ui.countRight,ui.countY,ui.countH)end
     self:roster()

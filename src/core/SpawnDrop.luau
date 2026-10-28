@@ -4,6 +4,7 @@ local Terrain=if script then require(script.Parent.Terrain)else require('./Terra
 local M={};M.__index=M
 M.spread=32;M.planeSeconds=2;M.pickSeconds=8;M.plungeSeconds=2;M.seconds=M.planeSeconds+M.pickSeconds+M.plungeSeconds
 M.minimumLanding=3;M.readySeconds=12;M.inputTimeout=.5
+M.latePick=5;M.lateMax=8
 M.crossSeconds=2.5
 M.nearestRadius=40
 local function finite(n)return type(n)=='number'and n==n and math.abs(n)<math.huge end
@@ -26,17 +27,23 @@ function M.new(world,roster,now,random)
 end
 function M:setDiving(id,value,now)
     local p=self.players[id]
-    if type(value)~='boolean'or not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+M.seconds then return false end
+    if type(value)~='boolean'or not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+self:total()then return false end
     if value and not p.plungeAt then p.plungeAt=now;p.diving=true end
     return true
 end
 function M:plungeStart(p)
     if self.random then return M.planeSeconds end
-    local pickEnd=M.planeSeconds+M.pickSeconds
+    local pickEnd=M.planeSeconds+M.pickSeconds+(p.late or 0)
     return p.plungeAt and math.min(pickEnd,p.plungeAt-self.startAt)or pickEnd
 end
+function M:total()return M.seconds+(self.extra or 0)end
 function M:markReady(id,now)
-    if not self.players[id]or self.finished then return false end
+    local p=self.players[id]
+    if not p or self.finished then return false end
+    if self.startAt and not self.ready[id]and not self.random and not p.landed and not p.plungeAt then
+        local need=math.max(now-self.startAt,M.planeSeconds)+M.latePick-(M.planeSeconds+M.pickSeconds)
+        if need>0 then p.late=math.min(M.lateMax,need);self.extra=math.max(self.extra or 0,p.late)end
+    end
     self.ready[id]=true
     for index in ipairs(self.roster)do if not self.ready[index]then return true end end
     if not self.startAt then self.startAt=now;self.lastStep=now end
@@ -49,6 +56,15 @@ function M:input(id,x,y,seq,now)
     local length=math.sqrt(x*x+y*y);if length>1 then x/=length;y/=length end
     p.dx,p.dy,p.seq,p.inputAt=x,y,seq,now;return true
 end
+function M:pick(id,tile,now)
+    local p=self.players[id];local meta=self.world.map.meta
+    if not p or p.landed or self.finished or self.random or not self.startAt or now<self.startAt+M.planeSeconds or now>=self.startAt+self:plungeStart(p)then return false end
+    if not finite(tile)or tile%1~=0 or tile<0 or tile>=meta.width*meta.height then return false end
+    local b=self.world.sim.terrain[tile+1];local owner=self.world.sim:owner(tile)
+    if not Terrain.isLand(b)or Terrain.isImpassable(b)or owner~=0 and owner~=id or p.area and not Format.inside(p.area,tile,meta.width)then return false end
+    p.x,p.y,p.dx,p.dy,p.picked=tile%meta.width,tile//meta.width,0,0,tile
+    return true
+end
 function M:rally(id,tile,now)
     local p=self.players[id];local meta=self.world.map.meta
     if not p or self.finished or not self.startAt or not finite(tile)or tile%1~=0 or tile<0 or tile>=meta.width*meta.height then return false end
@@ -57,7 +73,21 @@ function M:rally(id,tile,now)
 end
 function M:randomTile(id)
     local p=self.players[id];local world=self.world
+    if world.settings and world.settings.besideTribes then local t=self:besideTribes(id);if t then return t end end
     return Spawn.random(world,'drop-'..id,world.settings.seed or 'frontier',p.area)
+end
+M.besideMin=14
+function M:besideTribes(id)
+    local world=self.world;local w=world.map.meta.width;local spots={}
+    for pid in pairs(world.bots or {})do local t=world.sim.players[pid].spawnTile;if t then table.insert(spots,t)end end
+    table.sort(spots)
+    local a,b,best
+    for i=1,#spots do for j=i+1,#spots do
+        local d=(spots[i]%w-spots[j]%w)^2+(spots[i]//w-spots[j]//w)^2
+        if d>=M.besideMin^2 and (not best or d<best)then a,b,best=spots[i],spots[j],d end
+    end end
+    if not a then return nil end
+    return self:nearestTile(id,((a//w+b//w)//2)*w+(a%w+b%w)//2)
 end
 local ring={}
 do for dy=-M.nearestRadius,M.nearestRadius do for dx=-M.nearestRadius,M.nearestRadius do local d=dx*dx+dy*dy
@@ -97,7 +127,7 @@ function M:land(id,now,force)
     local w,h=world.map.meta.width,world.map.meta.height
     local tile=p.reserved or math.clamp(math.floor(p.y),0,h-1)*w+math.clamp(math.floor(p.x),0,w-1)
     local b=world.sim.terrain[tile+1]
-    local valid=Terrain.isLand(b)and not Terrain.isImpassable(b)and world.sim:owner(tile)==0 and (not p.area or Format.inside(p.area,tile,w))
+    local valid=Terrain.isLand(b)and not Terrain.isImpassable(b)and (world.sim:owner(tile)==0 or p.claimed==tile)and (not p.area or Format.inside(p.area,tile,w))
     if not p.reserved and not valid then tile=not self.random and self:nearestTile(id,tile)or self:randomTile(id)or self:anyTile(id,tile);p.fallback=true end
     if not tile then return false end
     p.landed=true;p.tile=tile;p.x=tile%w;p.y=tile//w;p.dx=0;p.dy=0;p.altitude=0;p.diving=false
@@ -135,7 +165,7 @@ function M:step(now,onLanding,onRecovery)
         end end
     end
     local down=self.quick and elapsed>=M.planeSeconds;if down then for _,p in ipairs(self.players)do if not p.landed then down=false;break end end end
-    if elapsed>=M.seconds or down then
+    if elapsed>=self:total()or down then
         for id in ipairs(self.players)do land(id,true)end
         for id,p in ipairs(self.players)do if not p.landed and onRecovery then
             local wanted=math.clamp(math.floor(p.y),0,h-1)*w+math.clamp(math.floor(p.x),0,w-1)
@@ -161,7 +191,7 @@ function M:frame(now)
             plunge=self.startAt and self:plungeStart(p)or nil}))
         if p.rally and p.rally.expires>now then table.insert(rallies,table.freeze(table.clone(p.rally)))end
     end
-    return table.freeze({active=not self.finished,preparing=self.startAt==nil,elapsed=elapsed,left=math.max(0,M.seconds-elapsed),seconds=M.seconds,planeSeconds=M.planeSeconds,
+    return table.freeze({active=not self.finished,preparing=self.startAt==nil,elapsed=elapsed,left=math.max(0,self:total()-elapsed),seconds=self:total(),planeSeconds=M.planeSeconds,
         random=self.random,players=table.freeze(list),rallies=table.freeze(rallies),speed=self.speed,pickSeconds=M.pickSeconds,plungeSeconds=M.plungeSeconds})
 end
 function M:snapshot(viewer,now,frame)

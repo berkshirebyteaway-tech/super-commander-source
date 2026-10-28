@@ -24,6 +24,12 @@ local function firstMinutes(d)local t=d.elapsed_seconds;return not t and 'unknow
 local function firstRow(d)return d.marker=='new'and (d.elapsed_seconds or 0)/60 or -1 end
 local function elimCause(d)return d.area=='match'and d.step=='eliminated'and d.item or nil end
 local function elimRow(d)return elimCause(d)and 1 or -1 end
+local function campaignOut(d)if d.area~='campaign'then return nil end;if d.step=='campaignEnd'then return d.result end;if d.step=='quit'then return 'quit_'..(d.phase or 'unknown')end end
+local function campaignRow(d)return campaignOut(d)and 1 or -1 end
+local function standing(d)if d.area~='campaign'or d.step~='quit'then return nil end
+ local r,g=d.position,d.growth_ratio
+ return (not r and 'rx'or r==1 and 'r1'or r==2 and 'r2'or r<=5 and 'r3_5'or 'r6p')..'_'..(not g and 'gx'or g<.15 and 'low'or g>=.85 and 'full'or 'mid')end
+local function standingRow(d)if not standing(d)then return -1 end;return type(d.value)=='number'and d.value>=0 and d.value or 0 end
 local function idleBucket(d)local t=d.idle_seconds;return not t and 'unknown'or t<10 and 'lt10s'or t<20 and 'lt20s'or t<30 and 'lt30s'or t<60 and 'lt60s'or t<180 and 'lt3m'or 'ge3m'end
 M.buckets={humans=humans,matches=matches,gap=gap,fps=fps,ping=ping,memory=memory,party=party,wait=waitBucket,minutes=minutes,pay=pay}
 M.views={
@@ -57,7 +63,8 @@ M.views={
  nuclear_aim_started={{'SC_AimStart','kind','input_mode'}},
  structure_range_viewed={{'SC_RangeViewed','kind','input_mode'}},
  supply_reveal={{'SC_SupplyReveal','stage','rarity'}},
- flow_step={{'SC_Elim',elimCause,'journey',elimRow},{'SC_ElimIdle',elimCause,idleBucket,elimRow},{'SC_Flow','area','step'},{'SC_FlowItem',areaStep,'item',function(d)return d.item and 1 or -1 end},{'SC_FlowResult',areaStep,outcomeReason,hasResult},{'SC_FlowValue',areaStep,'item',hasValue},{'SC_Pay','sku',pay,payRow},{'SC_PayWhere',payWhere,'origin',payWhereRow}},
+ flow_step={{'SC_Elim',elimCause,'journey',elimRow},{'SC_ElimIdle',elimCause,idleBucket,elimRow},{'SC_Flow','area','step'},{'SC_FlowItem',areaStep,'item',function(d)return d.item and 1 or -1 end},{'SC_FlowResult',areaStep,outcomeReason,hasResult},{'SC_FlowValue',areaStep,'item',hasValue},{'SC_Pay','sku',pay,payRow},{'SC_PayWhere',payWhere,'origin',payWhereRow},
+  {'SC_CampaignStage','item',campaignOut,campaignRow},{'SC_CampaignQuit','item',standing,standingRow}},
  commerce_grant_result={{'SC_CommerceGrant','sku','result'}},
  return_observed={{'SC_Return',gap,'result'}},
  profile_load_result={{'SC_ProfileLoadMs','result','operation','duration_ms'}},

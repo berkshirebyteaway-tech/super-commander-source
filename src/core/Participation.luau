@@ -1,6 +1,7 @@
 local Rules=if script then require(script.Parent.OutgameRules)else require('./OutgameRules')
 local Recap=if script then require(script.Parent.OperationRecap)else require('./OperationRecap')
 local B=if script then require(script.Parent.BigNat)else require('./BigNat')
+local Campaign=if script then require(script.Parent.CampaignRules)else require('./CampaignRules')
 local M={};M.__index=M
 function M.new(id,mode,map,humans,now)
     return setmetatable({id=id,mode=mode,map=map,humans=humans,seconds=0,peak=0,cities=0,supports=0,tactics={nukes=0,transports=0,upgrades=0,built={}},days={},weeks={},weeklyActions={},milestones={},units={},revision=0,lastAction=-1e9,created=now,dirty=false,recap=Recap.new()},M)
@@ -60,10 +61,10 @@ function M:step(s,id,dt,now,connected,paused)
         if not self.spawnedAt then self.spawnedAt=now;self.initialTiles=p.tiles.size end
         self.initialTiles=self.initialTiles or p.tiles.size
         local since=now-self.spawnedAt
-        if since<=180 then self.tactics.earlyShare=math.max(self.tactics.earlyShare or 0,self.currentShare)end
+        if since<=Campaign.shareWindow then self.tactics.earlyShare=math.max(self.tactics.earlyShare or 0,self.currentShare)end
         if since>=60 then self.tactics.minShare=math.min(self.tactics.minShare or 1,self.currentShare)end
         if not paused and dt>0 and s.maxTroops then local cap=s:maxTroops(id);local ratio=p.troops/math.max(1,cap)
-            self.growthSeconds=(self.growthSeconds or 0)+dt;if ratio>=.25 and ratio<=.65 then self.greenSeconds=(self.greenSeconds or 0)+dt end
+            self.growthSeconds=(self.growthSeconds or 0)+dt;if ratio>=Campaign.growthBand[1] and ratio<=Campaign.growthBand[2] then self.greenSeconds=(self.greenSeconds or 0)+dt end
             local pct=math.floor(100*(self.greenSeconds or 0)/math.max(1,self.growthSeconds));if pct~=self.tactics.growthGreen then self.tactics.growthGreen=pct;self.dirty=true end end
         if self.triedExpansion and p.tiles.size>self.initialTiles+12 then self.milestones.expand=true end
         if not self.milestones.front and (#(p.incoming or {})>0 or self.incoming)then

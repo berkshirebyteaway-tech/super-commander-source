@@ -106,7 +106,7 @@ function M:status()
     if self.telemetryRisk~=risk then self.telemetryRisk=risk;Telemetry.emit('nuclear_aim_warning_changed',{kind=self.kind,warning=risk,stage=risk and 'warning'or 'clear'})end
     local p=self.plan;self.title.Text=U.names[self.kind]..(p and ' '..UI.number(p.cost)..' 골드'or '')
     local touch=require(script.Parent.InputMode).touch()
-    self.hint.Text=p and (p.silo and (p.reason and string.format('준비 %d발, %s',p.ready,p.reason)or string.format('준비 %d발',p.ready))or p.reason or '')or (touch and '지도 눌러 목표 고정' or '클릭 발사  우클릭 취소')
+    self.hint.Text=p and (p.silo and (p.reloadSeconds and p.reason or p.reason and string.format('준비 %d발, %s',p.ready,p.reason)or string.format('준비 %d발',p.ready))or p.reason or '')or (touch and '지도 눌러 목표 고정' or '클릭 발사  우클릭 취소')
     self.hint.TextColor3=p and (p.risk or #(p.breaks or {})>0)and UI.colors.danger or UI.colors.muted
     self.fireButton.Text=self.pending and '발사 중…'or not touch and (p and p.valid and '클릭해서 발사'or '조준 중')or not self.locked and '목표 고정'or p and not p.valid and '발사 불가'or not self.checked and (self.checking and '경로 확인 중…'or '목표 고정')or p and #p.breaks>0 and '동맹 파기 후 발사'or '발사'
     local plain=self.fireButton.Text=='발사'

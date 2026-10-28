@@ -206,7 +206,8 @@ function M:milestone(p,label)
 end
 function M:phase(p,phase)
  local s=self:session(p);if not s or phase==s.phase then return end
- local now=os.clock();self:emit(p,'visit_phase_window',{phase=s.phase,elapsed_seconds=now-s.phaseAt,stage='closed'});s.phaseSeconds[s.phase]=(s.phaseSeconds[s.phase]or 0)+now-s.phaseAt;s.phase=phase;s.phaseAt=now
+ local now=os.clock();self:emit(p,'visit_phase_window',{phase=s.phase,elapsed_seconds=now-s.phaseAt,stage='closed'});s.phaseSeconds[s.phase]=(s.phaseSeconds[s.phase]or 0)+now-s.phaseAt;local was=s.phase;s.phase=phase;s.phaseAt=now
+ if s.campaign and not s.campaign.leftAt and (was=='playing'or was=='drop')and phase~='playing'and phase~='drop'then s.campaign.leftAt=now;s.campaign.leftPhase=was end
  if phase=='lobby'then self:campaignQuit(p,'left')end
 end
 function M:mark(p,name)
@@ -236,7 +237,7 @@ function M:match(p,map,mode,room)
  local s=self:session(p);if not s then return end;self:flushCommands(p,true);s.matches+=1;s.matchAt=os.clock();s.capture=false;s.combat=false;s.features={};s.available={};s.commandDetail=0;s.dropLogged=nil;s.landedLogged=nil;s.dropEndLogged=nil;s.playerWindowAt=nil;s.outcomeLogged=nil;s.lastOutcome=nil;s.dropCounts=nil;s.counted=nil;s.intro=room and room.intro
  local humans=0;if room then for _ in pairs(room.members or {})do humans+=1 end end
  self:context(p,{map_key=map,mode=Schema.enum('mode',mode),match_id=room and (room.globalMatch or room.id)or guid(),ruleset_id='OpenFront-e02eeba',human_count=room and room.analyticsHumans or (humans>0 and humans or 1)})
- self:emit(p,'match_admission_result',{result='accepted',human_count=s.context.human_count,intro=room and room.intro==true})
+ self:emit(p,'match_admission_result',{result='accepted',human_count=s.context.human_count,intro=room and room.intro==true,multiplier=room and room.session and tonumber(room.session.settings.simSpeed)or 1})
  pcall(function()local meta=room and room.session and room.session.map and room.session.map.meta
   self:flow(p,'match','start',{item=meta and meta.mapSize=='normal'and 'normal'or 'compact',map_key=map,mode=s.context.mode,human_count=s.context.human_count})
   local w=room and room.clanwar;if w then local n,size=w.count or 2,w.size or 2;self:flow(p,'clan','warStart',{item=Schema.code('c'..n..'_p'..size),total=n,party_size=size,value=size})end
@@ -295,7 +296,7 @@ function M:dropInput(p,packet,accepted)
  local s=self.sessions[p];if not s then return end
  local w=s.dropCounts or {movement_count=0,dive_count=0,rally_count=0,count=0};s.dropCounts=w
  if accepted then w.count+=1
-  if packet.kind=='move'and (packet.x~=0 or packet.y~=0)then w.movement_count+=1
+  if packet.kind=='pick'or packet.kind=='move'and (packet.x~=0 or packet.y~=0)then w.movement_count+=1
   elseif packet.kind=='land'then w.dive_count+=1
   elseif packet.kind=='rally'then w.rally_count+=1;self:emit(p,'drop_rally',{stage='rally',result='accepted'})end
  end
@@ -445,6 +446,9 @@ function M:room(room,now)
     if seat.landed and seat.committed and not s.landedLogged then s.landedLogged=true;self:emit(p,'drop_landed',{spawn_style=drop.random and 'random'or 'selected',result='ok',reason=seat.fallback and 'fallback'or drop.random and 'random'or 'manual',elapsed_seconds=drop.startAt and now-drop.startAt or 0,fallback=seat.fallback==true})end
     if drop.finished and not s.dropEndLogged then s.dropEndLogged=true;self:emit(p,'drop_ended',{result='ok',human_count=humans});if s.dropCounts then self:emit(p,'drop_input_window',s.dropCounts);s.dropCounts=nil end end
    end
+   if room.campaign and session.phase=='playing'then local me=sim.players[faction]
+    if me then local rank=1;for _,o in ipairs(sim.players)do if o~=me and o.tiles.size>me.tiles.size then rank+=1 end end;s.standing={position=rank,growth_ratio=me.troops/math.max(1,session:maxTroops(faction))}end
+   end
    if now>=(s.playerWindowAt or 0)then s.playerWindowAt=now+60;local player=sim.players[faction]
     local cap=session:maxTroops(faction)
     self:emit(p,'match_player_window',{tiles=player.tiles.size,troops=player.troops,cap=cap,growth_ratio=player.troops/math.max(1,cap),growth_per_second=require(Core.EconomyRules).troopIncrease(session.settings,session:economyPlayer(faction))*10,gold=require(Core.BigNat).toString(session:getGold(faction)),incoming=#(player.incoming or {}),outgoing=#(player.outgoing or {}),tick=sim.ticks,simulation_seconds=sim.ticks/10,paused=room.paused==true,elapsed_seconds=now-(s.matchAt or now)})
@@ -512,11 +516,12 @@ function M:flow(p,area,step,data)
  local s=p and self.sessions[p];if not s then return end
  if d.area=='commerce'and d.step=='receipt'and d.result=='granted'and d.sku then s.paid=s.paid or {};s.paid[d.sku]=true
  elseif d.area=='goals'and d.step=='goalClaim'and d.result=='granted'then self:milestone(p,'claim')end
- if d.area=='campaign'then if d.step=='start'then self:campaignQuit(p,'cancelled');s.campaign={item=d.item,at=os.clock()}elseif d.step=='campaignEnd'then s.campaign=nil end end
+ if d.area=='campaign'then if d.step=='start'then self:campaignQuit(p,'cancelled');s.campaign={item=d.item,at=os.clock()};s.standing=nil elseif d.step=='campaignEnd'then s.campaign=nil end end
 end
 function M:campaignQuit(p,result)
  local s=p and self.sessions[p];local c=s and s.campaign;if not c then return end
- s.campaign=nil;self:flow(p,'campaign','quit',{item=c.item,value=os.clock()-c.at,result=result,phase=s.phase})
+ local st=s.standing;s.campaign=nil;s.standing=nil
+ self:flow(p,'campaign','quit',{item=c.item,value=(c.leftAt or os.clock())-c.at,result=c.leftAt and result=='cancelled'and 'left'or result,phase=c.leftPhase or s.phase,position=st and st.position,growth_ratio=st and st.growth_ratio})
 end
 function M:benefit(p,sku,item)
  local s=p and self.sessions[p];if not(s and s.paid and s.paid[sku])or s.paid[sku]=='used'then return end

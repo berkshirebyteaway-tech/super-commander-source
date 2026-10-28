@@ -55,7 +55,7 @@ function M.open(shop,result,again,settled)
     local dup=result.duplicate==true
     local reduced=K.reduced or (shop.account.preferences or {}).reducedEffects==true
     local gui=K.make('ScreenGui',game.Players.LocalPlayer.PlayerGui,{Name='SupplyReveal',ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=75,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
-    pcall(function()gui.ScreenInsets=Enum.ScreenInsets.None end)
+    pcall(function()gui.ScreenInsets=Enum.ScreenInsets.None;gui.ClipToDeviceSafeArea=false end)
     require(script.Parent.Localization).bind(gui)
     local shade=K.make('TextButton',gui,{Name='InputShield',Text='',Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(4,7,11),BackgroundTransparency=settled and 1 or .06,AutoButtonColor=false,BorderSizePixel=0})
     local root=K.make('Frame',shade,{Name='Safe20',BackgroundTransparency=1,BorderSizePixel=0})

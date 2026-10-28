@@ -367,6 +367,7 @@ local function home()
 end
 local controls=UI.panel(gamePanel,"Controls");controls.ZIndex=12
 controls.BackgroundColor3=C.panel;controls.BackgroundTransparency=.07;UI.stroke(controls,C.line)
+require(pack.Client.FullBleed).edge(controls)
 hud.Parent=controls;hud.BackgroundTransparency=1;pauseButton.Parent=controls
 local selectedInfo=label(controls,"SelectionInfo","",12,C.ink);selectedInfo.Font=Enum.Font.BuilderSansBold
 local dispatchIcon=Icons.create(controls,"attack",18)
@@ -651,11 +652,6 @@ armsUI.spawnCountdown=require(pack.Client.SpawnCountdown).new(gamePanel)
 require(pack.Client.NetLink).new(gamePanel,pack:WaitForChild("State"))
 armsUI.matchStatus=require(pack.Client.MatchStatus).new(gamePanel,{speed=function(v)send("speed",v)end,notify=function(m,warning)notify(m,warning);armsUI.eventLog:add(m,warning,nil,state and state.tick)end})
 local modal=make("Frame",root,{Name="Modal",Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.34,Visible=false,Active=true,ZIndex=30})
-do
-    local cover=make("Frame",modal,{Name="InsetCover",BorderSizePixel=0,BackgroundColor3=modal.BackgroundColor3,BackgroundTransparency=modal.BackgroundTransparency,ZIndex=30})
-    local function fit()cover.Position=UDim2.fromOffset(0,-200);cover.Size=UDim2.new(1,0,0,200);cover.BackgroundTransparency=modal.BackgroundTransparency;cover.BackgroundColor3=modal.BackgroundColor3 end
-    fit();modal:GetPropertyChangedSignal("BackgroundTransparency"):Connect(fit);modal:GetPropertyChangedSignal("BackgroundColor3"):Connect(fit)
-end
 local modalCard=UI.panel(modal,"Card");UI.stroke(modalCard)
 modalCard.BackgroundTransparency=.04
 local modalTitle=label(modalCard,"Title","",23)
@@ -1029,7 +1025,7 @@ armsUI.drawMarkers=function()
     battle.frontBlocks={}
     if nameTag.Visible then local pos=(nameTag.AbsolutePosition-gamePanel.AbsolutePosition)/UI.scale;local size=nameTag.AbsoluteSize/UI.scale
         table.insert(battle.frontBlocks,{x=pos.X+size.X/2,y=pos.Y+size.Y/2,w=size.X,h=size.Y})end
-    P.start('M.names');armsUI.nameLayer:update({factions=armsUI.orderedLabels,viewport=viewport,bounds=armsUI.worldOverlay.bounds,pixelsPerTile=viewport.X/(renderer.liveW or renderer.view.w),projectXY=function(x,y)return renderer:projectXY(x,y)end,mapWidth=renderer.map.meta.width,reduced=effects.reduced,selected=selectedOwner,occupied=occupied,mouse=mouse,blocks=battle.frontBlocks,tick=state.tick});P.stop('M.names')
+    P.start('M.names');armsUI.nameLayer:update({factions=armsUI.orderedLabels,viewport=viewport,bounds=armsUI.worldOverlay.bounds,pixelsPerTile=viewport.X/(renderer.liveW or renderer.view.w),projectXY=function(x,y)return renderer:projectXY(x,y)end,mapWidth=renderer.map.meta.width,reduced=effects.reduced,selected=selectedOwner,occupied=occupied,mouse=mouse,blocks=battle.frontBlocks,tick=state.tick,pick=armsUI.drop.active});P.stop('M.names')
     selection.Visible=selectedTile~=nil
     if selectedTile then local p2=renderer:project(selectedTile);selection.Position=UDim2.fromOffset(p2.X,p2.Y) end
     placement.Visible=preview~=nil and preview.tile~=nil and (armsUI.rules.structures[action]==true)
@@ -1209,7 +1205,7 @@ inbox.showDeferred=function()
     action='inspect';sheetMode=nil;selectedTile=nil;selectedUnit=nil;preview=nil;previewSerial+=1;hover.Visible=false;refreshContext()
 end
 local function selectTile(tile,pos,secondary)
-    if armsUI.drop.active then return end
+    if armsUI.drop.active then if not secondary then armsUI.drop:pick(tile,tile and owners[tile])end;return end
     if armsUI.nuclear.active then armsUI.nuclear:click(tile,secondary);return end
     armsUI.sheets:outside()
     if armsUI.ghostClick(tile,secondary)then return end
@@ -1267,12 +1263,12 @@ local function blocked(pos)
     end
     return modal.Visible
 end
-renderer:bind({
+armsUI.mapInput={
     enabled=function() return gamePanel.Visible and not modal.Visible and not armsUI.drop.introActive end,
     blocked=blocked,changed=function() dirty=true;hover.Visible=false end,select=selectTile,
     wheel=function(z)if not armsUI.shiftHeld()then return false end;setFraction(armsUI.commandBar:wheel(fraction,z));return true end,
     hover=function(tile,pos)
-        hoveredUnit=nil
+        hoveredUnit=nil;armsUI.lastHover={tile,pos}
         if armsUI.drop.active or armsUI.input.touch() or not tile or not state then return end
         if blocked(pos) then if not sheet.Visible then hover.Visible=false end;return end
         if armsUI.nuclear.active then armsUI.nuclear:hover(tile);hover.Visible=false;return end
@@ -1286,7 +1282,7 @@ renderer:bind({
             hoverCard:dock(size.X,8)
         end
     end,
-})
+};renderer:bind(armsUI.mapInput)
 positionSheet=function()
     if not sheet.Visible then return end
     local w,h=screenSize().X,screenSize().Y
@@ -1382,7 +1378,7 @@ layout=function()
     end
     box(armsUI.dispatchSurface,mainX+8,dispatchY,cw-mainX-16,44)
     if not armsUI.resourceSurface then armsUI.resourceSurface=make('Frame',controls,{Name='ResourceSurface',BackgroundColor3=C.panel,BackgroundTransparency=.12,BorderSizePixel=0,ZIndex=0});UI.corner(armsUI.resourceSurface,3)end
-    armsUI.resourceSurface.Visible=portrait
+    armsUI.resourceSurface.Visible=portrait and not require(pack.Client.Hud20).ENABLED
     if portraitLayout then
         local r=portraitLayout
         box(hud,0,0,cw,bottomHeight)
@@ -1535,9 +1531,10 @@ layout=function()
     end
     local inspectWidth=math.min(440,w-16)
     local inspected=hoveredTile and factions[owners[hoveredTile]]
-    if sheet.Visible and (inspected or selectedUnit and hoveredTile and require(pack.Client.Hud20).ENABLED) then
-        hoverCard:show({state=state,faction=inspected,info=terrainInfo(hoveredTile),unit=selectedUnit,compact=true,width=inspectWidth,ownColor=Color3.fromRGB(table.unpack(CosmeticCatalog.get(state.style).territory))});hoverCard:dock(w,8)
-    end
+    armsUI.inspect=sheet.Visible and (inspected or selectedUnit and hoveredTile and require(pack.Client.Hud20).ENABLED) and function()
+        if hoverCard:show({state=state,faction=hoveredTile and factions[owners[hoveredTile]],info=terrainInfo(hoveredTile),unit=selectedUnit,compact=true,width=inspectWidth,ownColor=Color3.fromRGB(table.unpack(CosmeticCatalog.get(state.style).territory))})then hoverCard:dock(w,8)end
+    end or nil
+    if armsUI.inspect then armsUI.inspect()end
     if l.short and sheet.Visible and not require(pack.Client.Hud20).ENABLED then hover.Visible=false end
     if modal.Visible and require(pack.Client.Hud20).ENABLED then hover.Visible=false;sheet.Visible=false end
     local inset=touch and math.max(0,-root.AbsolutePosition.Y)/UI.scale or 0
@@ -1781,6 +1778,8 @@ render=function(s)
         if armsUI.sticksOff~=off then armsUI.sticksOff=off;game:GetService('GuiService').TouchControlsEnabled=not off end end
     armsUI.tactical:update(s,factions);armsUI.chat:update(s,factions);armsUI.quick:update(s,factions)
     armsUI.nuclear:update(s,currentMap,owners,action,preview,selectedUnit,hoveredUnit)
+    if hover.Visible and not hoverCard.leaving and os.clock()>(armsUI.hoverNext or 0)then armsUI.hoverNext=os.clock()+.25
+        if sheet.Visible then if armsUI.inspect then armsUI.inspect()end elseif armsUI.lastHover and not armsUI.input.touch()then armsUI.mapInput.hover(table.unpack(armsUI.lastHover))end end
     if sheetMode=='tile'and selectedTile and armsUI.selectedRelation then
         local old=armsUI.selectedRelation;local f=factions[owners[selectedTile]]
         local owner=owners[selectedTile]or 0
@@ -1835,8 +1834,9 @@ render=function(s)
                 end
                 local line=(sender and sender.name or "지휘관").."  "..e.text..(target and " : "..target.name or "");notify(line,false,(target or sender or {}).labelTile);armsUI.eventLog:add(line,false,(target or sender or {}).labelTile,s.tick);if previous then armsUI.audio.play("request")end end end end
     if (s.phase=="won" or s.phase=="lost") and not s.observer and (not previous or previous.phase~=s.phase or s.matchEnded and not previous.matchEnded) then
-        if not previous or previous.phase~=s.phase then require(pack.Client.ResultCelebration).play(root,s,effects.reduced)end
-        openModal("result") end
+        if not previous or previous.phase~=s.phase then local function land(p)require(pack.Client.ResultCelebration).play(p or root,state,effects.reduced)end
+            if not require(pack.Client.VictoryCinematic).play(renderer,s,effects.reduced,land,function()openModal("result")end)then land()end end
+        if not require(pack.Client.VictoryCinematic).active then openModal("result")end end
     if modalMode=='result'and armsUI.resultView then
         local view=armsUI.resultView:update(s,math.max(240,modalBody.AbsoluteSize.X/UI.scale));modalTitle.Text=view.title
     end
@@ -1988,7 +1988,7 @@ UIS.InputBegan:Connect(function(input,processed)
     if input.UserInputType==Enum.UserInputType.MouseButton3 and not modal.Visible then armsUI.autoUpgrade();return end
     if input.KeyCode==Enum.KeyCode.P then if modal.Visible then closeModal() else openModal(state and (state.phase=='won'or state.phase=='lost')and not state.observer and 'result'or 'pause') end
     elseif modal.Visible then return
-    elseif armsUI.drop.active then return
+    elseif armsUI.drop.active then if input.KeyCode==Enum.KeyCode.Q or input.KeyCode==Enum.KeyCode.E then renderer:zoom(input.KeyCode==Enum.KeyCode.E and .83 or 1/.83)end;return
     elseif armsUI.motionWheel.frame.Visible then return
     elseif armsUI.sheets:key(input,armsUI.shiftHeld()) then return
     elseif table.find({Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine,Enum.KeyCode.Zero},input.KeyCode) then

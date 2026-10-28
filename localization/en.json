@@ -3544,6 +3544,10 @@
   "조이스틱 이동": "Joystick move",
   "착륙지 고정": "Fixed landing",
   "끌어서 착륙지 조절": "Drag to steer",
+  "지도를 눌러 골라요": "Tap the map to pick",
+  "지도를 클릭해 골라요": "Click the map to pick",
+  "모여라": "Rally",
+  "%s 모여라": "%s: rally",
   "자동 배치": "Auto placement",
   "확인 중…": "Checking…",
   "뽑기 · 1장": "Draw · 1 ticket",
@@ -5228,6 +5232,7 @@
   "이번 판 규칙 클래식 ›": "This match's rules: classic ›",
   "준비 %d발, %s": "%d missiles ready. %s",
   "준비 %d발": "%d missiles ready",
+  "장전 %d초": "Reload %ds",
   "%s 외 %d건": "%s +%d more",
   "%s → %s 골드 %s 지원": "%s sent %s %s gold",
   "%s → %s 병력 %s 지원": "%s sent %s %s troops",
@@ -6141,7 +6146,7 @@
   "병력이 상한의 절반쯤일 때 가장 빨리 차요.": "Troops fill fastest at about half of the cap.",
   "꽉 차면 멈춰요. 초록일 때 보내요.": "When full, they stop. Send them while green.",
   "병력이 거의 꽉 찼어요. 충원이 멈춰요. 지금 보내요": "Troops are almost full. Recruitment stops. Send them now",
-  "병력이 너무 적어요. 충원이 느려요. 잠깐 모아요": "Troops are too low. Recruitment is slow. Gather for a moment",
+  "병력이 바닥이에요. 잠깐 모아요": "Troops are nearly out. Gather for a moment",
   "넓을수록 큰 군대": "Bigger Land, Bigger Army",
   "땅이 넓을수록, 도시가 많을수록 상한이 커요": "More land and more cities raise the cap",
   "땅이 넓을수록 병력 상한이 올라가요.": "More land raises your troop cap.",
@@ -7031,5 +7036,9 @@
   "🎃 멀티 5판": "🎃 5 multiplayer matches",
   "🎃 멀티 5판 ›": "🎃 5 matches ›",
   "🎃 멀티 5판으로 얻기 ›": "🎃 Earn in 5 multiplayer matches ›",
-  "할로윈 이벤트로 획득했어요!": "You got this from the Halloween event!"
+  "할로윈 이벤트로 획득했어요!": "You got this from the Halloween event!",
+  "1명 더 모집 중": "Waiting for 1 more",
+  "2명부터 레디": "Ready needs 2 players",
+  "병력 막대가 초록일 때 보내요.": "Send troops while the bar is green.",
+  "충원 초록": "Green growth"
 }

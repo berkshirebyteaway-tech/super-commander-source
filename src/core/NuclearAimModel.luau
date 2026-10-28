@@ -66,8 +66,9 @@ function M.plan(w,owner,kind,tile,up)
     end
     local silo=M.readySilo(w,owner,tile)
     if not silo then
-        reason=reason or '사일로 필요'
-        local best=math.huge;for _,v in ipairs(w.units)do if v.active~=false and v.owner==owner and v.kind=='MissileSilo'and not v.building then local d=manhattan(v.tile,tile,width);if d<best then best=d;silo=v end end end
+        local best,soon=math.huge,math.huge;for _,v in ipairs(w.units)do if v.active~=false and v.owner==owner and v.kind=='MissileSilo'and not v.building then local d=manhattan(v.tile,tile,width);if d<best then best=d;silo=v end;soon=math.min(soon,U.reloadLeft(v,tick))end end
+        if silo and soon<math.huge then r.reloadSeconds=math.max(1,math.ceil(soon/10))end
+        reason=reason or (r.reloadSeconds and string.format('장전 %d초',r.reloadSeconds)or '사일로 필요')
         if not silo then r.reason=reason;return r end
     end
     r.source=silo.tile;r.silo=silo.id;r.ready=silo.level-#(silo.missileQueue or {});r.readyTotal=M.readyCount(w,owner);r.waitTicks=kind=='MIRV'and 0 or M.wait(silo,tick)

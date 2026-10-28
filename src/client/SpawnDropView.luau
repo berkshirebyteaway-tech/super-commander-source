@@ -49,16 +49,17 @@ function M.new(parent,world,touch)
     self.landing=require(script.Parent.LandingIndicator).new(parent)
     self.standards={}
     self.squad=SquadView.new(parent);self.party={};self.positions={}
-    self.rallyButton=UI.button(parent,'DropRally','집결',function()
-        if not self.active or not self.drop or self.state.paused then return end
+    local K=require(script.Parent.Kit20)
+    self.rally20=K.button(parent,'DropRally',{kind='out',text='모여라',icon='people',size=15,weight=800,r=12},function()
+        if not self.active or not self.drop or self.state.paused or os.clock()<(self.rallyAt or 0)+2 then return end
         local pose=self.poses[1];local meta=self.world.map.meta;if not pose then return end
         local tile=math.clamp(math.floor(pose.y),0,meta.height-1)*meta.width+math.clamp(math.floor(pose.x),0,meta.width-1)
+        self.rallyAt=os.clock()
         require(script.Parent.TelemetryStep).step('drop','rallySent',{});self.remote:FireServer({kind='rally',version=self.version,tile=tile})
-    end);self.rallyButton.ZIndex=23;self.rallyButton.Visible=false;self.rallyBlips={}
-    UI.make('UIPadding',self.rallyButton,{PaddingLeft=UDim.new(0,18)})
-    local icon=UI.make('Frame',self.rallyButton,{Name='RallyIcon',Position=UDim2.fromOffset(10,12),Size=UDim2.fromOffset(16,20),BackgroundTransparency=1,ZIndex=24})
-    UI.make('Frame',icon,{Name='Pole',Size=UDim2.fromOffset(2,18),BackgroundColor3=UI.colors.ice,BorderSizePixel=0,ZIndex=24})
-    UI.make('Frame',icon,{Name='Flag',Position=UDim2.fromOffset(2,0),Size=UDim2.fromOffset(10,7),BackgroundColor3=UI.colors.ice,BorderSizePixel=0,ZIndex=24})
+    end)
+    self.rallyButton=self.rally20.button;self.rallyButton.ZIndex=23;self.rallyButton.Visible=false;self.rallyBlips={};self.rallyLayer=parent
+    self.refuse=UI.make('Frame',parent,{Name='PickRefused',Size=UDim2.fromOffset(28,28),AnchorPoint=Vector2.new(.5,.5),BackgroundTransparency=1,Visible=false,ZIndex=18})
+    UI.corner(self.refuse,999);UI.stroke(self.refuse,UI.colors.muted,2)
     return self
 end
 function M:landNow(source)
@@ -67,15 +68,28 @@ function M:landNow(source)
         self.remote:FireServer({kind='land',version=self.state.version,diving=true})
     end
 end
-function M:dragMove()
-    local v=self.world.dragging and self.world.dropSteer;if not v then return nil end
-    local len=v.Magnitude;if len<12 then return Vector3.zero end
-    local cam=workspace.CurrentCamera.CFrame
-    local right=Vector3.new(cam.RightVector.X,0,cam.RightVector.Z);local up=Vector3.new(cam.UpVector.X,0,cam.UpVector.Z);local look=Vector3.new(cam.LookVector.X,0,cam.LookVector.Z)
-    if look.Magnitude>up.Magnitude then up=look end
-    if right.Magnitude<.01 or up.Magnitude<.01 then return nil end
-    local dir=right.Unit*v.X-up.Unit*v.Y;if dir.Magnitude<.01 then return Vector3.zero end
-    return dir.Unit*math.min(1,(len-12)/44)
+function M:pick(tile,owner)
+    local d=self.drop;local own=self.own
+    if not tile or not self.active or not d or not own or d.preparing or d.random or self.state.paused or self.introActive or self.diving then return end
+    if own.landed or (self.elapsed or 0)<d.planeSeconds or (self.elapsed or 0)>=(own.plunge or d.seconds)then return end
+    local meta=self.world.map.meta;local b=self.world.map.terrain and buffer.readu8(self.world.map.terrain,tile)or 0
+    if not Terrain.isLand(b)or Terrain.isImpassable(b)or owner~=nil and owner~=0 and owner~=1 then
+        self.refusedAt=os.clock();self.refusedTile=tile;require(script.Parent.ToyAudio).play('error',.5,1);return
+    end
+    self.picked={tile=tile,at=os.clock()};self.pickQueued=tile
+    if not self.firstPick then self.firstPick=true;require(script.Parent.TelemetryStep).step('drop','firstSteer',{duration_ms=math.max(0,(self.elapsed or 0)-d.planeSeconds)*1000,item=self.touch()and 'tap'or 'click'})end
+end
+function M:pan(dt,move,top,viewport,ax,az,meta)
+    local drag=self.world.dropPan;self.world.dropPan=nil
+    if not drag and move.Magnitude<.01 then return end
+    local cam=workspace.CurrentCamera.CFrame;local perPixel=2*top*math.tan(math.rad(Layout.wideFov/2))/math.max(1,viewport.Y)
+    local right=Vector3.new(cam.RightVector.X,0,cam.RightVector.Z);local up=Vector3.new(cam.UpVector.X,0,cam.UpVector.Z)
+    if right.Magnitude<.01 or up.Magnitude<.01 then return end
+    local look=self.look or Vector2.new(ax,az);local delta=Vector3.zero
+    if drag then delta-=(right.Unit*drag.X-up.Unit*drag.Y)*perPixel end
+    if move.Magnitude>.01 then delta+=move*perPixel*viewport.Y*.9*dt end
+    local hx,hz=meta.width*G.scale/2,meta.height*G.scale/2
+    self.look=Vector2.new(math.clamp(look.X+delta.X,-hx,hx),math.clamp(look.Y+delta.Z,-hz,hz))
 end
 function M:clear()
     self.steered=nil;self.squad:clear();self.party={};self.positions={}
@@ -100,13 +114,15 @@ function M:clear()
     self.frame.Visible=false;self.overview.Visible=false;self.world.dropActive=false;self.world.dropCamera=nil;self.active=false;self.readySent=false;self.diving=nil
     for _,b in pairs(self.blips)do b:Destroy()end;self.blips={}
     self.drop=nil
-    self.qaMove=nil;self.world.dropSteer=nil
+    self.qaMove=nil;self.world.dropSteer=nil;self.world.dropPan=nil;self.world.dropSpan=nil
+    self.picked=nil;self.pickQueued=nil;self.firstPick=nil;self.look=nil;self.liftWeight=nil;self.wideTop=nil;self.own=nil;self.elapsed=nil;self.refuse.Visible=false
+    if self.folder.Parent~=workspace then self.folder.Parent=workspace end
     self.pending={};self.pendingHead=1;self.queued={}
 end
 function M:destroy()
     if self.destroyed then return end;self.destroyed=true;self:clear()
     self.streamConnection:Disconnect();self.raster:destroy();self.cinematic.gui:Destroy();self.spectacle:destroy();self.landing.frame:Destroy();self.squad:destroy()
-    self.frame:Destroy();self.overview:Destroy();self.folder:Destroy();self.rallyButton:Destroy()
+    self.frame:Destroy();self.overview:Destroy();self.folder:Destroy();self.rallyButton:Destroy();self.refuse:Destroy()
 end
 function M:color(p)
     if p.team~=nil then return Colors.team(p.team,self.ownTeam)end
@@ -224,18 +240,17 @@ function M:step(dt,obscured)
     local elapsed=math.min(d.seconds,Motion.clock(self.clockState,d.preparing and 0 or math.min(d.seconds,d.elapsed+age),dt,d.preparing or self.state.paused));local left=math.max(0,math.ceil(d.seconds-elapsed))
     local shot=self.cinematic:frame(d.preparing and -1 or elapsed,self.world.reducedEffects,obscured,self.state.paused)
     self.introActive=shot.active
-    self.frame.Visible=not obscured and not shot.active;self.overview.Visible=not obscured and not shot.active
+    self.frame.Visible=not obscured and not shot.active;self.overview.Visible=false
     if not self.readySent and self.world:isReady()then self.readySent=true;require(script.Parent.TelemetryClient).emit('drop_render_ready',{result='ready',version=self.version,spawn_style=d.random and 'random'or 'selected',duration_ms=(os.clock()-self.telemetryAt)*1000});self.remote:FireServer({kind='ready',version=self.version})end
     local own=d.players[1];for _,p in ipairs(d.players)do if p.id==1 then own=p;break end end
+    self.own=own;self.elapsed=elapsed
     local hum=Me.Character and Me.Character:FindFirstChildOfClass('Humanoid');local move=self.qaMove or hum and hum.MoveDirection or Vector3.zero
-    local dragged=false
-    if move.Magnitude<.01 then local steer=self:dragMove();if steer then move=steer;dragged=true end end
     if UIS:GetFocusedTextBox()or obscured then move=Vector3.zero end
-    if not d.preparing and not d.random and not own.landed and elapsed>=d.planeSeconds and elapsed<(own.plunge or d.seconds)and os.clock()>=(self.nextInput or 0)then
-        self.nextInput=os.clock()+.1;self.sequence=math.max(self.sequence+1,(d.sequence or 0)+1)
-        self.remote:FireServer({kind='move',version=self.version,x=move.X,y=move.Z,seq=self.sequence})
-        if not self.steered and (move.X~=0 or move.Z~=0)then self.steered=true;require(script.Parent.TelemetryStep).step('drop','firstSteer',{duration_ms=math.max(0,elapsed-d.planeSeconds)*1000,item=dragged and 'drag'or touch and 'touch'or 'keys'})end
+    local picking=not d.preparing and not d.random and not own.landed and elapsed>=d.planeSeconds and elapsed<(own.plunge or d.seconds)and not shot.active
+    if picking and self.pickQueued and os.clock()>=(self.nextPick or 0)then
+        self.nextPick=os.clock()+.11;self.remote:FireServer({kind='pick',version=self.version,tile=self.pickQueued});self.pickQueued=nil
     end
+    local wantParent=not picking and workspace or nil;if self.folder.Parent~=wantParent then self.folder.Parent=wantParent end
     local meta=self.world.map.meta;local height=math.clamp(math.max(meta.width,meta.height)*G.scale*.65,110,620)
     if not d.preparing and elapsed<d.planeSeconds+.8 then
         if not self.plane then self:makePlane()end
@@ -244,15 +259,20 @@ function M:step(dt,obscured)
     elseif self.plane then self.plane:Destroy();self.plane=nil end
     for id,pose in pairs(self.poses)do
         local p=pose.target;local tx,ty=p.x,p.y
-        if id==1 and not own.landed and not d.random and elapsed>=d.planeSeconds and elapsed<(own.plunge or d.seconds)then tx=math.clamp(tx+move.X*d.speed*age,0,meta.width-1);ty=math.clamp(ty+move.Z*d.speed*age,0,meta.height-1)end
+        local pick=id==1 and self.picked
+        if pick then
+            local px2,py2=pick.tile%meta.width,pick.tile//meta.width
+            if math.floor(p.x)==px2 and math.floor(p.y)==py2 or os.clock()-pick.at>1 then self.picked=nil else tx,ty=px2,py2 end
+        end
         local px,py=pose.x,pose.y
         local alpha=1-math.exp(-dt*18);pose.x+=(tx-pose.x)*alpha;pose.y+=(ty-pose.y)*alpha
+        if picking or not (p.plunge and elapsed>=p.plunge)and not p.landed then pose.x,pose.y=tx,ty end
         local falling=p.plunge and elapsed>=p.plunge and math.max(0,1-(elapsed-p.plunge)/(d.plungeSeconds or 2))or (p.altitude or 1)
         pose.altitude+=(falling-pose.altitude)*(1-math.exp(-dt*24));if p.landed then pose.altitude=0 end
         pose.shown=math.max(0,(pose.altitude-.05)/.95)
         local touched=p.landed or not d.preparing and pose.seenAirborne and pose.shown<=0
         local x,z=(pose.x+.5-meta.width/2)*G.scale,(pose.y+.5-meta.height/2)*G.scale
-        self.positions[id]=Vector3.new(x,G.surfaceY+4+height*Motion.height(pose.shown),z)
+        self.positions[id]=Vector3.new(x,G.surfaceY+4+(picking and 0 or height*Motion.height(pose.shown)),z)
         local airborne=not d.preparing and not p.landed
         local frameDt=math.max(dt,.001)
         local motion=pose.motion:step(dt,{altitude=pose.altitude,airborne=airborne,landed=touched,diving=p.diving,paused=self.state.paused,reduced=self.world.reducedEffects,
@@ -272,31 +292,33 @@ function M:step(dt,obscured)
         if airborne and not touched and not shot.active and motion.deployed then
             local h=7.7*math.clamp(motion.inflation or 0,0,1);cf=yaw*CFrame.new(0,h,0)*CFrame.Angles(pitch,0,roll)*CFrame.new(0,-h,0)
         end
-        model:PivotTo(cf)
-        if airborne then pose.seenAirborne=true end
-        if motion.deployed and not pose.fxDeployed and airborne then pose.fxDeployed=true;self.spectacle:deployed(position+Vector3.new(0,7.7,0),self:color(p),id==1)end
-        if touched and not pose.fxLanded and pose.seenAirborne then pose.fxLanded=true;self.spectacle:landed(Vector3.new(x,G.surfaceY,z),self:color(p),id==1)end
-        local trail=self.trails and self.trails[id];if trail then trail:step(airborne and not self.state.paused and not shot.active,self.world.reducedEffects)end
-        self.rigs[id]:step(cf,motion,airborne,yaw,self.poseBatch)
-        local marks=self.marks and self.marks[id]
-        if marks then local rig=self.rigs[id];marks:recolor(self:color(p));marks:step(position,G.surfaceY,airborne and rig.visible and rig.canopy:GetPivot()*CFrame.new(0,-.9*math.min(1,motion.inflation or 0),0)or nil,motion.inflation or 0,yaw,elapsed,self.world.reducedEffects==true,self.poseBatch,obscured)end
-        if id==1 then self.rigs[id]:fade(not shot.active and airborne and self.world.tilt>math.rad(70)and .55*math.min(1,motion.inflation or 0)or 0)end
-        local flag=self.standards[id];local hand=model:FindFirstChild('RightHand')or model:FindFirstChild('Right Arm')
-        if flag then
-            local handCF=hand and self.poseBatch:get(hand)
-            local point=handCF and handCF:PointToWorldSpace(Vector3.new(0,hand.Name=='Right Arm'and -hand.Size.Y*.42 or 0,0))or (cf*CFrame.new(1,-.1,0)).Position
-            local orientation=cf.Rotation
-            if handCF then
-                local axis,angle=cf.Rotation:ToObjectSpace(handCF.Rotation):ToAxisAngle()
-                if angle==angle and angle>1e-4 and axis.Magnitude>.5 then
-                    local turn=self.flagTurn[id]or {};self.flagTurn[id]=turn
-                    local x,y,z,a=Motion.heldTurn(turn,axis.X,axis.Y,axis.Z,angle,.3)
-                    orientation=cf.Rotation*CFrame.fromAxisAngle(Vector3.new(x,y,z),a)
+        if not picking then
+            model:PivotTo(cf)
+            if airborne then pose.seenAirborne=true end
+            if motion.deployed and not pose.fxDeployed and airborne then pose.fxDeployed=true;self.spectacle:deployed(position+Vector3.new(0,7.7,0),self:color(p),id==1)end
+            if touched and not pose.fxLanded and pose.seenAirborne then pose.fxLanded=true;self.spectacle:landed(Vector3.new(x,G.surfaceY,z),self:color(p),id==1)end
+            local trail=self.trails and self.trails[id];if trail then trail:step(airborne and not self.state.paused and not shot.active,self.world.reducedEffects)end
+            self.rigs[id]:step(cf,motion,airborne,yaw,self.poseBatch)
+            local marks=self.marks and self.marks[id]
+            if marks then local rig=self.rigs[id];marks:recolor(self:color(p));marks:step(position,G.surfaceY,airborne and rig.visible and rig.canopy:GetPivot()*CFrame.new(0,-.9*math.min(1,motion.inflation or 0),0)or nil,motion.inflation or 0,yaw,elapsed,self.world.reducedEffects==true,self.poseBatch,obscured)end
+            if id==1 then self.rigs[id]:fade(not shot.active and airborne and self.world.tilt>math.rad(70)and .55*math.min(1,motion.inflation or 0)or 0)end
+            local flag=self.standards[id];local hand=model:FindFirstChild('RightHand')or model:FindFirstChild('Right Arm')
+            if flag then
+                local handCF=hand and self.poseBatch:get(hand)
+                local point=handCF and handCF:PointToWorldSpace(Vector3.new(0,hand.Name=='Right Arm'and -hand.Size.Y*.42 or 0,0))or (cf*CFrame.new(1,-.1,0)).Position
+                local orientation=cf.Rotation
+                if handCF then
+                    local axis,angle=cf.Rotation:ToObjectSpace(handCF.Rotation):ToAxisAngle()
+                    if angle==angle and angle>1e-4 and axis.Magnitude>.5 then
+                        local turn=self.flagTurn[id]or {};self.flagTurn[id]=turn
+                        local x,y,z,a=Motion.heldTurn(turn,axis.X,axis.Y,axis.Z,angle,.3)
+                        orientation=cf.Rotation*CFrame.fromAxisAngle(Vector3.new(x,y,z),a)
+                    end
                 end
+                local grip=CFrame.new(point)*orientation
+                local turn=self.flagTurn[id]or {};self.flagTurn[id]=turn;turn.wind=(turn.wind or 0)+((airborne and 38 or 0)-(turn.wind or 0))*(1-math.exp(-dt*4))
+                flag:recolor(self:color(p));flag:step(grip,elapsed,turn.wind,1.15,obscured and 1 or 0,self.poseBatch)
             end
-            local grip=CFrame.new(point)*orientation
-            local turn=self.flagTurn[id]or {};self.flagTurn[id]=turn;turn.wind=(turn.wind or 0)+((airborne and 38 or 0)-(turn.wind or 0))*(1-math.exp(-dt*4))
-            flag:recolor(self:color(p));flag:step(grip,elapsed,turn.wind,1.15,obscured and 1 or 0,self.poseBatch)
         end
         if id==1 then
             local tile=math.clamp(math.floor(pose.y),0,meta.height-1)*meta.width+math.clamp(math.floor(pose.x),0,meta.width-1)
@@ -317,12 +339,18 @@ function M:step(dt,obscured)
             self.camWide=wide
             if wide>0 then
                 local aspect=viewport.X/math.max(1,viewport.Y);local spanX,spanZ=meta.width*G.scale,meta.height*G.scale
-                local above=focus.Y-G.surfaceY
+                self.liftWeight=(self.liftWeight or 0)+((picking and 0 or 1)-(self.liftWeight or 0))*(1-math.exp(-dt*6))
+                local above=(focus.Y-G.surfaceY)*self.liftWeight
                 local top=math.min(Layout.wideMaxHeight,math.max(Layout.fitHeight(spanX,spanZ,aspect)*math.clamp(self.world.dropZoom or 1,.25,1.5)+above,above+distance))
-                local fx,fz=Layout.wideFocus(x,z,spanX,spanZ,top,aspect,nil,above)
+                if not picking and self.wideTop then top=math.exp(math.log(self.wideTop)+(math.log(math.max(1,top))-math.log(self.wideTop))*(1-math.exp(-dt*5)))end
+                self.wideTop=math.max(1,top)
+                if picking then self:pan(dt,move,top,viewport,x,z,meta)end
+                local lx,lz=x,z;if self.look then lx,lz=self.look.X,self.look.Y end
+                local fx,fz=Layout.wideFocus(lx,lz,spanX,spanZ,top,aspect,nil,not picking and above or nil)
                 local h=math.exp(math.log(math.max(1,above+distance))*(1-wide)+math.log(math.max(1,top))*wide)
                 focus=focus:Lerp(Vector3.new(fx,G.surfaceY,fz),wide);distance=math.max(8,h-(focus.Y-G.surfaceY))
             end
+            self.world.dropSpan=2*distance*math.tan(math.rad((self.dropFov or Layout.wideFov)/2))*viewport.X/math.max(1,viewport.Y)/G.scale
             local horizontal=math.cos(self.world.tilt)*distance
             local offset=Vector3.new(math.sin(self.world.yaw)*horizontal,math.sin(self.world.tilt)*distance,math.cos(self.world.yaw)*horizontal)
             local cf=CFrame.lookAt(focus+offset,focus)
@@ -356,7 +384,7 @@ function M:step(dt,obscured)
         heading=self.spectacleMe and self.spectacleMe.heading or 0,wide=self.camWide or 0,obscured=obscured,paused=self.state.paused,flashes=self.world.mapFlashes~=false})
     local pickLeft=math.max(0,math.ceil((own.plunge or d.seconds)-elapsed));local plunging=own.plunge and elapsed>=own.plunge
     local title=d.preparing and '전장 준비 중' or (own.landed or plunging) and string.format('%d초 뒤 시작',left)or string.format('착륙 위치 고르기 %d초',pickLeft)
-    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or touch and '끌어서 착륙지 조절'or 'WASD 착륙지 조절  Space 지금 내리기'
+    local hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and (touch and '착륙지 고정'or '랜덤 시작이라 착륙 위치는 정해져 있어요.')or touch and '지도를 눌러 골라요'or '지도를 클릭해 골라요'
     local land='지금 내리기'
     if self.lastTitle~=title then self.lastTitle=title;self.title.Text=title end
     if self.lastHint~=hint then self.lastHint=hint;self.hint.Text=hint end
@@ -370,7 +398,7 @@ function M:step(dt,obscured)
         local landed=own.landed or plunging
         local team=self.ownTeam~=nil and Teams.label(self.ownTeam,self.state)or nil
         Card.card(self.frame,{seconds=not d.preparing and (landed and left or pickLeft)or nil,title=d.preparing and '전장 준비 중'or landed and '곧 시작'or '착륙 위치 고르기',
-            hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and '착륙지 고정'or touch and '끌어서 이동'or 'WASD 이동',
+            hint=own.landed and (own.fallback and '유효한 육지에 자동 배치했어요.'or '')or plunging and ''or d.random and '착륙지 고정'or touch and '지도를 눌러 골라요'or '지도를 클릭해 골라요',
             team=team and string.format('%s 소속',team)or nil,teamColor=team and Colors.team(self.ownTeam,self.ownTeam)or nil},size.X,size.Y,{self.title,self.hint,self.teamTag})
         self.land.Size=UDim2.fromOffset(0,0);self.land.BackgroundTransparency=1;self.land.TextTransparency=1
         Card.button(self.frame.Parent,self,self.frame.Visible and self.land.Visible,self.land:GetAttribute('Enabled')~=false,size.X,size.Y)
@@ -402,21 +430,38 @@ function M:step(dt,obscured)
     local hasPeers=false;for _,p in ipairs(d.players)do if p.id~=1 and (self.party[p.id]or self.ownTeam~=nil and p.team==self.ownTeam)then hasPeers=true;break end end
     self.rallyButton.Visible=hasPeers and not obscured and not shot.active and not d.preparing
     if self.rallyButton.Visible and self.rallyShownVersion~=self.version then self.rallyShownVersion=self.version;require(script.Parent.TelemetryStep).step('drop','rallyShown',{})end
-    UI.enabled(self.rallyButton,not self.state.paused);UI.box(self.rallyButton,touch and size.X-144 or r.mini.x,r.mini.y+r.mini.h+8,touch and 80 or 88,44);self.rallyButton.TextSize=14
+    local rw=touch and 104 or 116;self.rally20:place(size.X-rw-(touch and 64 or 20),12,rw,44);self.rally20:setEnabled(not self.state.paused and os.clock()>=(self.rallyAt or 0)+2)
     local markerMini={x=r.mini.x,y=r.mini.y,w=r.mini.w,h=r.mini.h+(hasPeers and 52 or 0)}
     self.squad:step(self.party,self.positions,workspace.CurrentCamera,touch,markerMini,not obscured and not shot.active)
-    local signals={}
+    local signals={};local camera=workspace.CurrentCamera;local origin=self.rallyLayer.AbsolutePosition
     for _,signal in ipairs(d.rallies or {})do
         signals[signal.userId]=true;local b=self.rallyBlips[signal.userId]
+        local caller;for _,p in ipairs(d.players)do if p.userId==signal.userId then caller=p;break end end
+        local color=caller and self:color(caller)or UI.colors.accent
         if not b then
-            b=UI.make('Frame',self.mapFrame,{Name='Rally_'..signal.userId,Size=UDim2.fromOffset(14,18),AnchorPoint=Vector2.new(0,1),BackgroundTransparency=1,ZIndex=23})
-            UI.make('Frame',b,{Name='Pole',Size=UDim2.fromOffset(2,18),BackgroundColor3=UI.colors.ice,BorderSizePixel=0,ZIndex=23})
-            local cloth=UI.make('Frame',b,{Name='Flag',Position=UDim2.fromOffset(2,0),Size=UDim2.fromOffset(11,8),BackgroundColor3=UI.colors.ice,BorderSizePixel=0,ZIndex=24});UI.stroke(cloth,UI.colors.bg,1)
-            self.rallyBlips[signal.userId]=b;if signal.userId~=Me.UserId then require(script.Parent.TelemetryStep).step('drop','rallyReceived',{})end
+            b=UI.make('Frame',self.rallyLayer,{Name='Rally_'..signal.userId,Size=UDim2.fromOffset(34,34),AnchorPoint=Vector2.new(.5,.5),BackgroundTransparency=1,ZIndex=19})
+            UI.corner(b,999);UI.stroke(b,color,2)
+            local dot=UI.make('Frame',b,{Name='Dot',AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),BackgroundColor3=color,BorderSizePixel=0,ZIndex=19});UI.corner(dot,999)
+            local text=UI.label(b,'Caption',signal.userId==Me.UserId and '모여라'or string.format('%s 모여라',caller and caller.name or ''),12,UI.colors.ink)
+            UI.box(text,-43,36,120,18);text.TextXAlignment=Enum.TextXAlignment.Center;text.TextStrokeTransparency=.15;text.Font=Enum.Font.BuilderSansBold
+            b:SetAttribute('Born',os.clock())
+            self.rallyBlips[signal.userId]=b;if signal.userId~=Me.UserId then require(script.Parent.TelemetryStep).step('drop','rallyReceived',{});require(script.Parent.ToyAudio).play('click',.6,1.2)end
         end
-        b.Position=UDim2.fromScale((signal.tile%meta.width+.5)/meta.width,(signal.tile//meta.width+.5)/meta.height)
+        local at=Vector3.new((signal.tile%meta.width+.5-meta.width/2)*G.scale,G.surfaceY+.2,(signal.tile//meta.width+.5-meta.height/2)*G.scale)
+        local sp,onScreen=camera:WorldToScreenPoint(at)
+        b.Visible=onScreen and not obscured and not shot.active
+        b.Position=UDim2.fromOffset((sp.X-origin.X)/UI.scale,(sp.Y-origin.Y)/UI.scale)
+        local t=(os.clock()-(b:GetAttribute('Born')or 0))%1.2/1.2;local grow=self.world.reducedEffects and 34 or 34+18*t
+        b.Size=UDim2.fromOffset(grow,grow);local st=b:FindFirstChildOfClass('UIStroke');if st then st.Transparency=self.world.reducedEffects and 0 or t*.8 end
     end
     for uid,b in pairs(self.rallyBlips)do if not signals[uid]then b:Destroy();self.rallyBlips[uid]=nil end end
+    local rt=self.refusedAt and os.clock()-self.refusedAt
+    self.refuse.Visible=rt~=nil and rt<.35 and not obscured
+    if self.refuse.Visible then
+        local tile=self.refusedTile;local at=Vector3.new((tile%meta.width+.5-meta.width/2)*G.scale,G.surfaceY+.2,(tile//meta.width+.5-meta.height/2)*G.scale)
+        local sp=camera:WorldToScreenPoint(at);local shake=self.world.reducedEffects and 0 or math.sin(rt*50)*5*(1-rt/.35)
+        self.refuse.Position=UDim2.fromOffset((sp.X-origin.X)/UI.scale+shake,(sp.Y-origin.Y)/UI.scale)
+    end
     if self.miniWidth~=mw then self.miniWidth=mw;self.raster:fit();self.raster:draw()end
 end
 return M

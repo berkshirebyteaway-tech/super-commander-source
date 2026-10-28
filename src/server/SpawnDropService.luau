@@ -1,17 +1,20 @@
 local Model=if script then require(game.ReplicatedStorage.FrontierNative.Core.SpawnDrop)else require('../core/SpawnDrop')
 local Squad=if script then require(game.ReplicatedStorage.FrontierNative.Core.DropSquad)else require('../core/DropSquad')
 local Recovery=if script then require(game.ReplicatedStorage.FrontierNative.Core.SpawnRecovery)else require('../core/SpawnRecovery')
+local Spawn=if script then require(game.ReplicatedStorage.FrontierNative.Core.SpawnRules)else require('../core/SpawnRules')
 local M={}
-local rates={ready=.5,move=.045,land=.15,rally=2}
+local rates={ready=.5,move=.045,pick=.1,land=.15,rally=2}
 local function commit(room,id,tile)
     local s=room.session;local p=room.drop.players[id]
     if p.committed then return true end
     local ok
-    if room.single then ok=s:spawn(tile);if ok then s.phase='spawn'end
+    if p.claimed==tile then ok=true;if room.single then s.spawnTile=tile;s.sim.players[1].spawnTile=tile end
+    elseif room.single and p.claimed then ok=s:relocate(1,function()return tile,Spawn.tiles(s,tile,false)end);if ok then s.spawnTile=tile end
+    elseif room.single then ok=s:spawn(tile);if ok then s.phase='spawn'end
     else ok=s:spawnHuman(id,tile)end
     if not ok then p.landed=false;p.tile=nil;p.reserved=nil;return false end
     p.committed=true
-    if room.replayLog then room.replayLog:add(s.sim.ticks,id,'spawn',tile)end
+    if room.replayLog and p.claimed~=tile then room.replayLog:add(s.sim.ticks,id,'spawn',tile)end
     return true
 end
 function M.begin(room,roster,now,random,parties)
@@ -23,6 +26,17 @@ function M.begin(room,roster,now,random,parties)
         end
     end
 end
+function M.pick(room,id,tile,now)
+    local d=room.drop;local p=d.players[id];local s=room.session
+    local x,y,picked=p.x,p.y,p.picked
+    if not d:pick(id,tile,now)then return false end
+    local ok
+    if room.single then ok=s:relocate(1,function()return tile,Spawn.tiles(s,tile,false)end)else ok=s:spawnHuman(id,tile)end
+    if not ok then p.x,p.y,p.picked=x,y,picked;return false end
+    p.claimed=tile
+    if room.replayLog then room.replayLog:add(s.sim.ticks,id,'spawn',tile)end
+    return true
+end
 function M.land(room,id,now)
     local ok,tile=room.drop:land(id,now)
     if ok then ok=commit(room,id,tile)end
@@ -30,7 +44,7 @@ function M.land(room,id,now)
 end
 function M.step(room,now,onLand)
     local d=room.drop;if not d or d.finished then return end
-    if room.paused then local dt=math.max(0,now-d.lastStep);d.created+=dt;if d.startAt then d.startAt+=dt end;d.lastStep=now;room.spawnUntil=(d.startAt or d.created+Model.readySeconds)+Model.seconds;return end
+    if room.paused then local dt=math.max(0,now-d.lastStep);d.created+=dt;if d.startAt then d.startAt+=dt end;d.lastStep=now;room.spawnUntil=(d.startAt or d.created+Model.readySeconds)+d:total();return end
     for _,p in ipairs(d:step(now,function(id,tile)return commit(room,id,tile)end,function(id,wanted)
         local tile=Recovery.land(room.session,id,wanted)
         if tile then
@@ -39,7 +53,7 @@ function M.step(room,now,onLand)
         end
         return tile
     end))do if onLand then onLand(p.id,p.tile)end end
-    if d.startAt then room.spawnUntil=d.startAt+Model.seconds end
+    if d.startAt then room.spawnUntil=d.startAt+d:total()end
     if d.finished and room.single then room.session.phase='playing' end
     if M.broadcast and now>=(d.nextBroadcast or 0)then d.nextBroadcast=now+.1;M.broadcast(room,now)end
 end
@@ -61,6 +75,7 @@ function M.bind(pack,entries,onLand)
         local accepted
         if packet.kind=='ready'then accepted=room.drop:markReady(e.faction,now)
         elseif packet.kind=='move'then accepted=room.drop:input(e.faction,packet.x,packet.y,packet.seq,now)
+        elseif packet.kind=='pick'then accepted=M.pick(room,e.faction,packet.tile,now)
         elseif packet.kind=='land'then accepted=room.drop:setDiving(e.faction,packet.diving,now)
         elseif packet.kind=='rally'then accepted=room.drop:rally(e.faction,packet.tile,now)end
         if M.telemetry then M.telemetry:dropInput(player,packet,accepted==true)end

@@ -260,6 +260,7 @@ function M.apply(previous,now,op)
     elseif op.kind=='fieldReady'then
         local uid=tostring(op.userId);local t=s.tickets[uid];local f=t and not t.match and find(s,t.field)
         if not f or f.kind=='custom'or Ranked.ladderOf(t.field)or t.token~=op.token or t.host~=op.host then s.notice='stale'
+        elseif op.ready==true and count(s,f)<R.minHumans then t.ready=false;s.notice='alone'
         else t.ready=op.ready==true end
     elseif op.kind=='cancel'then
         local uid=tostring(op.userId);local t=s.tickets[uid]
@@ -295,9 +296,12 @@ function M.apply(previous,now,op)
         local n=count(s,f)
         if n==0 then f.lockedTeams=nil;f.fillFirst=nil;f.readyAt=nil;f.fullAt=nil;f.joinFloor=nil;f.emptyAt=f.emptyAt or now;f.rotateAt=f.rotateAt or now+R.emptySeconds else f.emptyAt=nil;f.rotateAt=nil end
         local users,groups=roster(s,f)
-        if not R.canFill(f.rules,users,groups)then f.deadline=nil else
-            local first,ready=now,0;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id then first=math.min(first,t.joined or now);if t.ready then ready+=1 end end end
-            f.fillFirst=math.min(f.fillFirst or first,first);local limit=f.fillFirst+R.waitMaxSeconds
+        if n<R.minHumans then
+            f.deadline=nil;f.fillFirst=nil;f.readyAt=nil;f.fullAt=nil;f.joinFloor=nil;f.lockedTeams=nil
+            for _,t in pairs(s.tickets)do if not t.match and t.field==f.id then t.ready=false end end
+        elseif not R.canFill(f.rules,users,groups)then f.deadline=nil else
+            local ready=0;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id and t.ready then ready+=1 end end
+            f.fillFirst=f.fillFirst or now;local limit=f.fillFirst+R.waitMaxSeconds
             if not f.readyAt and ready>=R.majority(n)then f.readyAt=now end
             if n>=f.rules.maximum then f.fullAt=f.fullAt or now else f.fullAt=nil end
             local d=limit
@@ -367,7 +371,7 @@ function M.phase(f)return f.deadline and 'countdown'or 'waiting'end
 function M.room(s,f,now)
     local n,ready=0,0;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id then n+=1;if t.ready then ready+=1 end end end
     local reason=f.fullAt and 'full'or f.readyAt and 'majority'or 'timeout'
-    return {state=(f.readyAt or f.fullAt)and 'go'or 'gather',ready=ready,need=R.majority(n),reason=reason,limit=f.fillFirst and math.max(0,f.fillFirst+R.waitMaxSeconds-now)or nil,
+    return {state=(f.readyAt or f.fullAt)and 'go'or 'gather',ready=ready,need=R.majority(n),reason=reason,missing=n<R.minHumans and R.minHumans-n or nil,limit=f.fillFirst and math.max(0,f.fillFirst+R.waitMaxSeconds-now)or nil,
         extended=f.joinFloor~=nil and f.deadline~=nil and f.deadline==f.joinFloor and f.joinFloor>now or nil,locked=f.lockedTeams~=nil or nil}
 end
 function M.status(s,id,token,now)

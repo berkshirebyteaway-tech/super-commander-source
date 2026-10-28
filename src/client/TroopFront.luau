@@ -32,7 +32,9 @@ function M:update(state,player)
     if self.track:GetAttribute('V2')then
         f.Visible=false;cap.Visible=false;f:SetAttribute('Troops',attacking)
         local low=home<=.15 and (player and (player.tiles or 0)>0)
-        require(script.Parent.Hud20).paintTroops(self.track,home,away,low);return
+        local Campaign=require(script.Parent.Parent.Core.CampaignRules);local stage=Campaign.stage(state.campaign)
+        local band=stage and stage.task.key=='growthGreen'and state.phase=='playing'and Campaign.growthBand or nil
+        require(script.Parent.Hud20).paintTroops(self.track,home,away,low,band);return
     end
     f.Visible=away>0 and fill~=nil;cap.Visible=f.Visible
     if f.Visible then

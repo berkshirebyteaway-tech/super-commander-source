@@ -31,7 +31,7 @@ local function clock(n)local s=math.max(0,math.ceil(n or 0));return string.forma
 local function shade(parent,name,rotation,alpha)
     local f=UI.make('Frame',parent,{Name=name,BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0,ZIndex=0,Active=false})
     UI.make('UIGradient',f,{Rotation=rotation,Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,alpha),NumberSequenceKeypoint.new(1,1)})})
-    return f
+    return require(script.Parent.FullBleed).edge(f)
 end
 local function glass(o,alpha)
     o.BackgroundColor3=UI.colors.bg;o.BackgroundTransparency=alpha or .3
@@ -507,6 +507,7 @@ function M:sheet20(w,h,lift,full)
     if not self.glow20 then
         self.glow20=UI.make('Frame',l.overlay,{Name='Glow20',BackgroundColor3=Color3.fromRGB(16,46,58),BorderSizePixel=0,Size=UDim2.fromScale(1,.4),ZIndex=0,Active=false})
         UI.make('UIGradient',self.glow20,{Rotation=90,Transparency=NumberSequence.new(.45,1)})
+        require(script.Parent.FullBleed).edge(self.glow20)
     end
     self.glow20.Visible=screen
     if not self.outside then

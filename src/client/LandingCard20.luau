@@ -38,12 +38,16 @@ function M.card(f,info,w,h,v1)
     parts(f)
     for _,o in ipairs(v1 or {})do o.Visible=false end
     local fmt=M.format(w,h);local pc=fmt=='pc'
-    local cw=pc and 320 or fmt=='ph'and 280 or w-24;local ch=57
+    local n,t,s,tag=f.Seconds20,f.Title20,f.Hint20,f.Team20
+    local ns0=pc and 34 or 28
+    local lead=15+(info.seconds and K.width('88',ns0,n)+14 or 0)
+    local tw0=K.width(L.text(info.title or ''),16,t)+(info.team and K.width(L.text(info.team),13,tag)+12 or 0)
+    local hw0=info.hint and info.hint~=''and K.width(L.text(info.hint),12,s)or 0
+    local cw=math.clamp(math.ceil(lead+math.max(tw0,hw0)+18),180,pc and 320 or fmt=='ph'and 280 or w-24);local ch=57
     local y=(pc and 24 or fmt=='ph'and 52 or 110)-inset()
     local pos=UDim2.fromOffset(math.floor((w-cw)/2),math.floor(y))
     f.Size=UDim2.fromOffset(cw,ch);f:SetAttribute('Home20',pos);if f:GetAttribute('Moving20')==nil then f.Position=pos end
-    local n,t,s,tag=f.Seconds20,f.Title20,f.Hint20,f.Team20
-    local ns=pc and 34 or 28;n.TextSize=ns
+    local ns=ns0;n.TextSize=ns
     local x=15
     if info.seconds then
         n.Visible=true

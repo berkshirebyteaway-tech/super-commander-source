@@ -124,6 +124,7 @@ function M.plate(root,f,ownColor,font,viewport,faded)
     local height=math.ceil(font*1.12+troopFont*1.08)
     if root:GetAttribute('LabelLayout')~=key then
         root:SetAttribute('LabelLayout',key);root:SetAttribute('NamePixelSize',font)
+        root:SetAttribute('NameTextWidth',nameWidth(f.allied and name..L.text(" (동맹)")or name,font))
         root.Size=UDim2.fromOffset(width,height)
         root.Profile.Visible=portrait>0
         if portrait>0 then

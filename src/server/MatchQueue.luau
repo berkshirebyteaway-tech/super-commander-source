@@ -250,6 +250,7 @@ function M:fieldReady(id,ready)
     if not self.active[id]or self.sending[id]then return false,'대기 전장 없음'end
     local ok,s=self:update({kind='fieldReady',userId=id,token=self.active[id],ready=ready})
     if not ok then return false,'매칭 연결 확인 중'end
+    if s.notice=='alone'then return false,'2명부터 레디'end
     if s.notice then return false,'전장 바뀜'end
     if self.telemetry then pcall(function()local t=s.tickets[tostring(id)];self.telemetry:flowUser(id,'queue','ready',{result=ready and 'accepted'or 'cancelled',value=t and t.joined and math.max(0,math.floor(os.time()-t.joined))or nil})end)end
     return true

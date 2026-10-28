@@ -142,7 +142,7 @@ local function close()
 end
 local function build()
     local root=Players.LocalPlayer:WaitForChild('PlayerGui')
-    local dim=UI.make('ScreenGui',root,{Name='OpsConsoleDim',ResetOnSpawn=false,DisplayOrder=72,IgnoreGuiInset=true,ScreenInsets=Enum.ScreenInsets.None,AutoLocalize=false,Enabled=false})
+    local dim=UI.make('ScreenGui',root,{Name='OpsConsoleDim',ResetOnSpawn=false,DisplayOrder=72,IgnoreGuiInset=true,ScreenInsets=Enum.ScreenInsets.None,ClipToDeviceSafeArea=false,AutoLocalize=false,Enabled=false})
     require(script.Parent.FullBleed).watch(dim)
     local shade=UI.make('TextButton',dim,{Name='Shade',Text='',AutoButtonColor=false,BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
     shade.Activated:Connect(close)

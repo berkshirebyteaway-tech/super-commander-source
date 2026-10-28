@@ -543,6 +543,7 @@ function M.scrim(name,alpha,display)
     local g=pg:FindFirstChild(name or 'Scrim20')
     if not g then
         g=M.make('ScreenGui',pg,{Name=name or 'Scrim20',ResetOnSpawn=false,IgnoreGuiInset=true,ScreenInsets=Enum.ScreenInsets.None,DisplayOrder=display or 40,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+        g.ClipToDeviceSafeArea=false
         M.make('Frame',g,{Name='Dim',Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(4,7,11),BackgroundTransparency=1,BorderSizePixel=0,Active=false})
     end
     local d=g.Dim;d:SetAttribute('Alpha',alpha or .45);return g,d
