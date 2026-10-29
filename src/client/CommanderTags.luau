@@ -40,19 +40,21 @@ function M:tag(player)
     local status=make("TextLabel",plate,{Name="Status",Size=UDim2.fromOffset(0,20),AutomaticSize=Enum.AutomaticSize.X,BackgroundColor3=amber,BorderSizePixel=0,Font=Enum.Font.BuilderSansBold,TextSize=11,TextColor3=UI.colors.bg,LayoutOrder=3,Visible=false})
     UI.corner(status,2);make("UIPadding",status,{PaddingLeft=UDim.new(0,6),PaddingRight=UDim.new(0,6)})
     local benefit=Badge.create(plate);benefit.root.LayoutOrder=4
-    t={gui=gui,plate=plate,stroke=stroke,bar=bar,flag=flag,code=code,avatar=avatar,avatarRing=avatarRing,text=text,name=name,troops=troops,troopMark=troopMark,status=status,benefit=benefit,padding=plate:FindFirstChildOfClass("UIPadding"),list=plate:FindFirstChildOfClass("UIListLayout")}
+    local eye=require(script.Parent.OutgameIcons).create(plate,"watch",16,UI.colors.muted);eye.Name="Eye";eye.LayoutOrder=1;eye.Visible=false
+    t={gui=gui,eye=eye,plate=plate,stroke=stroke,bar=bar,flag=flag,code=code,avatar=avatar,avatarRing=avatarRing,text=text,name=name,troops=troops,troopMark=troopMark,status=status,benefit=benefit,padding=plate:FindFirstChildOfClass("UIPadding"),list=plate:FindFirstChildOfClass("UIListLayout")}
     self.tags[player]=t;return t
 end
 local function portrait()local v=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize;return v~=nil and v.Y>v.X end
 local function density(t,compact,small)
     local nameOnly=small and portrait()
     t.benefit.root.Visible=not compact and not nameOnly and (t.benefit.key or 0)>0
-    t.name.Visible=true;t.bar.Visible=not compact and not nameOnly
+    t.name.Visible=true;t.bar.Visible=false
     t.text.Visible=not compact
     t.troops.Visible=not nameOnly;if t.troopMark then t.troopMark.Visible=not nameOnly end
     if nameOnly and not compact then t.status.Visible=false end
     t.plate.Visible=not compact or t.status.Visible
     t.flag.Visible=not compact and not nameOnly and t.flagApplied==true;t.avatar.Visible=not compact and not nameOnly and not t.flagApplied
+    t.eye.Visible=false;t.name.TextColor3=UI.colors.ink
     local indent=t.troops:GetAttribute("Indent")or 0
     if nameOnly then
         t.gui.Size=UDim2.fromOffset(160,26)
@@ -79,9 +81,24 @@ local function density(t,compact,small)
         t.status.Size=UDim2.fromOffset(0,20);t.status.TextSize=11
     end
 end
+local GHOST=.55
+local function ghost(c,on)
+    if not c or not on and c:GetAttribute("SpectatorGhost")==nil then return end
+    c:SetAttribute("SpectatorGhost",on or nil)
+    local to=on and GHOST or 0
+    for _,o in ipairs(c:GetDescendants())do if (o:IsA("BasePart")or o:IsA("Decal"))and o.LocalTransparencyModifier<1 and o.LocalTransparencyModifier~=to then o.LocalTransparencyModifier=to end end
+end
+local function watcher(t,touch)
+    density(t,false,touch)
+    for _,o in ipairs({t.bar,t.flag,t.avatar,t.troops,t.status,t.benefit.root})do o.Visible=false end
+    if t.troopMark then t.troopMark.Visible=false end
+    local size=t.name.TextSize+2;t.eye.Size=UDim2.fromOffset(size,size);t.eye.Visible=true
+    t.text.Size=UDim2.fromOffset(0,t.name.Size.Y.Offset);t.name.TextColor3=UI.colors.muted
+    t.stroke.Color=UI.colors.line;t.plate.Visible=true
+end
 function M:setOwnTerritoryVisible(visible)
     self.ownTerritoryVisible=visible
-    local t=self.tags[Players.LocalPlayer];if t then density(t,visible,InputMode.touch())end
+    local t=self.tags[Players.LocalPlayer];if t and not t.watcher then density(t,visible,InputMode.touch())end
 end
 function M:ring(player)
     local r=self.rings[player]
@@ -104,6 +121,7 @@ function M:update(state,visible,incoming,ownColor)
         local c=player.Character;local root=c and c:FindFirstChild("HumanoidRootPart")
         local f=player==Players.LocalPlayer and state and state.player or byUser[player.UserId]
         local show=inMatch and not(state.drop and state.drop.active)and root~=nil and f~=nil and (player==Players.LocalPlayer or visible(player))
+        if player==Players.LocalPlayer then ghost(c,show and state.observer~=nil)end
         local server=c and c:FindFirstChild("CommanderName")
         if server then if inMatch then server.Enabled=false elseif player==Players.LocalPlayer then server.Enabled=true end end
         if not show then
@@ -112,12 +130,19 @@ function M:update(state,visible,incoming,ownColor)
             continue
         end
         local mine=player==Players.LocalPlayer
+        if mine and state.observer or f.eliminated==true or mine and state.phase=='lost' then
+            local t=self:tag(player);t.gui.Enabled=true;t.gui.Adornee=root;t.name.Text=player.DisplayName;t.state=nil;t.watcher=true
+            watcher(t,InputMode.touch())
+            local r=self.rings[player];if r then r.part.Parent=nil end
+            continue
+        end
         local color=Colors.get(mine and 1 or f.id,f.kind,mine and ownColor or nil)
-        local t=self:tag(player);t.gui.Enabled=true;t.gui.Adornee=root
+        local t=self:tag(player);t.gui.Enabled=true;t.gui.Adornee=root;t.watcher=nil
         t.bar.BackgroundColor3=color;t.flag.BackgroundColor3=color
         local applied=self.flags and f.flag and self.flags.apply(t.flag,f.flag)
         t.flagApplied=applied==true
         t.flag.Visible=applied==true;t.code.Visible=false
+        local edge=t.flag:FindFirstChildOfClass("UIStroke");if edge then edge.Color=applied and color or Color3.new(0,0,0);edge.Transparency=applied and 0 or .5 end
         t.avatar.Visible=not applied;t.avatarRing.Color=color
         if not applied and t.avatar:GetAttribute("UserId")~=player.UserId then
             local avatar,userId=t.avatar,player.UserId;avatar:SetAttribute("UserId",userId)

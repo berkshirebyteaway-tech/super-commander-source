@@ -162,17 +162,13 @@ function M.draw(lobby,body)
     do
         local f=invite.face;local is=pt and 20 or ph and 18 or 20
         local icon=K.icon(f,'invite',is,C.bg,'Icon');local label=K.text(f,'Label','친구 초대',fs,C.bg,800);local lw=K.width('친구 초대',fs,label)
-        local chip,cw;if reward then
-            local cfs=pt and 13 or ph and 13 or 15;local ch=pt and 24 or ph and 24 or 26
-            chip=K.make('Frame',f,{Name='Reward',BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.82,BorderSizePixel=0});K.round(chip,pt and 4 or 6)
-            local text=(pt and '+'or '')..commas(reward)
-            local amt,aw=K.amount(chip,'Coins','coin',text,cfs,pt and C.bg or Color3.fromRGB(58,42,0))
-            cw=aw+16;K.box(chip,0,0,cw,ch);K.box(amt,8,(ch-cfs)/2,aw,cfs)
-        end
-        local gap=pt and 10 or 8;local total=is+gap+lw+(chip and gap+cw or 0);local cx=math.floor((bw-total)/2)
+        local gap=pt and 10 or 8;local cx=math.floor((bw-is-gap-lw)/2)
         K.box(icon,cx,(bh-is)/2,is,is);K.box(label,cx+is+gap,0,lw+2,bh)
-        if chip then chip.Position=UDim2.fromOffset(cx+is+gap+lw+gap,math.floor((bh-chip.Size.Y.Offset)/2))end
         for _,o in ipairs(f:GetDescendants())do if o:IsA('GuiObject')and o.Name~='Depth'then o.ZIndex=math.max(o.ZIndex,f.ZIndex+1)end end
+        if reward then
+            local pop=not lobby.inviteBadgePopped;lobby.inviteBadgePopped=true
+            K.rewardBadge(f,'Reward','+'..commas(reward),ph and 13 or 15,bw,0,f.ZIndex+5,pop)
+        end
     end
     local ly=pt and y0+130 or ph and y0+ss+36 or y0+ss+52
     if grouped then

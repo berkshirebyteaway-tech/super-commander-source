@@ -181,7 +181,7 @@ function M.fill(r,users,teams)
     return {ai=#list,teams=list}
 end
 function M.difficulty(_rookies)
-    return 'Easy'
+    return 'Medium'
 end
 function M.canFit(r,users,groups)
     return #users<=r.maximum and (r.mode~='teams'or hvn(r)or Formation.fits(users,groups,r.maximum,countOf(r),packed(r)))

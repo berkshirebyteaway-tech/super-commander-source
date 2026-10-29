@@ -24,10 +24,22 @@ M.teamPalette={
 }
 M.mateColor=Color3.fromRGB(45,212,191)
 local teamOf,teamBase,teamPool,teamKeys,teamSeen,teamMatch,teamMine={},{},{},{},{},nil,nil
-function M.setTeams(factions,myTeam,match)
+local shared,myMatch=false,nil
+local function matchOf(id)
+    if not shared or not myMatch then return id end
+    if id==1 then return myMatch elseif id==myMatch then return 1 end
+    return id
+end
+local function family(team)
+    local n=tonumber(team);local k=n and (math.floor(n)-1)%(#M.teamPalette+1)+1 or 1
+    return k==1 and M.self or M.teamPalette[k-1],k
+end
+function M.setTeams(factions,myTeam,match,multiplayer)
     local changed=false
     local mine=myTeam~=nil and tostring(myTeam)or nil
-    if match~=teamMatch or mine~=teamMine then teamMatch=match;teamMine=mine;teamOf,teamBase,teamPool,teamKeys,teamSeen={},{},{},{},{};changed=true end
+    if match~=teamMatch or mine~=teamMine then teamMatch=match;teamMine=mine;teamOf,teamBase,teamPool,teamKeys,teamSeen={},{},{},{},{};myMatch=nil;changed=true end
+    if shared~=(multiplayer==true)then shared=multiplayer==true;changed=true end
+    for _,f in ipairs(factions or {})do if f.id==1 and f.matchId and f.matchId~=myMatch then myMatch=f.matchId;changed=true end end
     local fresh={};local teams={}
     for _,f in ipairs(factions or {})do if (f.team==nil or f.kind=='BOT')and teamOf[f.id]then teamOf[f.id]=nil;teamKeys[f.id]=nil;changed=true end end
     for _,f in ipairs(factions or {})do if f.team~=nil and f.kind~='BOT'and teamKeys[f.id]~=tostring(f.team)..':'..tostring(f.userId or f.matchId or f.id)then
@@ -36,7 +48,8 @@ function M.setTeams(factions,myTeam,match)
     if #fresh==0 then return changed end
     local order={};for t in pairs(teams)do if not teamBase[t]then table.insert(order,t)end end;table.sort(order)
     for _,t in ipairs(order)do
-        if t==mine then teamBase[t]=M.self;teamPool[t]=1
+        if shared then teamBase[t],teamPool[t]=family(t)
+        elseif t==mine then teamBase[t]=M.self;teamPool[t]=1
         else local n=0;for k,_ in pairs(teamBase)do if k~=mine then n+=1 end end;local i=n%#M.teamPalette+1;teamBase[t]=M.teamPalette[i];teamPool[t]=i+1 end
     end
     for _,f in ipairs(fresh)do local t=tostring(f.team);local key=tostring(f.userId or f.matchId or f.id)
@@ -53,12 +66,15 @@ function M.setTeams(factions,myTeam,match)
     end
     return true
 end
+function M.teamFamily(team)return(family(team))end
 function M.team(team,myTeam)
+    if shared and team~=nil then return teamBase[tostring(team)]or(family(team))end
     if team~=nil and team==myTeam then return M.self end
     return teamBase[tostring(team)]or Color3.fromRGB(138,151,168)
 end
 function M.get(id,kind,own)
     if teamOf[id]then return teamOf[id]end
+    if shared then id=matchOf(id);own=nil end
     if id==1 then return own or M.self end
     if kind=='BOT'then return tribe[(id*5)%#tribe+1]end
     if not cache[id]then

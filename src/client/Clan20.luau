@@ -213,7 +213,7 @@ local function clanSheet(ctx)
     local lobby,v=ctx.lobby,ctx.v;local u=v.unit;local a=v.attend
     if u.isLeader then step('clanMarkOpened')end
     local pad=18;local w=380
-    local rows=8
+    local rows=War.open and 8 or 7
     local h=pad+48+12+rows*30+(u.isLeader and 64 or 0)+12+44+8+44+(v.studio and 52 or 0)+pad
     Pop.sheet('clan','ClanSheet',w,h,function(p,close,pw)
         local col=V.color(u.color)
@@ -226,8 +226,8 @@ local function clanSheet(ctx)
         y=infoRow(p,y,pw,pad,'다음 레벨까지',u.levelCost and string.format('%s / %s',num(u.levelXp),num(u.levelCost))or '최고 레벨 달성',nil,u.levelCost~=nil)
         y=infoRow(p,y,pw,pad,'누적 기여',num(u.xp))
         y=infoRow(p,y,pw,pad,'기여 순위',u.rank and string.format('%d위',u.rank)or '순위 밖',C.gold,false)
-        y=infoRow(p,y,pw,pad,'클랜전 순위',u.war and u.war.rank and string.format('%d위',u.war.rank)or '순위 밖',nil,false)
-        y=infoRow(p,y,pw,pad,'내 기여',string.format('%s / %s',num(a.total),num(a.warTotal)))
+        if War.open then y=infoRow(p,y,pw,pad,'클랜전 순위',u.war and u.war.rank and string.format('%d위',u.war.rank)or '순위 밖',nil,false)end
+        y=infoRow(p,y,pw,pad,'내 기여',War.open and string.format('%s / %s',num(a.total),num(a.warTotal))or num(a.total))
         y=infoRow(p,y,pw,pad,'오늘 출석',string.format('%d / %d',(a.free and 1 or 0)+(a.extra or 0),1+(a.extraMax or 0)))
         y=infoRow(p,y,pw,pad,'초대 코드',tostring(u.code or ''),C.accent)
         if u.isLeader then
@@ -431,9 +431,11 @@ end
 local function memberScreen(ctx)
     local lobby,v,g,root,W,H,fmt=ctx.lobby,ctx.v,ctx.g,ctx.root,ctx.W,ctx.H,ctx.fmt;local u=v.unit
     banner(ctx,u)
+    if lobby.clanTab=='war'and not War.open then lobby.clanTab='members'end
     lobby.clanTab=lobby.clanTab or 'members'
     local prev=lobby.clan20Tab;lobby.clan20Tab=lobby.clanTab
-    local seg=K.segment(root,'ClanTabs',{{'members','클랜원'},{'board','클랜 순위'},{'war','클랜전'}},prev or lobby.clanTab,function(id)
+    local tabs={{'members','클랜원'},{'board','클랜 순위'}};if War.open then table.insert(tabs,{'war','클랜전'})end
+    local seg=K.segment(root,'ClanTabs',tabs,prev or lobby.clanTab,function(id)
         if lobby.clanTab~=id then lobby.clanTab=id;step('clanTab',id);lobby:drawPage()end end,{size=g.tabFs})
     seg:place(g.L,g.tabY,fmt=='pt'and W-g.L-g.R or(fmt=='pc'and 420 or 280),g.tabH)
     if prev and prev~=lobby.clanTab then seg:select(lobby.clanTab,true)end
@@ -527,14 +529,16 @@ local function guestList(ctx,sc,w,query,animate)
         y=listRows(ctx,sc,y,w,rows,{kind='xp',join={prime=v.prime==true},empty='찾는 클랜이 없어요'},shown)
     end
     local open=lobby.clanGuestWar==true
-    local fold=K.button(sc,'WarFold',{kind='none',r=8},function()lobby.clanGuestWar=not open;step('clanTab',open and 'find'or 'war');lobby:drawPage()end)
-    fold:place(0,y,w,ctx.fmt=='ph'and 36 or 40)
-    local d=K.dashBox(fold.face,'Dash',C.line,0,8,1);d.Size=UDim2.fromOffset(w,ctx.fmt=='ph'and 36 or 40)
-    inline(fold.face,0,ctx.fmt=='ph'and 36 or 40,{{icon='medal',size=15,color=C.muted},{text='클랜전 순위',size=13,color=C.muted},{icon=open and 'up'or 'chev',size=14,color=C.muted}},6,true,w)
-    y+=(ctx.fmt=='ph'and 36 or 40)+8
-    if open then
-        y=warCard(ctx,sc,y,w,nil)
-        y=listRows(ctx,sc,y,w,(v.war and v.war.top)or {},{kind='war',rank=true})
+    if War.open then
+        local fold=K.button(sc,'WarFold',{kind='none',r=8},function()lobby.clanGuestWar=not open;step('clanTab',open and 'find'or 'war');lobby:drawPage()end)
+        fold:place(0,y,w,ctx.fmt=='ph'and 36 or 40)
+        local d=K.dashBox(fold.face,'Dash',C.line,0,8,1);d.Size=UDim2.fromOffset(w,ctx.fmt=='ph'and 36 or 40)
+        inline(fold.face,0,ctx.fmt=='ph'and 36 or 40,{{icon='medal',size=15,color=C.muted},{text='클랜전 순위',size=13,color=C.muted},{icon=open and 'up'or 'chev',size=14,color=C.muted}},6,true,w)
+        y+=(ctx.fmt=='ph'and 36 or 40)+8
+        if open then
+            y=warCard(ctx,sc,y,w,nil)
+            y=listRows(ctx,sc,y,w,(v.war and v.war.top)or {},{kind='war',rank=true})
+        end
     end
     if v.studio then
         local list={{'xp','기여 +5,000'},{'reset','출석 초기화'},{'war','클랜전 승'},{'warLoss','클랜전 패'}}

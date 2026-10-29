@@ -8,6 +8,9 @@ local Presentation=if script then require(script.Parent.CombatPresentation) else
 local Nation=if script then require(script.Parent.NationAI) else require("./NationAI")
 local Format=if script then require(script.Parent.TeamFormat) else require("./TeamFormat")
 local T=if script then require(script.Parent.Terrain) else require("./Terrain")
+local NationNames=if script then require(script.Parent.NationNames) else require("./NationNames")
+local R=if script then require(script.Parent.PseudoRandom) else require("./PseudoRandom")
+local AIHash=(if script then require(script.Parent.TribeAI) else require("./TribeAI")).hash
 local M={};M.__index=M;setmetatable(M,{__index=S})
 local function pair(a,b)return math.min(a,b)..":"..math.max(a,b)end
 function M.viewId(id,viewer) if id==viewer then return 1 elseif id==1 then return viewer else return id end end
@@ -70,6 +73,15 @@ function M:handBack(id)
     if self.parked then self.parked[id]=nil end
     p.kind="NATION";p.userId=nil;p.name=name;r.kind="NATION";r.name=name;r.relations=r.relations or {}
     self.nations[id]=ai
+    return true
+end
+function M:retire(id)
+    if not self:handBack(id)then return false end
+    local r,p=self.resources[id],self.sim.players[id];if not r or not p or p.kind~="NATION"then return true end
+    local used={};for _,q in ipairs(self.sim.players)do if q.name then used[q.name]=true end end
+    local name;for _,n in ipairs(self.map.meta.additionalNations or {})do if not used[n.name]then name=n.name;break end end
+    name=name or NationNames.unique(R.new(AIHash("retire-"..id.."-"..tostring(self.settings.seed))),used)
+    p.name=name;r.name=name;r.country=nil
     return true
 end
 function M:allyFriends(ids)

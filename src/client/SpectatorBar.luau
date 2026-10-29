@@ -113,11 +113,11 @@ function M:refresh20(f,state)
     v.speed.button.Visible=replay~=nil;if replay then v.speed:setText(string.format('×%d',replay.speed or 1))end
     v.result.button.Visible=self.observer==nil
     v.prev:setEnabled(#(self.list or {})>1);v.next:setEnabled(#(self.list or {})>1)
+    if self.w20 then self:layout20(self.w20)end
     if changed and self.lastName20~=nil and self.frame.Visible then
         v.who:SetAttribute('Shown20',false);K.rehome(v.who);K.appear(v.who,{dx=12*(self.dir20 or 1),t=.12})
     end
     self.lastName20=name
-    if self.w20 then self:layout20(self.w20)end
 end
 function M:layout20(width)
     local v=self:parts20();self.w20=width
@@ -127,14 +127,18 @@ function M:layout20(width)
     local pt=fmt=='pt';local bw=fmt=='pc'and 560 or fmt=='ph'and math.min(480,width-24)or width-20;local bh=pt and 112 or 56
     local pos=UDim2.fromOffset(math.floor((width-bw)/2),math.floor(height-(fmt=='pc'and 20 or pt and 14 or 10)-bh))
     f.Size=UDim2.fromOffset(bw,bh);f:SetAttribute('Home20',pos);if f:GetAttribute('Moving20')==nil then f.Position=pos end
-    local nw=math.min(K.width(v.name.Text,15,v.name)+2,pt and bw-140 or 170);local rw=v.rank.Visible and K.width(v.rank.Text,13,v.rank)+2 or 0
-    local ww=(v.square.Visible and 18 or 0)+nw+(rw>0 and 8+rw or 0)
-    K.box(v.square,0,math.floor((44-10)/2),10,10);K.box(v.name,v.square.Visible and 18 or 0,0,nw,44);K.box(v.rank,(v.square.Visible and 18 or 0)+nw+8,0,rw,44)
+    local rw=v.rank.Visible and K.width(v.rank.Text,13,v.rank)+2 or 0
+    local function who(cap)
+        local nw=math.max(0,math.min(K.width(v.name.Text,15,v.name)+2,cap-(v.square.Visible and 18 or 0)-(rw>0 and 8+rw or 0)))
+        K.box(v.square,0,math.floor((44-10)/2),10,10);K.box(v.name,v.square.Visible and 18 or 0,0,nw,44);K.box(v.rank,(v.square.Visible and 18 or 0)+nw+8,0,rw,44)
+        return (v.square.Visible and 18 or 0)+nw+(rw>0 and 8+rw or 0)
+    end
     local side=pt and 48 or 44
     v.prev:place(7,6,side,44)
     local rb=fmt=='pc'and 84 or fmt=='ph'and 64 or 96
     if pt then
         v.next:place(bw-7-side,6,side,44)
+        local ww=who(bw-140)
         local whoPos=UDim2.fromOffset(math.floor((bw-ww)/2),6);v.who.Size=UDim2.fromOffset(ww,44)
         if v.who:GetAttribute('Moving20')==nil then v.who.Position=whoPos end;v.who:SetAttribute('Home20',whoPos)
         K.box(v.rule,1,56,bw-2,1);v.rule.Visible=true
@@ -144,15 +148,19 @@ function M:layout20(width)
         local cx=14;if v.eye.Visible then K.box(v.eye,cx,56+21,15,15);cx+=21 end;K.box(v.count,cx,56,160,56)
     else
         v.rule.Visible=false
-        local whoPos=UDim2.fromOffset(7+side+8,6);v.who.Size=UDim2.fromOffset(ww,44)
-        if v.who:GetAttribute('Moving20')==nil then v.who.Position=whoPos end;v.who:SetAttribute('Home20',whoPos)
-        v.next:place(7+side+8+ww+8,6,side,44)
         local x=bw-7;v.leave:place(x-rb,6,rb,44);x-=rb+8
         if v.result.button.Visible then v.result:place(x-rb,6,rb,44);x-=rb+8 end
         if v.speed.button.Visible then v.speed:place(x-56,6,56,44);x-=56+8 end
         local cwid=v.count.Visible and K.width(v.count.Text,13,v.count)+2 or 0
-        if v.count.Visible then K.box(v.count,x-cwid,0,cwid,56);x-=cwid+6 end
-        if v.eye.Visible then K.box(v.eye,x-15,math.floor((56-15)/2),15,15)end
+        if v.count.Visible then K.box(v.count,x-cwid,0,cwid,56)end
+        if v.eye.Visible then K.box(v.eye,x-cwid-6-15,math.floor((56-15)/2),15,15)end
+        local reserve=self.observer and self.observer.replay and K.width('00:00 / 00:00',13,v.count)+2 or v.eye.Visible and 21+K.width('00',13,v.count)+2 or cwid
+        local slot=fmt=='pc'and 220 or 180
+        local nextX=math.max(7+side+8,math.min(7+side+8+slot+8,x-(reserve>0 and reserve+6 or 0)-8-side))
+        v.next:place(nextX,6,side,44)
+        local ww=who(nextX-8-(7+side+8))
+        local whoPos=UDim2.fromOffset(7+side+8+math.floor((nextX-8-(7+side+8)-ww)/2),6);v.who.Size=UDim2.fromOffset(ww,44)
+        if v.who:GetAttribute('Moving20')==nil then v.who.Position=whoPos end;v.who:SetAttribute('Home20',whoPos)
     end
     for _,b in ipairs({v.result,v.leave,v.speed})do require(script.Parent.MatchSheet).fill20(b)end
 end

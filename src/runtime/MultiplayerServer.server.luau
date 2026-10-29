@@ -1,4 +1,5 @@
 local Players=game:GetService("Players");Players.CharacterAutoLoads=false
+local bootAt=os.clock()
 local Run=game:GetService("RunService")
 local pack=game.ReplicatedStorage:WaitForChild("FrontierNative")
 local services=game.ServerScriptService:WaitForChild("FrontierServices")
@@ -55,6 +56,8 @@ bigMaps.log=function(p,step,data)analytics:flow(p,'match',step,data)end
 analytics.resolveParty=function(p)return parties[p.UserId]end
 local LiveModel=require(pack.Core.LiveMatchModel)
 local liveMatches=require(services.LiveMatches).new(Config,{notify=function(id,message)local e=entries[id];if e and e.player.Parent==Players then results:FireClient(e.player,{action='lobby',ok=false,message=message,version=e.version})end end})
+local worldField=require(services.WorldField).new(Config,{notify=function(id,message)local e=entries[id];if e and e.player.Parent==Players then e.arriving=nil;results:FireClient(e.player,{action='lobby',ok=false,message=message,version=e.version})end end})
+worldField.telemetry=analytics
 local Presets=require(pack.Core.SinglePresets)
 local QuickSolo=require(pack.Core.QuickSolo)
 local defaults=Presets.standard
@@ -280,7 +283,7 @@ local function lobbySnapshot(id)
     local received={};for from,t in pairs(invites[id]or {})do if t>os.clock() and user(from)then table.insert(received,{from=from,name=user(from).DisplayName})end end
     return {serial=os.clock(),queue=queue:status(id,os.clock()),battlefields=queue:directory(id),recentCustom=e and e.recentCustom,inviteRoomCode=e and e.inviteRoomCode,partyHost=e and e.partyHost,partyWait=e and e.partyHost and e.partyFriend and (function()local h=entries[e.partyHost];local hp=user(e.partyHost)
         return {host=e.partyHost,name=hp and hp.DisplayName or nil,reason=not hp and 'notHere'or h and h.room and not h.room.practice and 'inMatch'or queue.membership[e.partyHost]and 'queued'or 'joining'}end)()or nil,privateServer=game.PrivateServerId~=''or nil,career=careers:snapshot(id),ranked=ranked:view(id),clanWar=ranked:clanWarBoard(id),party=group(id),partyStatus=(function()local out={};for _,u in ipairs(group(id).users)do local m=entries[u];local g=group(id)
-        out[tostring(u)]=not m and 'away'or m.loading and 'loading'or m.room and not m.room.practice and (between(m)and 'results'or 'match')or queue.membership[u]and 'queued'or g.ready and g.ready[u]and 'ready'or 'hq'end;return out end)(),players=roster,invites=received,sent=(function()local out={};for to,offers in pairs(invites)do if offers[id]and offers[id]>os.clock()then table.insert(out,to)end end;return out end)(),live=liveMatches:list(rooms),rejoin=e and not e.room and liveMatches:mine(rooms,id)or nil,rankedEnabled=Config.rankedEnabled,localMode=careers.localMode,inMatch=e and e.room~=nil,practice=e and e.room and e.room.practice==true,roomCount=#rooms}
+        out[tostring(u)]=not m and 'away'or m.loading and 'loading'or m.room and not m.room.practice and (between(m)and 'results'or 'match')or queue.membership[u]and 'queued'or g.ready and g.ready[u]and 'ready'or 'hq'end;return out end)(),players=roster,invites=received,sent=(function()local out={};for to,offers in pairs(invites)do if offers[id]and offers[id]>os.clock()then table.insert(out,to)end end;return out end)(),live=liveMatches:list(rooms),rejoin=e and not e.room and liveMatches:mine(rooms,id)or nil,rankedEnabled=Config.rankedEnabled,localMode=careers.localMode,inMatch=e and e.room~=nil,practice=e and e.room and e.room.practice==true,roomCount=#rooms,world=worldField.lobbyView()}
 end
 local function pushLobby()for id,e in pairs(entries)do if e.player.Parent==Players and between(e)then lobbyState:FireClient(e.player,lobbySnapshot(id))end end end
 local function joinFriend(id)
@@ -320,8 +323,8 @@ local function emit(room,p,kind,tile)
     participants(room,function(recipient)visual:FireClient(recipient,packet)end);observers(room,function(recipient)visual:FireClient(recipient,packet)end)
 end
 DropService.bind(pack,entries,function(room,p,_,tile)emit(room,p,'settle',tile)end)
-local Casual={seats=24,minutes=20,maps={'world','eastasia','china'},next=1,winSeconds=300}
-local joinCasual
+local Casual={seats=require(pack.Core.WorldFieldRules).seats,minutes=20,maps={'world'},next=1,winSeconds=300,warmTicks=600}
+local joinCasual,warmCasual
 local function release(e,forfeit)
     local room=e.room;if not room then return end
     local progress=room.progress and room.progress[e.player.UserId]
@@ -396,7 +399,7 @@ local function watchReplay(e,id)
 end
 local function createRoom(selection,single)
     for i=#rooms,1,-1 do
-        local old=rooms[i];local retained=old.replay~=nil and next(old.observers or {})~=nil
+        local old=rooms[i];local retained=old.warming or old.replay~=nil and next(old.observers or {})~=nil
         for id in pairs(old.members)do if entries[id]and entries[id].room==old then retained=true;break end end
         if not retained then
             for id,pr in pairs(old.progress)do if not pr.final then pr:finish(pr.outcome or 'serverStop',os.time(),true);recordProgress(id,pr)end end
@@ -541,10 +544,27 @@ local function openRoom(e,selection)
     return ok,message
 end
 local function casualRoom(count,late)
-    for _,r in ipairs(rooms)do if r.casual and not r.endedAt and not r.session.winnerId and (late or os.time()-(r.startedAt or os.time())<(Casual.minutes-6)*60)then
+    for _,r in ipairs(rooms)do if r.casual and not r.warming and not r.endedAt and not r.session.winnerId and (late or os.time()-(r.startedAt or os.time())<(Casual.minutes-6)*60)then
         local free=0;for id in pairs(r.session.nations)do if r.session.sim.players[id].tiles.size>0 then free+=1 end end
         if free>=count and r.session:joinCandidate()then return r end
     end end
+end
+warmCasual=function(room,ids)
+    local s=room.session;room.warming=true;room.warmed={}
+    if s.phase=='spawn'then s:startBattle()end
+    for _,id in ipairs(ids)do local e,p=entries[id],user(id);local faction=room.members[id]
+        if faction then s:retire(faction);room.members[id]=nil;room.progress[id]=nil;room.joined[id]=nil;room.warmed[id]=true end
+        if e and e.room==room then e.room=nil;e.faction=nil;e.arriving=true;if p then p:SetAttribute('FrontierRoom',nil);updates:FireClient(p,baseState(e))end end
+    end
+    local started=os.clock()
+    while s.sim.ticks<Casual.warmTicks and not s.winnerId and not shuttingDown and os.clock()-started<8 do
+        local slice=os.clock();repeat s:step()until s.sim.ticks>=Casual.warmTicks or os.clock()-slice>.008
+        task.wait()
+    end
+    room.warming=nil;room.spawnUntil=os.clock()
+    room.startedAt=os.time()-math.floor(s.sim.ticks/10/math.max(.1,GameSpeed.of(s.settings)))
+    for _,id in ipairs(ids)do local e=entries[id];if e then e.arriving=nil end end
+    local pl=user(ids[1]);if pl then analytics:flow(pl,'world','warm',{value=os.clock()-started,count=#ids,result='complete'})end
 end
 joinCasual=function(ids)
     local saved={}
@@ -564,7 +584,13 @@ joinCasual=function(ids)
     if not room then
         local map=Casual.maps[Casual.next];Casual.next=Casual.next%#Casual.maps+1
         local created,why=createRoom({users=ids,teams={},mode='ffa',casual=true,casualMap=map},false)
-        room=not created and casualRoom(#ids,true);if not room then return created,why end
+        if created then
+            local fresh=entries[ids[1]]and entries[ids[1]].room;local ok,err=pcall(warmCasual,fresh,ids)
+            if not ok then warn('casual warm-up',err);if fresh then fresh.warming=nil end;for _,id in ipairs(ids)do local e=entries[id];if e then e.arriving=nil end end end
+            ids=table.clone(ids);for i=#ids,1,-1 do local e=entries[ids[i]];if not e or not user(ids[i])or e.room then table.remove(ids,i)end end
+            room=fresh and not fresh.endedAt and fresh or nil;if #ids==0 then return true end
+        else room=casualRoom(#ids,true)end
+        if not room then return created,why end
     end
     local s=room.session;local factions={};local humans=0;for _ in pairs(room.members)do humans+=1 end
     for _,id in ipairs(ids)do
@@ -576,7 +602,7 @@ joinCasual=function(ids)
             p:SetAttribute('FrontierRoom',room.id);p:SetAttribute('FrontierUnrecorded',nil)
             local pr=Participation.new(room.id..':'..id..':'..os.time(),'pvp',s.map.meta.key,humans,os.time());pr.startLevel=acc.progress and acc.progress.level or nil;pr.start=ResultPresentation.baseline(acc.progress);pr.benefitXPMultiplier=acc.billing.benefits.xpMultiplier;pr.official=room.official or nil;room.progress[id]=pr
             for _,other in pairs(room.progress)do if not other.ended then other.humans=math.max(other.humans or 1,humans)end end
-            analytics:match(p,s.map.meta.key,'pvp')
+            if not(room.warmed and room.warmed[id])then analytics:match(p,s.map.meta.key,'pvp')end
             if acc.flag then s.resources[faction].flag=acc.flag end
             placeCharacter(p,s.spawned[faction],room)
         end
@@ -586,6 +612,49 @@ joinCasual=function(ids)
             if #list>1 then s:allyFriends(list);for _,u in ipairs(friends)do if room.progress[u]then room.progress[u].party=true end end end end end
     sendRoom(room,true)
     return #factions>0,#factions>0 and '합류  국가 지휘'or '자리 없음'
+end
+worldField.rooms=function()
+    local out={}
+    for _,r in ipairs(rooms)do if r.casual and not r.endedAt and not r.session.winnerId then
+        local humans=0;for _ in pairs(r.members)do humans+=1 end
+        local started=r.startedAt or os.time()
+        table.insert(out,{humans=humans,endsAt=started+Casual.minutes*60,joinable=casualRoom(1)==r})
+    end end
+    return out
+end
+worldField.lobbyView=function()
+    if worldField.live then return worldField:view()end
+    local W=require(pack.Core.WorldFieldRules);local now=os.time()
+    return W.view({W.row('local','local',nil,worldField.rooms(),now,true)},now)
+end
+worldField.groups={}
+worldField.seat=function(p,e,together,leader)
+    e.arriving=true;updates:FireClient(p,baseState(e))
+    task.spawn(function()
+        local started=os.clock()
+        while os.clock()-started<8 and user(p.UserId)==p do local a=accounts:snapshot(p);if a.ready or not a.loading then break end;task.wait(.1)end
+        local sorted=table.clone(together);table.sort(sorted);local key=table.concat(sorted,',')
+        local g=worldField.groups[key]or {since=os.clock(),here={},done={}};worldField.groups[key]=g;g.here[p.UserId]=true
+        while os.clock()-g.since<4 and user(p.UserId)==p do
+            local all=true;for _,id in ipairs(together)do if not g.here[id]then all=false;break end end
+            if all or g.done[p.UserId]then break end;task.wait(.2)
+        end
+        if g.done[p.UserId]then return end
+        local ids={};for _,id in ipairs(together)do local m=entries[id]
+            if g.here[id]and not g.done[id]and m and user(id)and not m.room then g.done[id]=true;m.arriving=nil;table.insert(ids,id)end end
+        task.delay(30,function()if worldField.groups[key]==g then worldField.groups[key]=nil end end)
+        if #ids==0 then return end
+        if #ids>1 and not parties[ids[1]]then
+            local party={leader=table.find(ids,leader)and leader or ids[1],users=table.clone(ids),ready={},mode='pvp'}
+            for _,id in ipairs(ids)do if not parties[id]then parties[id]=party end end
+        end
+        local ok,message=joinCasual(ids)
+        local room=ok and entries[ids[1]]and entries[ids[1]].room;local humans=0;if room then for _ in pairs(room.members)do humans+=1 end end
+        for _,id in ipairs(ids)do local pl=user(id);local m=entries[id]
+            if pl then analytics:flow(pl,'world','arrive',{result=ok and 'accepted'or 'failed',reason=not ok and 'capacity'or nil,value=os.clock()-started,human_count=humans,count=#ids})end
+            if pl and m and not ok then updates:FireClient(pl,baseState(m));results:FireClient(pl,{action='lobby',ok=false,message=message or '자리 없음',version=m.version})end
+        end
+    end)
 end
 local function saveLobby(e)
     if not accounts:snapshot(e.player).ready then return end
@@ -864,7 +933,7 @@ local function lobbyHandle(p,action,value)
     if table.find({'map','selectMode'},action)and not accounts:snapshot(p).ready then return {ok=false,message='저장 연결 필요'}end
     if os.clock()-(e.lastLobby or 0)<.2 then return {ok=false,message="다시 시도"}end;e.lastLobby=os.clock()
     do local held=require(services.OpsService).blocked(action,p);if held then return {ok=false,message=held}end end
-    local ok,message=true,nil;local party=group(id)
+    local ok,message=true,nil;local party=group(id);local teleport
     if action=='selectMode'then
         if not table.find({'single','pvp','coop'},value)then return {ok=false}end
         if party.leader~=id and #party.users>1 then return {ok=false,message='파티장 전용'}end
@@ -938,7 +1007,13 @@ local function lobbyHandle(p,action,value)
             party.ready=party.ready or {};party.ready[id]=true;pushLobby()
             return {ok=true,message='준비 완료',state=lobbySnapshot(id)}
         end
-        ok,message=joinCasual(table.clone(party.users))
+        if worldField.live and not worldField.hostId then
+            local ids={id};for _,u in ipairs(party.users)do if u~=id then table.insert(ids,u)end end
+            local players={}
+            for _,u in ipairs(ids)do local m=entries[u];if not m or not user(u)or not between(m)or m.loading or m.arriving then return {ok=false,message='파티원 경기 중'}end;table.insert(players,user(u))end
+            for _,u in ipairs(ids)do local cancelled,why=queue:cancel(u,os.clock());if cancelled==false then return {ok=false,message=why}end end
+            ok,message=worldField:join(players);teleport=ok or nil
+        else ok,message=joinCasual(table.clone(party.users))end
     elseif action=='practice'then
         local waiting=queue.membership[id]
         if not waiting or waiting.mode~='pvp'or e.room or e.loading then return {ok=false}end
@@ -1037,7 +1112,7 @@ local function lobbyHandle(p,action,value)
     elseif action=="leaders"then
         local rows=careers:leaders(true);return {ok=rows~=nil,leaders=rows}
     else ok=false;message="불가"end
-    pushLobby();return {ok=ok,message=message,state=lobbySnapshot(id)}
+    pushLobby();return {ok=ok,message=message,state=lobbySnapshot(id),teleport=teleport}
 end
 lobbyRequest.OnServerInvoke=function(p,action,value)
     local observedAt=os.clock()
@@ -1131,7 +1206,7 @@ local world=Instance.new("Folder");world.Name="FrontierWorld";world.Parent=works
 soloTransfer.telemetry=analytics
 require(pack.Client.ToyLighting).apply()
 local floor=Instance.new("Part");floor.Name="MapTable";floor.Size=Vector3.new(1800,4,1800);floor.Position=Vector3.new(0,Geometry.surfaceY-2,0);floor.Anchored=true;floor.Transparency=1;floor.Parent=world
-local plazaModel=Plaza.create(world,function(p,mode)local e=entries[p.UserId];if e and not e.room then local s=lobbySnapshot(p.UserId);if mode=="wardrobe"or mode=="records"then s.openPage=mode else s.openMode=mode end;lobbyState:FireClient(p,s)end end)
+task.spawn(function()local at=os.clock();Plaza.create(world,function(p,mode)local e=entries[p.UserId];if e and not e.room then local s=lobbySnapshot(p.UserId);if mode=="wardrobe"or mode=="records"then s.openPage=mode else s.openMode=mode end;lobbyState:FireClient(p,s)end end);workspace:SetAttribute("PlazaBuildSeconds",os.clock()-at)end)
 local backdrop=Instance.new("Part");backdrop.Name="Backdrop";backdrop.Size=Vector3.new(2048,1,2048);backdrop.Position=Vector3.new(0,Geometry.surfaceY-7,0);backdrop.Anchored=true;backdrop.CanCollide=false;backdrop.CanTouch=false;backdrop.CanQuery=false;backdrop.Material=Enum.Material.SmoothPlastic;backdrop.Color=Color3.fromRGB(9,13,18);backdrop.Parent=world
 local physics=game:GetService("PhysicsService");pcall(function()physics:RegisterCollisionGroup("FrontierCommanders")end);physics:CollisionGroupSetCollidable("FrontierCommanders","FrontierCommanders",false)
 local function characterAdded(p,c)
@@ -1183,7 +1258,9 @@ local function added(p)
     local stats=Instance.new("Folder");stats.Name="leaderstats";stats.Parent=p;for _,name in ipairs({"점유율","병력","골드"})do local v=Instance.new("NumberValue");v.Name=name;v.Parent=stats end
     p.CharacterAdded:Connect(function(c)characterAdded(p,c)end);task.spawn(function()p:LoadCharacterAsync()end)
     local watching=joined and type(join.TeleportData)=='table'and join.TeleportData.superCommanderSpectate
-    if type(watching)=='string'and #watching<=64 and not e.room then
+    local world,together,leader=worldField:arrival(p)
+    if world and not e.room then worldField.seat(p,e,together,leader)
+    elseif type(watching)=='string'and #watching<=64 and not e.room then
         task.spawn(function()
             local target
             for _=1,10 do for _,r in ipairs(rooms)do if r.globalMatch==watching then target=r;break end end;if target or p.Parent~=Players then break end;task.wait(1)end
@@ -1195,11 +1272,12 @@ local function added(p)
     task.spawn(function()careers:load(p.UserId);task.spawn(function()local paid=ranked:claim(p);if paid and p.Parent==Players then results:FireClient(p,{action='lobby',ok=true,message=string.format('지난 시즌 %s 랭크 보상 +%d 코인',require(pack.Core.RankedRules).bandName(paid.band),paid.coins)})end end);if p.Parent==Players then lobbyState:FireClient(p,lobbySnapshot(p.UserId));updates:FireClient(p,snapshot(e,true))end end)
     task.spawn(function()for attempt=1,3 do if rewards:recover(p.UserId)then break end;task.wait(attempt*2)end end)
 end
+pcall(function()workspace:SetAttribute("ServerReadySeconds",os.clock()-bootAt)end)
 Players.PlayerAdded:Connect(added);for _,p in ipairs(Players:GetPlayers())do added(p)end
 bigMaps.missing=function(p)local e=entries[p.UserId];if e and e.room and user(p.UserId)==p then updates:FireClient(p,snapshot(e,true))end end
 Players.PlayerRemoving:Connect(function(p)
     analytics:leaving(p);badgeSent[p.UserId]=nil
-    soloTransfer:leaving(p.UserId);liveMatches:leaving(p.UserId);bigMaps:leave(p);bigMaps.roster:leave(p)
+    soloTransfer:leaving(p.UserId);liveMatches:leaving(p.UserId);worldField:leaving(p.UserId);bigMaps:leave(p);bigMaps.roster:leave(p)
     if entries[p.UserId]and entries[p.UserId].observer then unobserve(entries[p.UserId],true)end
     local e=entries[p.UserId];task.spawn(function()queue:cancel(p.UserId,os.clock(),true)end)
     local party=parties[p.UserId];if party then for i,id in ipairs(party.users)do if id==p.UserId then table.remove(party.users,i);break end end;party.ready={};parties[p.UserId]=nil;if #party.users==1 then parties[party.users[1]]=nil elseif #party.users>0 then party.leader=party.users[1]end end
@@ -1240,6 +1318,7 @@ local function finish(room)
 end
 local lobbyTimer=0
 local function stepRoom(room,dt,now)
+        if room.warming then return end
         local s=room.session
         local okA,errA=pcall(analytics.room,analytics,room,now);if not okA then warn('TOYFRONT telemetry room error',room.id,errA)end
         if s.phase=='spawn'and room.drop then DropService.step(room,now,function(id,tile)
@@ -1394,6 +1473,7 @@ Run.Heartbeat:Connect(function(dt)
     if lobbyTimer>=1 then
         lobbyTimer=0
         local ok,err=pcall(lobbyTick,now);if not ok then warn('TOYFRONT lobby tick error',err)end
+        if worldField:hosting()and not shuttingDown then pcall(function()worldField:publish(worldField.rooms(),not full(false))end)end
     end
 end)
 require(services.OpsService).start({

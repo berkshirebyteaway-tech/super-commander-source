@@ -326,6 +326,22 @@ function M:reserve(id,m)
     local ok,code,privateId=pcall(function()return Teleport:ReserveServerAsync(Config.matchPlaceId)end)
     if ok then self:update({kind='ready',match=id,code=code,privateId=privateId})else self:update({kind='abort',match=id})end
     self.reserving[id]=nil
+    local s=ok and self.state;local ready=s and s.matches[id]
+    if ready and ready.phase=='ready'then
+        for uid,token in pairs(self.active)do local t=s.tickets[tostring(uid)]
+            if t and t.token==token and t.match==id then pcall(function()self:transfer(uid,ready,t)end)end
+        end
+    end
+end
+function M:hurry()
+    if next(self.arrivals)or next(self.reserving)or next(self.sending)then return true end
+    local s=self.state;if not s or not self.live then return false end
+    local now=os.time()
+    for uid,token in pairs(self.active)do
+        local ok,st=pcall(Model.status,s,uid,token,now)
+        if ok and st and(st.phase=='transferring'or st.remaining and st.remaining<=2)then return true end
+    end
+    return false
 end
 function M:transfer(id,m,ticket)
     local p=Players:GetPlayerByUserId(id);if not p or self.updating or self.sending[id]or self.cancelling[id]or os.clock()<(self.retryAt[id]or 0)then return end
@@ -484,7 +500,9 @@ function M:start(callbacks)
         if #Players:GetPlayers()>0 and (not self.live or next(self.active)or next(self.arrivals)or next(self.deferredCancels)or not callbacks.hasLobby or callbacks.hasLobby())then
             local ok,err=pcall(function()self:poll()end);if not ok then warn('TOYFRONT match coordinator',err)end
         end
-        task.wait(math.min((next(self.active)or next(self.arrivals))and 10 or 20,3*2^(self.failures or 0)))
+        local rest=math.min((next(self.active)or next(self.arrivals))and 10 or 20,3*2^(self.failures or 0))
+        if (self.failures or 0)==0 and self:hurry()then rest=1 end
+        task.wait(rest)
     end end)
 end
 return M

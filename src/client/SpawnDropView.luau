@@ -206,7 +206,7 @@ end
 function M:accept(d)
     self.drop=d;self.receivedAt=os.clock()
     self.party=Squad.members(d.players)
-    Colors.setTeams(d.players,self.ownTeam,self.version)
+    Colors.setTeams(d.players,self.ownTeam,self.version,self.state and self.state.multiplayer)
     for _,p in ipairs(d.players)do
         local pose=self.poses[p.id]or {x=p.x,y=p.y,altitude=p.altitude or 1,motion=Motion.new((p.userId or p.matchId or p.id)%4096)};pose.target=p;self.poses[p.id]=pose
         local model=self.models[p.id];local user=p.userId and Players:GetPlayerByUserId(p.userId);local c=user and user.Character

@@ -32,8 +32,8 @@ function M.hide()
 end
 function M.bind(ui)ui:GetAttributeChangedSignal('Phase'):Connect(function()if token then M.hide()end end);return M end
 function M.shown()return gui~=nil and gui.Enabled end
-function M.teleport(text)
-    M.show(text,20)
+function M.teleport(text,timeout)
+    M.show(text,timeout or 20)
     local card=hop()
     if card then local line=card:FindFirstChild('Status',true);if line and text then line.Text=L.text(text)end;card.Enabled=true end
     pcall(function()local ride=(card or gui):Clone();ride.Enabled=true;game:GetService('TeleportService'):SetTeleportGui(ride)end)

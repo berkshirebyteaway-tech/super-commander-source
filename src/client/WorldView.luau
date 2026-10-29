@@ -295,7 +295,7 @@ function M:setState(state)
     self.glints=self.glints or Glints.new(self.folder);Glints.setOwners(self.glints,glint)
     local styleChanged=signature~=self.collectionSignature;self.collectionSignature=signature
     local kinds={};for _,f in ipairs(state.factions or {})do kinds[f.id]=f.kind end
-    local recolor=FactionColors.setTeams(state.factions,state.player and state.player.team,state.version)
+    local recolor=FactionColors.setTeams(state.factions,state.player and state.player.team,state.version,state.multiplayer)
     for _,c in ipairs(self.chunks)do
         if not c.raster.factionKinds or recolor then c.raster.force=true end
         c.raster.factionKinds=kinds

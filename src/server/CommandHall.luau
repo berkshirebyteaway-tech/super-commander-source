@@ -19,7 +19,7 @@ local LOOK={
     L2_FloorSeamA={C.seam,Smooth},L2_FloorSeamB={C.seam,Smooth},
 }
 function M.create(parent)
-    local model=Instance.new('Model');model.Name='DeskPlaza';model:SetAttribute('ArtVersion','CommandHall2');model.Parent=parent
+    local model=Instance.new('Model');model.Name='DeskPlaza';model:SetAttribute('ArtVersion','CommandHall2')
     local function at(v,rot)return CFrame.new(H.world(v))*(rot or CFrame.identity)end
     local function finish(p,key)
         local look=LOOK[key]
@@ -127,6 +127,7 @@ function M.create(parent)
 
     model:SetAttribute('MeshesLoaded',loaded);model:SetAttribute('MeshesFailed',failed);model:SetAttribute('Fins',fins)
     model:SetAttribute('FloorTextCount',0);model:SetAttribute('PartCount',#model:GetDescendants())
+    model.Parent=parent
     return model
 end
 return M

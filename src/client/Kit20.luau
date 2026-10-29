@@ -423,6 +423,29 @@ function M.amount(parent,name,kind,text,size,color,opts)
     M.box(icon,0,0,size,size);M.box(l,size+5,0,tw+2,size)
     local w=size+5+tw;f.Size=UDim2.fromOffset(w,size);return f,w,l,icon
 end
+function M.rewardBadge(parent,name,amount,size,x,y,z,pop,up)
+    local h=size+11;up=up or 10;local ink=Color3.fromRGB(58,42,0)
+    local f=M.make('Frame',parent,{Name=name or 'RewardBadge',BackgroundColor3=C.gold,BorderSizePixel=0,Active=false,ZIndex=z or 5})
+    M.round(f,'pill');M.stroke(f,C.bg,2);f:SetAttribute('AllowOverlap',true)
+    local coin=M.icon(f,'coinGold',size+3,Color3.new(1,1,1),'Coin');coin.ZIndex=f.ZIndex+1
+    local l=M.num(f,'Value',amount,size,ink);l.FontFace=M.fonts[900]or l.FontFace;l.ZIndex=f.ZIndex+1
+    local tw=M.width(amount,size,l);local w=4+size+3+4+tw+9
+    M.box(coin,4,(h-size-3)/2,size+3,size+3);M.box(l,4+size+3+4,0,tw+2,h)
+    f.AnchorPoint=Vector2.new(.5,.5);M.box(f,x+6-w,y-up,w,h);f.Position+=UDim2.fromOffset(math.floor(w/2),math.floor(h/2))
+    if pop and not M.reduced then
+        local s=M.make('UIScale',f,{Scale=0});local a=Tween:Create(s,TweenInfo.new(.14,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Scale=1.15})
+        a.Completed:Once(function()Tween:Create(s,TweenInfo.new(.1,Enum.EasingStyle.Quad),{Scale=1}):Play()end)
+        task.delay(.12,function()if f.Parent then a:Play()end end)
+        for i,sp in ipairs({{w-4,-5,6},{w+5,4,4}})do
+            local k=M.make('Frame',f,{Name='Spark'..i,AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(255,243,196),BackgroundTransparency=1,BorderSizePixel=0,Rotation=45,ZIndex=f.ZIndex+2,Active=false})
+            M.box(k,sp[1],sp[2],sp[3],sp[3]);k.Position+=UDim2.fromOffset(sp[3]/2,sp[3]/2)
+            task.delay(.24+i*.08,function()if not k.Parent then return end
+                local on=Tween:Create(k,TweenInfo.new(.12),{BackgroundTransparency=0});on:Play()
+                on.Completed:Once(function()if k.Parent then Tween:Create(k,TweenInfo.new(.35),{BackgroundTransparency=1}):Play()end end)end)
+        end
+    end
+    return f,w,h
+end
 
 function M.avatar(parent,name,userId,size,ring,ringWidth)
     local img=M.make('ImageLabel',parent,{Name=name or 'Avatar',BackgroundColor3=Color3.fromRGB(31,58,77),BorderSizePixel=0,ScaleType=Enum.ScaleType.Crop})

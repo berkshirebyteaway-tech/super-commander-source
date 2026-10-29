@@ -500,9 +500,9 @@ function M:drawRanks20(w)
         y+=40
         if self.rankMode=='teams'then return self:drawTeams20(w,y)end
     end
-    if not phone and s.player then
+    if not phone and s.player and not s.observer and s.phase~='lost' then
         local p=s.player
-        word20(body,'Economy',string.format('내 생산  병력 +%s/s  골드 +%s/s',UI.troops(p.growth or 0),UI.number(p.income or 0)),12,K.colors.muted,700,2,y,w-4,24)
+        word20(body,'Economy',string.format('내 생산  병력 +%s/s  골드 +%s/s',UI.troops(math.max(0,p.growth or 0)),UI.number(p.income or 0)),12,K.colors.muted,700,2,y,w-4,24)
         y+=28
     end
     local landX=w-118;columns20(body,y,w,'지휘관',landX);y+=22

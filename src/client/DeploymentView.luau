@@ -15,7 +15,7 @@ local C=K.colors
 local M={};M.__index=M
 local function SF()return require(script.Parent.LobbyHomeB).START_FLOW end
 local function clock(n)local s=math.max(0,math.ceil(n or 0));return string.format('%d:%02d',s//60,s%60)end
-local function title(f)return (Maps.meta(f.rules.map)or {}).label or f.rules.map end
+local function title(f)return f.kind=='world'and '난입전'or (Maps.meta(f.rules.map)or {}).label or f.rules.map end
 local function modeKey(f)return f.rules.mode=='teams'and 'teams'or f.rules.mode=='coop'and 'coop'or 'ffa'end
 local function teamWord(r,plan)
     if r.teamFormat==TeamFormat.humansVsNations then return '사람 대 국가'end
@@ -24,6 +24,7 @@ local function teamWord(r,plan)
 end
 local function modeText(f)
     if f.kind=='custom'then return '커스텀'end
+    if f.kind=='world'then return '개인전'end
     return (f.rules.special and '특수 'or '')..(f.rules.mode=='teams'and teamWord(f.rules,f.teamPlan)or f.rules.mode=='coop'and '협동'or '개인전')
 end
 local function sideCap(r)
@@ -85,6 +86,7 @@ function M:update(directory,queue,options)
     self.practicing=options and options.practice
     options=options or {};self.inMenu=options.menu~=false;self.reduced=options.reduced;self.busy=options.busy
     self.queue=queue;self.party=options.party;self.userId=options.userId;self.liveCount=options.live and #options.live or 0
+    if options.world~=self.world then self.world=options.world;self.worldAt=os.clock()end
     if directory and directory~=self.directorySource then
         self.directorySource=directory
         self.fields=directory.fields or {};self.upcoming=directory.next or {};self.updated=os.clock();self.directoryNow=directory.now;self.directoryError=directory.unavailable
@@ -105,12 +107,77 @@ function M:inspectSuggestion()
     elseif self.suggested and self.lookup and self.lookup[self.suggested]then self:open('official',self.suggested)end
 end
 function M:join(id)
+    if id=='world'then self:joinWorld();return end
     local f=self.lookup and self.lookup[id];if not f or self.busy or self.directoryError then return end
     require(script.Parent.TelemetryClient).emit('battlefield_selected',{entry=self.quickJoining and 'quick'or 'list',format=f.rules.mode=='teams'and 'team'or f.rules.mode=='coop'and 'coop'or 'ffa',field_id=f.id,map_key=f.rules.map})
     if self.queue and self.queue.field==id then if f.kind=='custom'then self.callbacks.room()end;return end
     if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ready();return end
     if not PartyPlay.assess(f,self.party,self.queue and self.queue.field)then require(script.Parent.TelemetryStep).step('lobby','fieldBlocked',{item=f.kind=='custom'and 'custom'or 'official',reason='party'});return end
     self.callbacks.join({field=f.id,revision=f.revision,quick=self.quickJoining or nil})
+end
+function M:joinWorld()
+    local f=self.lookup and self.lookup.world;if not f or self.busy then return end
+    require(script.Parent.TelemetryStep).step('lobby','world',{result='selected',count=f.count})
+    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ready();return end
+    if self.callbacks.world then self.callbacks.world()end
+end
+function M:worldField()
+    local w=self.world;if not w or self.filter=='ranked'or self.filter=='custom'or self.sub=='coop'then return nil end
+    local f=self.worldRow or {id='world',kind='world',phase='running',rules={map='world',mode='ffa',maximum=20}};self.worldRow=f
+    f.count=w.humans or 0;f.rules.maximum=w.seats or 20
+    f.remaining=w.left and w.left+(self.worldAt or os.clock())-self.updated or nil
+    return f
+end
+local function tile(parent,name,pt,ph)
+    local t={}
+    t.frame=K.make('Frame',parent,{Name=name,BackgroundColor3=C.panel,BorderSizePixel=0,ZIndex=3});K.round(t.frame,pt and 10 or 8)
+    t.stroke=K.stroke(t.frame,C.line,1,0,true)
+    t.badge=K.make('Frame',t.frame,{Name='Badge',BorderSizePixel=0,ZIndex=4});K.round(t.badge,pt and 8 or 6)
+    t.title=K.text(t.frame,'Title','',pt and 16 or ph and 13 or 17,C.ink,800);t.title.ZIndex=4
+    t.sub=K.num(t.frame,'Sub','',pt and 13 or 12,C.muted);t.sub.ZIndex=4
+    return t
+end
+function M:paintSplit(world,fmt,y,w,h,elapsed)
+    local pt,ph=fmt=='pt',fmt=='ph'
+    local sp=self.split
+    if not sp or sp.fmt~=fmt then
+        if sp then sp.frame:Destroy()end
+        sp={fmt=fmt}
+        sp.frame=K.make('Frame',self.list,{Name='SplitRow',BackgroundTransparency=1,BorderSizePixel=0,ZIndex=3})
+        sp.ranked=tile(sp.frame,'Ranked',pt,ph);sp.ranked.frame.BackgroundTransparency=.35
+        sp.ranked.badge.BackgroundColor3=C.gold;sp.ranked.badge.BackgroundTransparency=.82
+        sp.ranked.icon=K.icon(sp.ranked.badge,'ranked',pt and 24 or ph and 18 or 24,C.gold,'Trophy');sp.ranked.icon.ImageTransparency=.45;sp.ranked.icon.ZIndex=5
+        sp.ranked.title.Text='1대1 랭크';sp.ranked.title.TextColor3=C.muted;sp.ranked.sub.Text='곧 열려요'
+        sp.world=tile(sp.frame,'World',pt,ph)
+        sp.world.press=K.button(sp.world.frame,'Join',{kind='none',r=pt and 10 or 8},function()self:joinWorld()end)
+        sp.world.press.button.Size=UDim2.fromScale(1,1);sp.world.press.button.ZIndex=6;sp.world.press.minHit=0
+        sp.world.badge.BackgroundColor3=C.accent
+        sp.world.icon=K.icon(sp.world.badge,'globe',pt and 26 or ph and 20 or 26,C.bg,'Globe');sp.world.icon.ZIndex=5
+        sp.world.title.Text='난입전'
+        sp.world.dot=K.make('Frame',sp.world.frame,{Name='Live',BackgroundColor3=C.danger,BorderSizePixel=0,ZIndex=4});K.round(sp.world.dot,4)
+        sp.world.clock=K.num(sp.world.frame,'Clock','',pt and 13 or 12,C.muted);sp.world.clock.ZIndex=4
+        self.split=sp
+    end
+    sp.frame.Visible=true;K.box(sp.frame,0,y,w,h)
+    local gap=pt and 6 or ph and 5 or 10;local tw=math.floor((w-gap)/2)
+    local pad=pt and 11 or ph and 8 or 13;local bs=pt and 44 or ph and 32 or 44
+    for i,t in ipairs({sp.ranked,sp.world})do
+        K.box(t.frame,i==1 and 0 or w-tw,0,tw,h)
+        K.box(t.badge,pad,(h-bs)/2,bs,bs);local ic=t.icon.Size.X.Offset;K.box(t.icon,(bs-ic)/2,(bs-ic)/2,ic,ic)
+        local tx=pad+bs+(pt and 10 or 12);local ts=t.title.TextSize;local ss=t.sub.TextSize;local ty=math.floor((h-ts-ss-8)/2)
+        K.box(t.title,tx,ty,tw-tx-pad,ts+3)
+        if i==1 then K.box(t.sub,tx,ty+ts+5,tw-tx-pad,ss+3)end
+    end
+    local wt=sp.world;local ts=wt.title.TextSize;local ss=wt.sub.TextSize;local ty=math.floor((h-ts-ss-8)/2);local tx=pad+bs+(pt and 10 or 12)
+    local count=tostring(world.count)..'/'..tostring(world.rules.maximum)
+    wt.sub.Text=count;wt.sub.TextColor3=C.ink
+    K.box(wt.dot,tx,ty+ts+5+(ss+3-8)/2,8,8)
+    local cw=K.width(count,ss,wt.sub)+2;K.box(wt.sub,tx+14,ty+ts+5,cw,ss+3)
+    local counting=world.remaining~=nil and not pt
+    wt.clock.Visible=counting;if counting then wt.clock.Text=clock(world.remaining-elapsed);K.box(wt.clock,tx+14+cw+10,ty+ts+5,56,ss+3)end
+    local on=not self.busy;wt.press:setEnabled(on,true)
+    wt.stroke.Color=C.accent;wt.stroke.Thickness=2
+    return sp
 end
 function M:quickPick()
     if self.directoryError then return nil end
@@ -124,7 +191,7 @@ end
 function M:action(f)
     local q=self.queue and self.queue.field==f.id;local party=self.party;local grouped=party and #party.users>1
     local follower=grouped and party.leader~=self.userId;local ready=follower and Party.isReady(party,self.userId)
-    local text=q and (f.kind=='custom'and '방 보기'or '참가 중')or f.count>=f.rules.maximum and '만석'or self.queue and '옮겨 참가'or f.kind=='custom'and '방 참가'or '참가'
+    local text=q and (f.kind=='custom'and '방 보기'or '참가 중')or f.count>=f.rules.maximum and '만석'or self.queue and '옮겨 참가'or f.kind=='custom'and '방 참가'or f.kind=='world'and '난입'or '참가'
     local on=not self.busy and not self.directoryError and (q and f.kind=='custom'or not q and f.count<f.rules.maximum)
     if grouped and not q then
         text=follower and (ready and '준비 완료'or '준비')or '파티 참가'
@@ -132,7 +199,7 @@ function M:action(f)
     end
     if grouped and not q and f.kind~='custom'and #party.users>sideCap(f.rules)then text='파티 인원 초과';on=false end
     if f.teamPlan and f.teamPlan.locked and not q then text='출발 준비';on=false end
-    local plain=text=='참가'or text=='방 참가'or text=='옮겨 참가'or text=='파티 참가'
+    local plain=text=='참가'or text=='난입'or text=='방 참가'or text=='옮겨 참가'or text=='파티 참가'
     return text,on,plain,q
 end
 
@@ -247,6 +314,7 @@ function M:render()
     local fmt=self.fmt;local pt,ph=fmt=='pt',fmt=='ph'
     local elapsed=os.clock()-self.updated;local ranked=self.filter=='ranked'
     self.lookup={};for _,f in ipairs(self.fields or {})do if PartyPlay.assess(f,self.party,self.queue and self.queue.field)then self.lookup[f.id]=f end end
+    local world=self:worldField();self.lookup.world=world
     if self.watchButton then
         local n=self.liveCount or 0
         if self.watchCount~=n then self.watchCount=n;self:buildHead()end
@@ -264,8 +332,14 @@ function M:render()
     local rh=pt and 76 or ph and 50 or 72;local gap=pt and 6 or ph and 5 or 10
     local party=self.party;local grouped=party and #party.users>1;local follower=grouped and party.leader~=self.userId
     local mineId=self.queue and self.queue.field
-    local lit=mineId or (not self.queue and pick and pick.id)
+    local lit=mineId or (not self.queue and not world and pick and pick.id)
     local y,index,rows=0,0,{}
+    if self.split then self.split.frame.Visible=false end
+    if world then
+        local sp=self:paintSplit(world,fmt,y,lw,rh,elapsed)
+        require(script.Parent.TelemetryStep).change('worldRow','lobby','world',{result='shown',count=world.count})
+        table.insert(rows,sp.frame);y+=rh+gap
+    end
     if not ranked then
         for _,id in ipairs(self.order)do local f=self.lookup[id]
             if f and (self.filter=='all'or self.filter==f.kind)and (self.sub=='all'or self.sub=='pvp'and f.rules.mode~='coop'or self.sub==f.rules.mode)then
@@ -277,13 +351,14 @@ function M:render()
         end
     end
     require(script.Parent.TelemetryStep).change('fieldsEmpty','lobby','fieldsEmpty',{item=require(script.Parent.TelemetryStep).code(tostring(self.filter or 'all')..'_'..tostring(self.sub or 'any')),total=index,result=index==0 and 'shown'or 'closed',reason=index==0 and (self.directoryError and 'network'or grouped and 'party'or 'none')or nil})
+    local top=y
     self.empty.Visible=index==0
     self.empty.Text=ranked and '랭크전 준비 중'or self.directoryError and '연결 확인 중…'or grouped and '파티 전장 0'or self.filter=='custom'and '열린 방 0'or '전장 목록을 확인하는 중…'
-    K.box(self.empty,0,16,lw,40)
+    K.box(self.empty,0,top+16,lw,40)
     local ec=index==0 and (self.filter=='custom'or grouped)and not self.directoryError and not ranked
     self.emptyCreate.button.Visible=ec
-    if ec then self.emptyCreate:setText(self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
-    S.canvas(self.list,index==0 and (ec and 116 or 64)or y-gap)
+    if ec then self.emptyCreate:setText(self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),top+64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
+    S.canvas(self.list,index==0 and top+(ec and 116 or 64)or y-gap)
     if want then
         if not self.frame.Visible or self.leavingNow or self.entering then
             local fresh=not self.frame.Visible or self.leavingNow

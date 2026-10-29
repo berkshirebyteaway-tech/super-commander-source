@@ -111,11 +111,13 @@ local function content(face,ink,icon,iconSize,text,fs,amount,amountSize,align)
     local w,h=face.Size.X.Offset,face.Size.Y.Offset;key=key..w..'x'..h
     if face:GetAttribute('Content20')==key then
         for _,o in ipairs(face:GetChildren())do if o:GetAttribute('Part20')then
-            if o:IsA('TextLabel')then o.TextColor3=ink elseif o.Name=='Amount'then local val=o:FindFirstChild('Value');if val then val.TextColor3=C.gold end end end end
+            if o:IsA('TextLabel')then o.TextColor3=ink elseif o.Name=='Amount'then local val=o:FindFirstChild('Value');if val then val.TextColor3=C.gold end
+            elseif o.Name=='Reward'then local val=o:FindFirstChild('Value');if val then val.TextColor3=Color3.fromRGB(58,42,0)end end end end
         return
     end
     face:SetAttribute('Content20',key)
     for _,o in ipairs(face:GetChildren())do if o:GetAttribute('Part20')then o:Destroy()end end
+    local badge=align=='badge'and amount;if badge then amount=nil;align=nil end
     local parts={}
     if icon then local i=K.icon(face,icon,iconSize,ink,'Icon');i:SetAttribute('Part20',true);table.insert(parts,{o=i,w=iconSize,h=iconSize})end
     local label
@@ -126,6 +128,9 @@ local function content(face,ink,icon,iconSize,text,fs,amount,amountSize,align)
     if amount then local a,aw=K.amount(face,'Amount','coin',amount,amountSize,C.gold);a:SetAttribute('Part20',true);table.insert(parts,{o=a,w=aw,h=amountSize})end
     local total=0;for i,p in ipairs(parts)do total+=p.w+(i>1 and(p.o.Name=='Amount'and 8 or 8)or 0)end
     local x=align=='left'and 12 or math.floor((w-total)/2)
+    local r,rw;if badge then local pop=not face:GetAttribute('BadgePopped');face:SetAttribute('BadgePopped',true)
+        r,rw=K.rewardBadge(face,'Reward',badge,amountSize,w,0,face.ZIndex+5,pop,8);r:SetAttribute('Part20',true)
+        local free=w-(rw-6)-6;if x+total>free then x=math.max(10,math.floor((free-total)/2))end end
     for i,p in ipairs(parts)do if i>1 then x+=8 end
         if p.o.Name=='Amount'and align=='left'then x=w-12-p.w end
         K.box(p.o,x,math.floor((h-p.h)/2),p.w,p.h);x+=p.w end
@@ -299,7 +304,7 @@ function M:update(state,screenWidth)
     for _,l in ipairs({self.Peak,self.Sep,self.Time})do l.TextSize=S.fs;l.TextColor3=C.muted end
     local pw,tw,sw=width(self.Peak.Text,S.fs,self.Peak),width(self.Time.Text,S.fs,self.Time),width('|',S.fs,self.Sep)
     local total=S.is+8+pw+14+sw+14+S.is+8+tw;local sx=S.left and lx or math.floor((cw-total)/2)
-    local sy=S.y+lift;local srowY=v.rank==nil and cp==nil and(R.y+lift+math.floor((R.h-S.h)/2))or sy
+    local sy=S.y+lift;local srowY=v.rank==nil and cp==nil and not S.left and(R.y+lift+math.floor((R.h-S.h)/2))or sy
     K.box(self.StatsRow,sx,srowY,total+4,S.h)
     local x=0;K.box(self.peakIcon,x,math.floor((S.h-S.is)/2),S.is,S.is);x+=S.is+8;K.box(self.Peak,x,0,pw+2,S.h);x+=pw+14
     K.box(self.Sep,x,0,sw+2,S.h);x+=sw+14;K.box(self.timeIcon,x,math.floor((S.h-S.is)/2),S.is,S.is);x+=S.is+8;K.box(self.Time,x,0,tw+2,S.h)
@@ -581,7 +586,7 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
             else local f=adopt(it.b,'plain');place(it.b,x,it.b.Parent==a and 0 or ay,w,R1.h);content(f,C.ink,it.icon,R1.is,L.text(it.text),R1.fs)end end
         if slot then local I=G.invite;local ask=slot.Name=='Invite'
             local f=adopt(slot,ask and 'goldo'or 'plain');place(slot,p,I.y+lift-ay,cw-p*2,I.h);K.round(f,10)
-            content(f,ask and C.gold or C.ink,ask and 'invite'or 'share',I.is,L.text(ask and '친구 초대'or '결과 공유'),I.fs,ask and v.invite and '+'..commas(v.invite.coins)or nil,I.coin,'left')end
+            content(f,ask and C.gold or C.ink,ask and 'invite'or 'share',I.is,L.text(ask and '친구 초대'or '결과 공유'),I.fs,ask and v.invite and '+'..commas(v.invite.coins)or nil,I.coin,'badge')end
     else
         local x=cw-p
         for i=#icons,1,-1 do local it=icons[i];x-=R1.icon
@@ -594,7 +599,7 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
             local f=adopt(slot,ask and 'goldo'or 'plain')
             local w=ask and R1.invW or math.min(R1.invW,x-p)
             place(slot,p,0,w,R1.h)
-            content(f,ask and C.gold or C.ink,ask and 'invite'or 'share',R1.is,L.text(ask and '친구 초대'or '결과 공유'),R1.fs,ask and v.invite and commas(v.invite.coins)or nil,R1.coin)end
+            content(f,ask and C.gold or C.ink,ask and 'invite'or 'share',R1.is,L.text(ask and '친구 초대'or '결과 공유'),R1.fs,ask and v.invite and '+'..commas(v.invite.coins)or nil,R1.coin,'badge')end
     end
 end
 

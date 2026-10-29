@@ -11,6 +11,7 @@ local Requests=require(pack.Core.RequestLifecycle)
 local Teleport=game:GetService('TeleportService')
 local Pending=require(script.Parent.PressPending)
 local Veil=require(script.Parent.TransitionVeil)
+local Depart=require(script.Parent.DepartScreen)
 local PageLayout=require(pack.Core.OutgamePresentation)
 local Currency=require(script.Parent.CurrencyChip)
 local M={};M.__index=M
@@ -79,6 +80,7 @@ function M.new(root,notify,callbacks)
         room=function()self:openPage('room')end,
         code=function()self:openPage('joinCode')end,
         join=function(ticket)self:request('joinField',ticket)end,
+        world=function()self:request('play')end,
         cancel=function()self:request('cancel')end,
         practice=function()self:request('practice')end,
         partyCoop=function(hard)require(script.Parent.CustomDeployment).party(self,hard)end,
@@ -90,6 +92,7 @@ function M.new(root,notify,callbacks)
     self.matchRoom=require(script.Parent.MatchRoom).new(root,{
         ready=function(on)self:request('fieldReady',{ready=on})end,
         leave=function()self:request('cancel')end,
+        depart=function(q)self:depart(q,'countdown')end,
         insets=function()return {left=self.topbarLeft or 12,right=self.topbarRight or 12,top=self.topbarHeight or 0}end,
         shown=function(on)self:roomCover(on)end,
     })
@@ -277,7 +280,7 @@ function M:request(action,value,after,handle)
         local ok,r=pcall(function()return pack.LobbyRequest:InvokeServer(action,value)end)
         if not self.requests:complete(operation)then return end
         Pending.finish(pend);self.busy=false
-        if not ok or not r.ok then Veil.hide()elseif action=='play'or action=='again'then Veil.settle(3)end
+        if not ok or not r.ok then Veil.hide()elseif r.teleport then Veil.teleport('난입전으로 이동 중…')elseif action=='play'or action=='again'then Veil.settle(3)end
         if not ok then require(script.Parent.TelemetryStep).step('lobby','requestFailed',{item=type(action)=='string'and action or nil,reason='network'});self.notify('연결 끊김 / 다시 시도',true);self:refresh();return end
         if r.state and not M.stale(r.state,self.data)then self.data=r.state;self.queueUpdated=os.clock()end
         if handle and handle(r)then self:refresh();return end
@@ -298,8 +301,18 @@ function M:announce(q)
     local key=q and q.mode=='pvp'and q.phase=='transferring'and 'go'or nil
     local previous=self.queueKey;self.queueKey=key
     require(script.Parent.LobbyMusic).queue(key)
-    if previous=='go'and key~='go'then Veil.hide()end
-    if key=='go'and previous~='go'then Veil.teleport('전장으로 이동 중…')end
+    if q and q.room then self.lastRoom=q end
+    if previous=='go'and key~='go'then Veil.hide();Depart.hide()end
+    if key=='go'and previous~='go'then
+        local r=self.lastRoom
+        if r and r.field==q.field then self:depart(r,'transfer');Depart.ride()else Veil.teleport('전장으로 이동 중…',90)end
+    end
+    if Depart.shown()and key~='go'and(self.inMenu==false or not q and Depart.age()>3 or q and q.room and q.room.missing~=nil and Depart.age()>1 or Depart.age()>12)then
+        require(script.Parent.TelemetryStep).step('queue','departBack',{value=math.floor(Depart.age())});Depart.hide()
+    end
+end
+function M:depart(r,via)
+    if Depart.show({rules=r.rules,members=r.members,ai=r.ai})then require(script.Parent.TelemetryStep).step('queue','departShown',{item=via,count=r.count})end
 end
 function M:practiceBadge()
     local s=self.data;local q=s and s.queue
@@ -354,7 +367,7 @@ function M:refreshBody()
     if self.drawnMap~=self.map then self.drawnMap=self.map;self.raster:setPreview(Maps.preview(self.map));task.defer(function()self.raster:fit();self.raster:draw()end)end
     if self.matchRoom then local prefs=self.account.preferences or {};local since=os.clock()-(self.queueUpdated or os.clock())
         self.matchRoom:update(q,{menu=self.inMenu~=false,page=self.page,practice=s and s.practice,remaining=q and q.remaining and q.remaining-since,elapsed=since,busy=self.busy,reduced=prefs.reducedEffects})end
-    if self.deployment then local prefs=self.account.preferences or {};self.deployment:update(s and s.battlefields,q,{menu=self.inMenu~=false,practice=s and s.practice,reduced=prefs.reducedEffects,busy=self.busy,party=party,userId=Players.LocalPlayer.UserId,live=s and s.live,recent='최근 / '..(Maps.meta(self.map)or Maps.catalog[1]).label..' / '..({Easy='쉬움',Medium='보통',Hard='어려움',Impossible='불가능'})[self.settings.difficulty or 'Medium']})end
+    if self.deployment then local prefs=self.account.preferences or {};self.deployment:update(s and s.battlefields,q,{menu=self.inMenu~=false,practice=s and s.practice,reduced=prefs.reducedEffects,busy=self.busy,party=party,userId=Players.LocalPlayer.UserId,live=s and s.live,world=s and s.world,recent='최근 / '..(Maps.meta(self.map)or Maps.catalog[1]).label..' / '..({Easy='쉬움',Medium='보통',Hard='어려움',Impossible='불가능'})[self.settings.difficulty or 'Medium']})end
     if self.teamRoster and self.teamRoster.frame.Visible then
         local field=q and q.field==self.teamRoster.id and q or nil
         if not field then for _,candidate in ipairs(s and s.battlefields and s.battlefields.fields or {})do if candidate.id==self.teamRoster.id then field=candidate;break end end end
@@ -483,6 +496,7 @@ function M:setScreen(menu)
     self.hiddenDrawn=nil
     self.frame.Visible=menu and not self.roomCovered;self.inMenu=menu;if not menu and self.page=='room'then self:closePage()end
     if not menu and self.matchRoom then self.matchRoom:show(false)end
+    if not menu then Depart.hide()end
     self:layout()
     if back then self:refresh()end
 end

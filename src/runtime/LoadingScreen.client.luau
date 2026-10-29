@@ -144,6 +144,31 @@ pcall(function()
     local was=TS:GetArrivingTeleportGui();was=was and was:FindFirstChild("Status",true)
     if was and was:IsA("TextLabel")and was.Text~=""then status.Text=was.Text end
 end)
+local depart
+pcall(function()
+    local was=game:GetService("TeleportService"):GetArrivingTeleportGui()
+    if was and was.Name=="FrontierDepart"then depart=was:Clone();depart.DisplayOrder=51;depart.Enabled=true;depart.Parent=playerGui end
+end)
+if depart then task.spawn(function()
+    local steps=depart:FindFirstChild("Steps",true);local faces=depart:FindFirstChild("Faces",true)
+    local function step(i)return steps and steps:FindFirstChild("Step"..i)end
+    local function set(i,p,color)local st=step(i);if not st then return end;st.Track.Fill.Size=UDim2.fromScale(math.clamp(p,0,1),1);if color then st.Label.TextColor3=color end end
+    set(1,1,ink);set(2,1,ink);set(3,0,accent)
+    local total=0;for _,f in ipairs(faces and faces:GetChildren()or {})do if f:GetAttribute("UserId")then total+=1 end end
+    local mapFrom
+    while depart.Parent do
+        local here=0
+        for _,f in ipairs(faces and faces:GetChildren()or {})do local id=f:GetAttribute("UserId")
+            if id then local on=Players:GetPlayerByUserId(id)~=nil;if on then here+=1 end
+                f.ImageTransparency=on and 0 or .55;local ring=f:FindFirstChild("Ring");if ring then ring.Transparency=on and 0 or .75 end end end
+        local s3=step(3);if s3 then local base=s3.Label:GetAttribute("Base")or s3.Label.Text;s3.Label:SetAttribute("Base",base);s3.Label.Text=string.format("%s %d/%d",base,here,math.max(total,here))end
+        local ui=playerGui:FindFirstChild("FrontierNativeUI");local building=ui and type(ui:GetAttribute("LoadingMap"))=="string"and ui:GetAttribute("LoadingMap")~=""
+        if (total>0 and here>=total)or building then mapFrom=mapFrom or os.clock()end
+        if mapFrom then set(3,1,ink);set(4,.2+.75*(1-math.exp(-(os.clock()-mapFrom)/6)),accent)
+        else set(3,total>0 and here/total or .5)end
+        task.wait(.2)
+    end
+end)end
 pcall(function()
     local hop=gui:Clone();hop.Name="FrontierTeleport";hop.Enabled=false
     local hm=hop.Cover.Column
@@ -217,5 +242,14 @@ for _,o in ipairs(cover:GetDescendants())do
     elseif o:IsA("UIStroke")then TweenService:Create(o,fade,{Transparency=1}):Play()end
 end
 TweenService:Create(cover,fade,{BackgroundTransparency=1}):Play()
+if depart and depart.Parent then
+    for _,o in ipairs(depart:GetDescendants())do
+        if o:IsA("TextLabel")then TweenService:Create(o,fade,{TextTransparency=1}):Play()
+        elseif o:IsA("ImageLabel")then TweenService:Create(o,fade,{ImageTransparency=1,BackgroundTransparency=1}):Play()
+        elseif o:IsA("GuiObject")then TweenService:Create(o,fade,{BackgroundTransparency=1}):Play()
+        elseif o:IsA("UIStroke")then TweenService:Create(o,fade,{Transparency=1}):Play()end
+    end
+end
 task.wait(.4)
+if depart then depart:Destroy()end
 gui:Destroy()

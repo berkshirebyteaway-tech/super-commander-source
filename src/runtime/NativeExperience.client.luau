@@ -1991,6 +1991,7 @@ UIS.InputBegan:Connect(function(input,processed)
     elseif armsUI.drop.active then if input.KeyCode==Enum.KeyCode.Q or input.KeyCode==Enum.KeyCode.E then renderer:zoom(input.KeyCode==Enum.KeyCode.E and .83 or 1/.83)end;return
     elseif armsUI.motionWheel.frame.Visible then return
     elseif armsUI.sheets:key(input,armsUI.shiftHeld()) then return
+    elseif state and (state.observer or state.phase=='lost') and not table.find({Enum.KeyCode.Q,Enum.KeyCode.E,Enum.KeyCode.Space,Enum.KeyCode.H,Enum.KeyCode.L,Enum.KeyCode.X},input.KeyCode) then return
     elseif table.find({Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine,Enum.KeyCode.Zero},input.KeyCode) then
         chooseBuild(armsUI.rules.buildable[table.find({Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine,Enum.KeyCode.Zero},input.KeyCode)])
     elseif input.KeyCode==Enum.KeyCode.C or input.KeyCode==Enum.KeyCode.V then

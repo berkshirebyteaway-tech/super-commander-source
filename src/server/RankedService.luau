@@ -4,6 +4,7 @@ local Core=script and game.ReplicatedStorage.FrontierNative.Core
 local Rules=if Core then require(Core.RankedRules)else require('../core/RankedRules')
 local Season=if Core then require(Core.MonthlySeason)else require('../core/MonthlySeason')
 local Outgame=if Core then require(Core.OutgameRules)else require('../core/OutgameRules')
+local War=if Core then require(Core.ClanWarRules)else require('../core/ClanWarRules')
 local BoardWriter=if script then require(script.Parent.RankedBoardWriter)else require('./RankedBoardWriter')
 local S={};S.__index=S
 S.boardSize=50
@@ -102,6 +103,7 @@ function S:level(id)
 end
 function S:joinNow(queue,ids,ladder,now)
     if not self:allowed()then return false,'랭크전은 곧 열려요.'end
+    if ladder=='clanwar'and not War.open then return false,'클랜전은 곧 열려요.'end
     if type(ids)~='table'or #ids<1 or #ids>(ladder=='clanwar'and 5 or 2)then return false,ladder=='clanwar'and '클랜전은 클랜원 2~5명이 파티로 함께 참가해요.'or '랭크 전장을 다시 골라 주세요.'end
     local unique={};for _,id in ipairs(ids)do
         if type(id)~='number'or id%1~=0 or id==math.huge or unique[id]then return false,'랭크 전장을 다시 골라 주세요.'end

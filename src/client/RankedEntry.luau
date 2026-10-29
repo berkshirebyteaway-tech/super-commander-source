@@ -190,8 +190,11 @@ function M.draw(lobby,p,w)
     lobby.rankedTab=lobby.rankedTab or 'board'
     y+=tabs(lobby,p,{{'board','순위'},{'rewards','시즌 보상'},{'rules','규칙'}},lobby.rankedTab,2,y,cw,'rankedTab','rankedTab')+6
     if lobby.rankedTab=='board'then
+        local War=require(game.ReplicatedStorage.FrontierNative.Core.ClanWarRules)
+        if lobby.rankedBoard=='clan'and not War.open then lobby.rankedBoard=nil end
         lobby.rankedBoard=lobby.rankedBoard or '1v1'
-        y+=tabs(lobby,p,{{'1v1','1대1'},{'2v2','2대2'},{'ffa','개인전'},{'clan','클랜전'}},lobby.rankedBoard,2,y,cw,'rankedBoard','rankedBoard')+4
+        local boards={{'1v1','1대1'},{'2v2','2대2'},{'ffa','개인전'}};if War.open then table.insert(boards,{'clan','클랜전'})end
+        y+=tabs(lobby,p,boards,lobby.rankedBoard,2,y,cw,'rankedBoard','rankedBoard')+4
         local which=lobby.rankedBoard
         if which=='clan'then
             local cw2=data.clanWar;local rows=cw2 and cw2.board or {}

@@ -39,8 +39,8 @@ function M:place(lane,w,h,touch)
     if not self.v2 then UI.box(self.frame,lane.x,lane.y,lane.w,48);return end
     local fmt=require(script.Parent.MatchSheet).format(w,h,touch)
     local y,height=lane.y,fmt=='pc'and 48 or 40
-    if fmt=='ph'and lane.x<=12 then
-        y=math.max(y,84)
+    if lane.x<=12 then
+        if fmt=='ph'then y=math.max(y,84)end
         local parent=self.frame.Parent;local chip=parent and parent:FindFirstChild('CampaignTask20')
         if chip and chip.Visible then y=math.max(y,chip.Position.Y.Offset+chip.Size.Y.Offset+6)end
     end

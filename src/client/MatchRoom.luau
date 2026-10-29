@@ -248,9 +248,26 @@ function M:build(fmt,W,H,teams,special,mods,teamCount)
     end
     local map=K.map(c,'Map',r.map,lw,mh,8);K.box(map,L0+1,my+1,lw,mh);K.stroke(map,C.line,1,0,false)
     ui.map=map
-    local cap=K.text(c,'Until','출발까지',lfs,C.muted,700);K.box(cap,L0,cy,160,lh)
+    local cap=K.text(c,'Until','출발까지',lfs,C.muted,700);K.box(cap,L0,cy,160,lh);ui.until_=cap
     local big=num(c,'Clock','0:00',nfs,C.ink);K.box(big,L0,cy+ndy,200,nfs);ui.clock=big;ui.clockY,ui.clockFs=cy+ndy,nfs
     local barY=cy+ndy+nfs-barH
+    do
+        local sfs=pc and 34 or ph and 20 or 28;local sy=cy+ndy+math.floor((nfs-barH-8-sfs)/2)
+        local seek=K.text(c,'Seeking','상대 찾는 중',sfs,C.ink,900);local sw=width(seek.Text,sfs,seek)
+        K.box(seek,L0,sy,sw+2,sfs+4);ui.seek=seek
+        local dots={};local ds=pc and 10 or 7;local dg=pc and 8 or 6
+        for i=1,3 do local d=K.make('Frame',c,{Name='SeekDot'..i,BackgroundColor3=C.accent,BorderSizePixel=0,BackgroundTransparency=(i-1)*.3});K.round(d,'pill')
+            K.box(d,L0+sw+(pc and 16 or 10)+(i-1)*(ds+dg),sy+math.floor((sfs+4-ds)/2),ds,ds);dots[i]=d
+            if not K.reduced then Tween:Create(d,TweenInfo.new(.45,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,(i-1)*.15),{BackgroundTransparency=.75}):Play()end
+        end
+        ui.seekDots=dots
+        local rs=math.max(20,nfs-barH-8);local radar=K.make('Frame',c,{Name='Radar',BackgroundColor3=C.accent,BackgroundTransparency=.92,BorderSizePixel=0});K.round(radar,'pill')
+        K.stroke(radar,C.accent,pc and 2 or 1.5,.35,true);K.box(radar,L0+lw-rs,cy+ndy,rs,rs)
+        local sweep=K.make('Frame',radar,{Name='Sweep',BackgroundColor3=C.accent,BorderSizePixel=0,Size=UDim2.fromScale(1,1)});K.round(sweep,'pill')
+        local g=K.make('UIGradient',sweep,{Name='Beam',Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,1),NumberSequenceKeypoint.new(.75,.55),NumberSequenceKeypoint.new(1,.2)})})
+        if not K.reduced then Tween:Create(g,TweenInfo.new(2.4,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1),{Rotation=360}):Play()end
+        ui.radar=radar
+    end
     ui.bar=K.fillBar(c,'ReadyBar',{p=0,fill=C.accent,track=C.raised});K.box(ui.bar.frame,L0+lw-barW,barY,barW,barH)
     ui.readyY,ui.readyH,ui.readyFs=barY-6-rh,rh,rfs
     ui.readyWord=K.text(c,'ReadyWord','레디',rfs,pt and C.ink or C.accent,800)
@@ -287,11 +304,17 @@ function M:draw()
     local counting=not alone and(go or remaining<=10)
     local secs=math.ceil(remaining)
     local big=ui.clock
-    big.Text=alone and '-:--'or counting and clock(remaining)or clock(limit)
+    big.Text=counting and clock(remaining)or clock(limit)
+    big.Visible=not alone;ui.until_.Visible=not alone;ui.seek.Visible=alone;ui.radar.Visible=alone
+    for _,d in ipairs(ui.seekDots)do d.Visible=alone end
+    for _,o in ipairs({ui.readyWord,ui.readyN,ui.readyM})do o.Visible=not alone end
     big.TextColor3=alone and C.muted or counting and(full and C.gold or C.accent)or C.ink
     K.box(big,ui.L,ui.clockY,width(big.Text,ui.clockFs,big)+2,ui.clockFs)
     if counting and self.lastSecond and secs<self.lastSecond and secs<=5 and secs>0 then Audio.play('countdown')end
     self.lastSecond=secs
+    local due=go and remaining<=0 or not alone and room.limit~=nil and limit<=0
+    if due and not self.departed and self.callbacks.depart then self.departed=true;self.callbacks.depart(q)end
+    if not due then self.departed=nil end
     if go and not self.lastGo then self.lastGo=true;Audio.play('confirm');K.punch(big,1.1,.14)
         Step.step('queue','roomCountdown',{value=math.floor(os.clock()-(self.since or os.clock())),item=room.reason,count=q.count})end
     local mine=self:mine();local n=q.count
@@ -343,31 +366,34 @@ function M:plan()
     local list=self:members();local items={};local H=0
     local function add(it)table.insert(items,it);H=math.max(H,it.y+it.h)end
     local aiAll=q.ai or math.max(0,(q.max or #list)-#list)
+    local alone=q.room and q.room.missing~=nil and #list>0
+    if alone then table.insert(list,{plus=true,key='plus'});if aiAll>0 then aiAll-=1 end end
     if not ui.teams then
         if fmt~='pt'and not ui.special then
             local cols,gap,th=fmt=='pc'and 4 or 3,fmt=='pc'and 10 or 6,fmt=='pc'and 60 or 40
             local tw=math.floor((gw-(cols-1)*gap)/cols)
-            for i,m in ipairs(list)do add({key='u'..m.userId,kind='tile',m=m,x=((i-1)%cols)*(tw+gap),y=((i-1)//cols)*(th+gap),w=tw,h=th})end
+            for i,m in ipairs(list)do if m.plus then add({key='plus',kind='plus',x=((i-1)%cols)*(tw+gap),y=((i-1)//cols)*(th+gap),w=tw,h=th,fs=fmt=='pc'and 17 or 14})
+                else add({key='u'..m.userId,kind='tile',m=m,x=((i-1)%cols)*(tw+gap),y=((i-1)//cols)*(th+gap),w=tw,h=th})end end
             if aiAll>0 then local i=#list+1;add({key='ai',kind='ai',n=aiAll,x=((i-1)%cols)*(tw+gap),y=((i-1)//cols)*(th+gap),w=tw,h=th,fs=fmt=='pc'and 15 or 12,is=fmt=='pc'and 16 or 14})end
         else
             local cols=fmt=='pc'and 3 or 2;local gap=fmt=='pc'and 10 or 6
             local spec=fmt=='pt'and(ui.special and ROW.pt_s or ROW.pt_0)or ROW[fmt..'_s']
             local step=fmt=='pt'and(ui.special and 42 or 46)or spec.h+gap
             local tw=math.floor((gw-(cols-1)*(fmt=='pt'and 8 or gap))/cols);local cg=fmt=='pt'and 8 or gap
-            for i,m in ipairs(list)do add({key='u'..m.userId,kind='row',m=m,spec=spec,x=((i-1)%cols)*(tw+cg),y=((i-1)//cols)*step,w=(i-1)%cols==cols-1 and gw-(cols-1)*(tw+cg)or tw,h=spec.h})end
+            for i,m in ipairs(list)do add({key=m.plus and 'plus'or 'u'..m.userId,kind=m.plus and 'plus'or 'row',m=not m.plus and m or nil,spec=spec,fs=spec.fs+2,x=((i-1)%cols)*(tw+cg),y=((i-1)//cols)*step,w=(i-1)%cols==cols-1 and gw-(cols-1)*(tw+cg)or tw,h=spec.h})end
             if aiAll>0 then local i=#list+1;local left=fmt=='pt'and not ui.special
                 add({key='ai',kind='ai',n=aiAll,left=left,x=((i-1)%cols)*(tw+cg),y=((i-1)//cols)*step,w=(i-1)%cols==cols-1 and gw-(cols-1)*(tw+cg)or tw,h=spec.h,fs=spec.fs,is=left and 20 or spec.fs+2,alpha=left and .6 or .65})end
         end
         return items,H
     end
+    if alone then table.remove(list);aiAll+=1 end
     local plan=q.teamPlan;local count=plan.count or q.rules.teamCount or 2;local map=plan.teams or {}
     local own=map[tostring(Me.UserId)]
     local groups={};for t=1,count do groups[t]={team=t,list={}}end
     for _,m in ipairs(list)do local t=map[tostring(m.userId)]or 1;if groups[t]then table.insert(groups[t].list,m)end end
     local order={};if own and groups[own]then table.insert(order,groups[own])end
-    local k=0
-    for t=1,count do if t~=own then k+=1;groups[t].color=Colors.teamPalette[(k-1)%#Colors.teamPalette+1];table.insert(order,groups[t])end end
-    if own and groups[own]then groups[own].color=Colors.self;groups[own].mine=true end
+    for t=1,count do groups[t].color=Colors.teamFamily(t);if t~=own then table.insert(order,groups[t])end end
+    if own and groups[own]then groups[own].mine=true end
     local per=plan.capacity or math.ceil((q.max or 2)/count)
     for _,g in ipairs(order)do g.ai=plan.aiCounts and plan.aiCounts[g.team]or math.max(0,per-#g.list);g.per=per end
     if fmt=='pt'then
@@ -409,20 +435,26 @@ function M:tile(it)
     local lv=num(f,'Level','',pc and 12 or 11,C.muted)
     K.box(name,tx,pc and 12 or 4,it.w-tx-8,pc and 18 or 15);K.box(lv,tx,pc and 31 or 20,it.w-tx-8,pc and 17 or 14)
     local badge=it.w>=150 and Badge.create(f,18)or nil
-    return {frame=f,stroke=st,avatar=a,check=ck,party=dot,name=name,level=lv,tx=tx,badge=badge,pc=pc}
+    local ms=pc and 22 or 16;local mx,my=it.w-(pc and 11 or 7)-ms,math.floor((it.h-ms)/2)
+    local ring=K.icon(f,'dashRing',ms,C.muted,'Waiting');K.box(ring,mx,my,ms,ms);ring.ImageTransparency=.25
+    local disc=K.make('Frame',f,{Name='ReadyMark',BackgroundColor3=C.accent,BorderSizePixel=0,Visible=false});K.round(disc,'pill');K.box(disc,mx,my,ms,ms)
+    local is=pc and 13 or 10;local di=K.icon(disc,'check',is,C.bg,'Icon');K.box(di,(ms-is)/2,(ms-is)/2,is,is)
+    return {frame=f,stroke=st,avatar=a,check=ck,party=dot,name=name,level=lv,tx=tx,badge=badge,pc=pc,ring=ring,disc=disc,mark=ms+(pc and 11 or 7)+6}
 end
 function M:paintTile(t,it)
     local m=it.m;local level,p=levelOf(m)
     local me=m.me==true;local ready=m.ready==true
-    t.frame.BackgroundColor3=ready and C.accent or C.panel;t.frame.BackgroundTransparency=ready and .9 or 0
-    t.stroke.Color=me and C.accent or ready and C.accent or C.line;t.stroke.Transparency=(not me and ready)and .65 or 0;t.stroke.Thickness=me and 2 or 1
+    t.frame.BackgroundColor3=ready and C.accent or C.panel;t.frame.BackgroundTransparency=ready and .88 or 0
+    t.stroke.Color=ready and C.accent or me and C.ink or C.line;t.stroke.Transparency=ready and 0 or me and .55 or 0;t.stroke.Thickness=me and 2 or 1
     if t.uid~=m.userId then t.uid=m.userId;t.avatar.Image=m.userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..m.userId..'&w=150&h=150')or ''end
-    t.check.Visible=ready;t.party.Visible=m.group~=nil
+    t.avatar.ImageTransparency=ready and 0 or .45;t.name.TextColor3=ready and C.ink or C.muted
+    t.check.Visible=false;t.disc.Visible=ready;t.ring.Visible=not ready;t.party.Visible=m.group~=nil
+    local ms=t.disc.Size.X.Offset;local mx,my=it.w-t.mark+6,math.floor((it.h-ms)/2);K.box(t.ring,mx,my,ms,ms);K.box(t.disc,mx,my,ms,ms)
     t.name.Text=p and p.DisplayName or m.name or '';t.level.Text=level and ('Lv '..tostring(level))or ''
     local bw=0
     if t.badge then Badge.update(t.badge,p and p:GetAttribute('CommanderPermanent')==true,p and p:GetAttribute('CommanderVIP')==true);bw=Badge.width(t.badge)
-        if bw>0 then t.badge.root.Position=UDim2.fromOffset(it.w-8-bw,t.pc and 12 or 4)end end
-    K.box(t.name,t.tx,t.pc and 12 or 4,math.max(20,it.w-t.tx-8-(bw>0 and bw+6 or 0)),t.pc and 18 or 15)
+        if bw>0 then t.badge.root.Position=UDim2.fromOffset(it.w-t.mark-bw,t.pc and 12 or 4)end end
+    K.box(t.name,t.tx,t.pc and 12 or 4,math.max(20,it.w-t.tx-t.mark-(bw>0 and bw+6 or 0)),t.pc and 18 or 15)
 end
 function M:row(it)
     local s=it.spec;local small=it.h<30
@@ -431,18 +463,22 @@ function M:row(it)
     local dot=K.make('Frame',a,{Name='Party',BackgroundColor3=C.gold,BorderSizePixel=0,Visible=false});K.round(dot,'pill');K.stroke(dot,C.bg,2,0,true)
     local ds=small and 7 or 9;K.box(dot,-3,-3,ds,ds)
     local ck=K.icon(f,'check',s.ck,C.accent,'Ready')
+    local ring=K.icon(f,'dashRing',s.ck+2,C.muted,'Waiting');ring.ImageTransparency=.25
     local name=K.text(f,'Name','',s.fs,C.ink,700);name:SetAttribute('LocalizationSkip',true)
     local badge=it.w>=150 and Badge.create(f,18)or nil
-    return {frame=f,stroke=st,avatar=a,check=ck,party=dot,name=name,badge=badge,tx=pad+s.av+(small and 6 or 8),pad=pad}
+    return {frame=f,stroke=st,avatar=a,check=ck,ring=ring,party=dot,name=name,badge=badge,tx=pad+s.av+(small and 6 or 8),pad=pad}
 end
 function M:paintRow(t,it)
     local m=it.m;local s=it.spec;local _,p=levelOf(m)
     local me=m.me==true
-    t.stroke.Color=me and C.accent or C.line;t.stroke.Thickness=me and 2 or 1
+    local ready=m.ready==true
+    t.frame.BackgroundColor3=ready and C.accent or C.panel;t.frame.BackgroundTransparency=ready and .88 or 0
+    t.stroke.Color=ready and C.accent or me and C.ink or C.line;t.stroke.Transparency=ready and 0 or me and .55 or 0;t.stroke.Thickness=me and 2 or 1
     if t.uid~=m.userId then t.uid=m.userId;t.avatar.Image=m.userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..m.userId..'&w=150&h=150')or ''end
-    t.party.Visible=m.group~=nil;t.check.Visible=m.ready==true
+    t.avatar.ImageTransparency=ready and 0 or .45;t.name.TextColor3=ready and C.ink or C.muted
+    t.party.Visible=m.group~=nil;t.check.Visible=ready;t.ring.Visible=not ready
     local right=it.w-t.pad-(s.ck)
-    K.box(t.check,right,math.floor((it.h-s.ck)/2),s.ck,s.ck)
+    K.box(t.check,right,math.floor((it.h-s.ck)/2),s.ck,s.ck);K.box(t.ring,right-1,math.floor((it.h-s.ck)/2)-1,s.ck+2,s.ck+2)
     local bw=0
     if t.badge then Badge.update(t.badge,p and p:GetAttribute('CommanderPermanent')==true,p and p:GetAttribute('CommanderVIP')==true);bw=Badge.width(t.badge)
         if bw>0 then t.badge.root.Position=UDim2.fromOffset(right-6-bw,math.floor((it.h-18)/2))end end
@@ -461,6 +497,17 @@ function M:paintAI(t,it)
     local tw=width(t.label.Text,it.fs,t.label);local gap=it.left and 8 or 5
     local x=it.left and 9 or math.floor((it.w-(it.is+gap+tw))/2)
     K.box(t.icon,x,math.floor((it.h-it.is)/2),it.is,it.is);K.box(t.label,x+it.is+gap,0,tw+2,it.h)
+end
+function M:plus(it)
+    local f=K.dashBox(self.ui.list,'PlusOne',C.accent,.2,it.h<30 and 6 or 8,2)
+    local fill=K.make('Frame',f,{Name='Fill',BackgroundColor3=C.accent,BackgroundTransparency=.94,BorderSizePixel=0,Size=UDim2.fromScale(1,1)});K.round(fill,it.h<30 and 6 or 8)
+    local l=num(f,'Text','+1',it.fs or 15,C.accent,Enum.TextXAlignment.Center);l.Size=UDim2.fromScale(1,1)
+    if not K.reduced then
+        local info=TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true)
+        for _,e in ipairs(f:GetChildren())do if e:IsA('ImageLabel')then Tween:Create(e,info,{ImageTransparency=.7}):Play()end end
+        Tween:Create(fill,info,{BackgroundTransparency=.985}):Play()
+    end
+    return {frame=f,label=l}
 end
 function M:col(it)
     local g=it.g
@@ -526,11 +573,12 @@ function M:roster()
         if t and t.kind~=it.kind then t.ui.frame:Destroy();t=nil end
         local fresh=t==nil
         if fresh then
-            local o=it.kind=='tile'and self:tile(it)or it.kind=='row'and self:row(it)or it.kind=='ai'and self:ai(it)or it.kind=='col'and self:col(it)or self:line(it)
+            local o=it.kind=='tile'and self:tile(it)or it.kind=='row'and self:row(it)or it.kind=='ai'and self:ai(it)or it.kind=='plus'and self:plus(it)or it.kind=='col'and self:col(it)or self:line(it)
             t={kind=it.kind,ui=o};self.items[it.key]=t;built=true
         end
         local f=t.ui.frame
         if it.kind=='tile'then self:paintTile(t.ui,it)elseif it.kind=='row'then self:paintRow(t.ui,it)elseif it.kind=='ai'then self:paintAI(t.ui,it)
+        elseif it.kind=='plus'then
         elseif it.kind=='col'then self:paintCol(t.ui,it)else self:paintLine(t.ui,it)end
         local goal=UDim2.fromOffset(it.x,it.y)
         f.Size=UDim2.fromOffset(it.w,it.h)

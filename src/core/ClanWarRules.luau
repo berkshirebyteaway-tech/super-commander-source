@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 -- © OpenFront and Contributors. Clan war (클랜전). 근 10/17: two members of one clan against two of
 local M={}
+M.open=false
 M.teamSize=2
 M.minSize=2;M.maxSize=5
 M.minClans=2;M.maxClans=4
