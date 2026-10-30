@@ -9,13 +9,14 @@ end
 for _,p in ipairs(Players:GetPlayers())do M.addName(p.DisplayName)end
 Players.PlayerAdded:Connect(function(p)M.addName(p.DisplayName)end)
 function M.nation(f)if not f then return '' end;return f.userId and f.name or M.text(f.name or '')end
+local function specs(t)local out={};for c in t:gmatch('%%[%-+ #0]*%d*%.?%d*[%a%%]')do table.insert(out,c)end;return table.concat(out,'|')end
 function M.text(source,context)
     if type(source)~='string'or source==''then return source end
     if locale:sub(1,2)=='ko'then return Nations.ko(source,names)end
     if not Core.hasKorean(source)then return source end
     if cache[source]then return cache[source]end
     local value=Core.translate(source,'en',names)
-    if translator and not override and locale:sub(1,2)~='en'then local ok,t=pcall(function()return translator:Translate(context or game,value)end);if ok and type(t)=='string'and t~=''then value=t end end
+    if translator and not override and locale:sub(1,2)~='en'then local ok,t=pcall(function()return translator:Translate(context or game,value)end);if ok and type(t)=='string'and t~=''and specs(t)==specs(value)then value=t end end
     if count>=2048 then cache={};count=0 end;cache[source]=value;count+=1;return value
 end
 local function update(o,b)

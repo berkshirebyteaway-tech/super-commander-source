@@ -88,7 +88,7 @@ function M:press()
     local want=not self:mine();self.pressed=true;self.pending={want=want,until_=os.clock()+4}
     local b=self.ui and self.ui.ready
     if want then if b then K.confirm(b);self:sweep()else Audio.play('confirm')end else Audio.play('click')end
-    self.callbacks.ready(want);if self.open then self:draw()end
+    self.callbacks.ready(want);if self.open then self:layout()end
 end
 function M:mine()
     local q=self.q;local p=self.pending
@@ -99,6 +99,11 @@ function M:mine()
 end
 function M:quit()
     local q=self.q;local b=self.ui and self.ui.leave
+    if q and q.trophySolo then
+        if self.busy or q.phase~='searching'then return end
+        Step.step('queue','cancel',{item='r1v1',value=math.floor((q.waited or 0)+(self.elapsed or 0))})
+        self.callbacks.leave();return
+    end
     if q and q.room and q.room.state=='go'and os.clock()>(self.confirmUntil or 0)then
         self.confirmUntil=os.clock()+3
         if b then b:setText('정말 나가기?');b.label.TextColor3=C.gold end
@@ -119,11 +124,13 @@ function M:show(on,animate)
     local f=self.frame
     if on then
         f.Visible=true;self.key=nil;self:layout()
+        if self.open~=on then return end
         if self.content and not K.reduced then
             self.content:SetAttribute('Shown20',false);K.rehome(self.content);K.appear(self.content,{dy=16,t=.18})
             f.BackgroundTransparency=1;Tween:Create(f,TweenInfo.new(.12,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundTransparency=0}):Play()
         else f.BackgroundTransparency=0 end
     else
+        require(script.Parent.TrophyMatchRoom).stop(self)
         if animate and self.content and not K.reduced then
             K.leave(self.content,{dy=16,t=.12},function()if not self.open then f.Visible=false end end)
             Tween:Create(f,TweenInfo.new(.12,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{BackgroundTransparency=1}):Play()
@@ -134,6 +141,8 @@ end
 function M:update(q,options)
     options=options or {}
     self.reduced=options.reduced;self.busy=options.busy
+    if q and q.trophySolo then require(script.Parent.TrophyMatchRoom).update(self,q,options);return end
+    if self.q and self.q.trophySolo then require(script.Parent.TrophyMatchRoom).stop(self);self.trophyUI=nil;self.key=nil end
     local room=q and q.mode=='pvp'and q.room and not options.practice and q.phase~='transferring'and q.phase~='recovering'and q or nil
     if not room then
         if self.q then self:closed(q)end
@@ -167,16 +176,33 @@ function M:kind()
     return teams,r.special==true,mods
 end
 function M:layout()
-    if not self.q then return end
+    self.layoutPending=true
+    if self.layoutBusy then return end
+    self.layoutBusy=true
+    local ok,err=xpcall(function()
+        repeat
+            self.layoutPending=false
+            self:layoutOnce()
+        until not self.layoutPending or not self.q or not self.open
+    end,debug.traceback)
+    self.layoutBusy=false
+    if not ok then self.key=nil;self.trophyUI=nil;error(err,0)end
+end
+function M:layoutOnce()
+    local q=self.q;if not q or not self.open then return end
     local w,h=self:size();if w<1 then return end
-    local fmt=M.format(w,h);local teams,special,mods=self:kind();local r=self.q.rules or {}
-    local count=teams and(self.q.teamPlan.count or r.teamCount or 2)or 0
-    local key=table.concat({fmt,math.floor(w),math.floor(h),tostring(teams),tostring(special),table.concat(mods,','),tostring(r.map),count,tostring(r.teamFormat),L.getLocale(),tostring(self.callbacks.insets and self.callbacks.insets().left or 12)},'|')
+    if q.trophySolo then require(script.Parent.TrophyMatchRoom).layout(self,w,h);return end
+    local fmt=M.format(w,h);local teams,special,mods=self:kind();local r=q.rules or {}
+    local count=teams and(q.teamPlan.count or r.teamCount or 2)or 0
+    local key=table.concat({fmt,math.floor(w),math.floor(h),tostring(teams),tostring(special),table.concat(mods,','),tostring(r.map),count,tostring(r.teamFormat),L.getLocale(),tostring(self.callbacks.insets and self.callbacks.insets().left or 12),tostring(self.callbacks.insets and math.floor(self.callbacks.insets().top or 0)or 0)},'|')
     if self.key~=key then self.key=key;self:build(fmt,w,h,teams,special,mods,count)end
+    if self.q~=q or not self.open then self.layoutPending=true;return end
     self:draw()
 end
 function M:build(fmt,W,H,teams,special,mods,teamCount)
     if self.content then self.content:Destroy()end
+    self.wash.Parent=self.frame;self.frame.BackgroundColor3=Color3.new(1,1,1)
+    for _,smoke in pairs(self.smoke or {})do smoke.Visible=true end
     self.items={};self.rosterSig=nil;self.seen=nil;self.drawnReady=nil
     local q=self.q;local r=q.rules or {}
     local pc,ph,pt=fmt=='pc',fmt=='ph',fmt=='pt'
@@ -297,6 +323,7 @@ end
 
 function M:draw()
     local q=self.q;local ui=self.ui;if not q or not ui then return end
+    if q.trophySolo then local w,h=self:size();require(script.Parent.TrophyMatchRoom).layout(self,w,h);return end
     local room=q.room;local go=room.state=='go';local full=room.reason=='full'and go
     local remaining=math.max(0,(self.remaining or 0))
     local limit=room.limit and math.max(0,room.limit-self.elapsed)or remaining
@@ -310,6 +337,7 @@ function M:draw()
     for _,o in ipairs({ui.readyWord,ui.readyN,ui.readyM})do o.Visible=not alone end
     big.TextColor3=alone and C.muted or counting and(full and C.gold or C.accent)or C.ink
     K.box(big,ui.L,ui.clockY,width(big.Text,ui.clockFs,big)+2,ui.clockFs)
+    if self.q~=q or not self.open then self.layoutPending=true;return end
     if counting and self.lastSecond and secs<self.lastSecond and secs<=5 and secs>0 then Audio.play('countdown')end
     self.lastSecond=secs
     local due=go and remaining<=0 or not alone and room.limit~=nil and limit<=0
@@ -327,6 +355,7 @@ function M:draw()
     ui.readyN.TextColor3=alone and C.muted or C.accent
     ui.readyM.TextColor3=alone and C.muted or pt and C.muted or C.accent
     local wm,wn,ww=width(ui.readyM.Text,fs,ui.readyM),width(ui.readyN.Text,fs,ui.readyN),width('레디',fs,ui.readyWord)
+    if self.q~=q or not self.open then self.layoutPending=true;return end
     K.box(ui.readyM,right-wm-1,ui.readyY,wm+2,ui.readyH);K.box(ui.readyN,right-wm-wn-1,ui.readyY,wn+2,ui.readyH);K.box(ui.readyWord,right-wm-wn-ww-(ui.fmt=='pt'and 4 or 6),ui.readyY,ww+2,ui.readyH)
     local b=ui.ready;local kind=mine and 'out'or 'pri'
     if b.kind~=kind then b:setEnabled(true);b:setKind(kind)end
@@ -334,6 +363,7 @@ function M:draw()
     b:setEnabled(not alone and not(go and not mine)and not self.busy,not alone and self.busy and not(go and not mine))
     ui.leave:setEnabled(not self.busy,true)
     if ui.count then setPair(ui.count,tostring(q.count),' / '..tostring(q.max or q.count),ui.countRight,ui.countY,ui.countH)end
+    if self.q~=q or not self.open then self.layoutPending=true;return end
     self:roster()
 end
 function M:sweep()

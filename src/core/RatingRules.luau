@@ -11,17 +11,27 @@ function R.apply(raw,result)
     local p=raw and table.clone(raw) or R.new();p.receipts=table.clone(p.receipts or {})
     if p.receipts[result.id] then return p,"duplicate"end
     if result.startedAt and p.oldestAllowed and result.startedAt<p.oldestAllowed then return nil,"expired-result"end
+    if result.trophyNoShow then
+        local reason;p.trophySolo,reason=Ranked.trophyNoShow(p.trophySolo,result.time,result.id)
+        if not p.trophySolo then return nil,reason end
+    else
     p.games+=1
     if result.counted~=false then p.wins+=result.won and 1 or 0;p.streak=result.won and p.streak+1 or 0;p.bestStreak=math.max(p.bestStreak,p.streak)end
     p.xp+=result.forfeited and 0 or result.won and 100 or 35
-    if result.ladder and Ranked.size[result.ladder]then
+    if result.trophySolo then
+        local delta,reason;local before=p.trophySolo and p.trophySolo.t or Ranked.trophy.start
+        p.trophySolo,delta,reason=Ranked.trophyApply(p.trophySolo,result)
+        if not p.trophySolo then return nil,reason end
+        p.lastTrophySolo={id=result.id,before=before,t=p.trophySolo.t,delta=delta,won=result.won==true}
+    elseif result.ladder and Ranked.size[result.ladder]then
         local delta,reason;p.ranked,delta,reason=Ranked.apply(p.ranked,result)
         if not p.ranked then return nil,reason end
         if p.ranked.season==Ranked.seasonOf(result.time)then p.lastRanked={id=result.id,ladder=result.ladder,delta=delta,rp=p.ranked.ladders[result.ladder].rp,won=result.won==true}end
     end
-    if result.ranked and result.eligible then
+    if not result.trophySolo and result.ranked and result.eligible then
         if p.season~=R.season then p.rating=math.floor(1000+(p.rating-1000)*.5);p.rankedGames=0;p.season=R.season end
         p.rating=math.clamp(p.rating+R.delta(p.rating,result.opponent,result.won and 1 or 0),100,3000);p.rankedGames+=1
+    end
     end
     p.receipts[result.id]=result.startedAt or 0
     local keys={};for id,time in pairs(p.receipts)do table.insert(keys,{id=id,time=time})end

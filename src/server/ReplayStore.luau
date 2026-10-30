@@ -28,7 +28,7 @@ local function adapter()
             end,90)
             return claim and claim.worker==worker
         end or nil,
-        bindClose=function(fn)game:BindToClose(fn)end}
+        bindClose=require(script.Parent.CloseHook)}
 
 end
 function M.new(dependencies)

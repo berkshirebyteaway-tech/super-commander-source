@@ -56,7 +56,7 @@ function M.new()
     if self:rawPending()>=Config.batchSize or os.clock()-last>=Config.batchSeconds then last=os.clock();if Live.get('telemetryRaw')~=false then self:drainRaw()end end
    end end)
  end
- game:BindToClose(function()if not self.localMode then task.wait(24)end;self:close()end)
+ require(script.Parent.CloseHook)(function()if not self.localMode then task.wait(24)end;self:close()end)
  self.names={};local function names()local t={};for _,q in ipairs(Players:GetPlayers())do t[q.Name:lower()]=q.Name;t[q.DisplayName:lower()]=q.DisplayName end;self.names=t end
  Players.PlayerAdded:Connect(names);Players.PlayerRemoving:Connect(function()task.defer(names)end);names()
  local pack=game.ReplicatedStorage.FrontierNative;pack:SetAttribute('TelemetryPerfSample',M.sample('telemetryPerf',Config.performanceSample))

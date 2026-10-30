@@ -7,7 +7,12 @@ function M:read(id)
     if c.store then return Fresh.read(c.store,tostring(id))end
     return c.profiles[id]
 end
-local function ladder(p,e)return Rules.seasonLadder(p and p.ranked,e.season,e.ladder)end
+local function ladder(p,e)
+    if e.ladder=='trophySolo'then local t=p and p.trophySolo
+        return t and t.schema==Rules.trophy.schema and t.games>0 and {rp=t.t,games=t.games,placement=0}or nil
+    end
+    return Rules.seasonLadder(p and p.ranked,e.season,e.ladder)
+end
 function M:add(id,season,name)
     local list=self.pending[id]or {};self.pending[id]=list
     list[season..':'..name]={season=season,ladder=name}
@@ -46,6 +51,7 @@ end
 function M:retry()for id in pairs(self.pending)do self.s.a.spawn(function()self:drain(id)end)end end
 function M:recover(id,p)
     if self.s.local_ then return end
+    if p and p.trophySolo and p.trophySolo.games>0 then self:queue(id,'all','trophySolo')end
     local r=p and p.ranked;if not r then return end
     local function add(season)
         for _,name in ipairs(Rules.ladders)do local l=Rules.seasonLadder(r,season,name)

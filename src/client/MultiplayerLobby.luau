@@ -76,12 +76,16 @@ function M.new(root,notify,callbacks)
         solo=function()self:closePage();self.selectedMode='single';self.touchedMode=true;self:openPage('solo')end,
         create=function(mode)local q=self.data and self.data.queue;if q and q.mode=='custom'then self:openPage('room')else require(script.Parent.CustomDeployment).begin(self,false,mode)end end,
         ranked=function()self:openPage('ranked')end,
+        rankFind=function()self:request('ranked','r1v1')end,
+        rankInspect=function()self.trophySheet:show(true)end,
+        rankRefuse=function(reason)self.notify(reason,true)end,
         watch=function()self:openPage('watch')end,
         room=function()self:openPage('room')end,
         code=function()self:openPage('joinCode')end,
         join=function(ticket)self:request('joinField',ticket)end,
         world=function()self:request('play')end,
-        cancel=function()self:request('cancel')end,
+        ask=function(ticket)self:request('partyAsk',ticket)end,
+        cancel=function()self:leaveRoom()end,
         practice=function()self:request('practice')end,
         partyCoop=function(hard)require(script.Parent.CustomDeployment).party(self,hard)end,
         ready=function()self:request('ready')end,
@@ -91,11 +95,12 @@ function M.new(root,notify,callbacks)
     })
     self.matchRoom=require(script.Parent.MatchRoom).new(root,{
         ready=function(on)self:request('fieldReady',{ready=on})end,
-        leave=function()self:request('cancel')end,
+        leave=function()self:leaveRoom()end,
         depart=function(q)self:depart(q,'countdown')end,
-        insets=function()return {left=self.topbarLeft or 12,right=self.topbarRight or 12,top=self.topbarHeight or 0}end,
+        insets=function()self:topbar();return {left=self.topbarLeft,right=self.topbarRight,top=math.max(self.topbarHeight,self.topbarBottom)}end,
         shown=function(on)self:roomCover(on)end,
     })
+    self.trophySheet=require(script.Parent.TrophyRankSheet).new(root,function()return {top=self.topbarHeight or 0}end)
     self.home=require(script.Parent.LobbyHome).new(self)
     self.card=require(script.Parent.CommanderCard).new(self)
     pack:WaitForChild('LobbyState').OnClientEvent:Connect(function(s)
@@ -109,6 +114,8 @@ function M.new(root,notify,callbacks)
         if s.party and #s.party.users>1 and not s.queue then self.selectedMode=s.party.mode or 'coop'end
         if self.inMenu==false then self:announce(s.queue);self:practiceBadge()else self:refresh()end
         if s.queue and s.queue.mode=='custom'and (s.queue.partyCount or 1)>1 and previousField~=s.queue.field then self:openPage('room')end
+        if s.queue and s.queue.room and s.queue.mode~='custom'and previousField~=s.queue.field and s.party and #s.party.users>1 and self.page then self:closePage()end
+        require(script.Parent.PartyAsk).update(self)
         if previousQueue and previousQueue.mode=='custom'and not s.queue and not s.inMatch then require(script.Parent.TelemetryStep).step('custom','roomClosed',{value=self.roomSince and os.clock()-self.roomSince or nil,count=previousQueue.partyCount,result=self.page=='room'and 'shown'or 'closed'});self.roomSince=nil end
         if s.queue and s.queue.mode=='custom'and not self.roomSince then self.roomSince=os.clock()end
         if previousQueue and previousQueue.mode=='custom'and not s.queue and not s.inMatch and self.page=='room'then self:closePage()end
@@ -122,7 +129,7 @@ function M.new(root,notify,callbacks)
         self.rewardArrival:step(self.frame.Visible and not self.page and not require(script.Parent.LobbyIntro).active and self.profile.Visible,self.account.preferences and self.account.preferences.reducedEffects)
         elapsed+=dt;if self.inMenu==false then if elapsed>=.25 then elapsed=0;if self.data and self.data.queue then self:practiceBadge()end end elseif elapsed>=.25 then elapsed=0;if self.data and self.data.queue then self:refresh()elseif self.deployment and self.deployment.expanded and not self.page then self.deployment:render()end end
     end)
-    pcall(function()local c;c=game:GetService('GuiService'):GetPropertyChangedSignal('TopbarInset'):Connect(function()if not self.frame.Parent then c:Disconnect()elseif self.frame.Visible then self:layout()end end)end)
+    pcall(function()local c;c=game:GetService('GuiService'):GetPropertyChangedSignal('TopbarInset'):Connect(function()if not self.frame.Parent then c:Disconnect()else if self.frame.Visible then self:layout()end;if self.matchRoom and self.matchRoom.open then self.matchRoom:layout()end end end)end)
     self:refresh();return self
 end
 function M:showCheckIn(info,login)
@@ -191,7 +198,7 @@ function M:celebrate(before,p,checkIn,recruited)
     local holdCheckIn=checkIn and p and require(pack.Core.ComebackRules).holdCheckIn(p)
     if checkIn and not holdCheckIn and self.checkInShown~=(checkIn.claims or checkIn.streak)then self.checkInShown=checkIn.claims or checkIn.streak;task.spawn(function()
         local Intro=require(script.Parent.LobbyIntro);local untilAt=os.clock()+3600
-        local function ready()return self.frame.Parent and self.frame.Visible and self.inMenu~=false and not Intro.active and not self.firstLesson and not self.page end
+        local function ready()return self.frame.Parent and self.frame.Visible and self.inMenu~=false and not Intro.active and not self.firstLesson and not self.page and not(self.deployment and self.deployment.expanded)end
         while self.frame.Parent and os.clock()<untilAt do
             task.wait(.5)
             if ready()then task.wait(.6);if ready()then self:showCheckIn(checkIn,p and p.login);return end end
@@ -251,7 +258,7 @@ end
 function M:playNow()
     if self.busy or self.loading then return end
     if self.data and self.data.queue then if not self.data.practice then self:request('practice')end;return end
-    if self.data and #self.data.party.users>1 and self.data.party.leader~=Players.LocalPlayer.UserId then self:request('ready');return end
+    if self.data and #self.data.party.users>1 and self.data.party.leader~=Players.LocalPlayer.UserId then self:closePage();self.deployment:open('all');return end
     if self.selectedMode=='single'then
         if self.firstLesson then self:closePage();self.callbacks.learn()else self.callbacks.single(self.map)end
     elseif self.selectedMode=='pvp'then self:request('play')
@@ -262,6 +269,14 @@ function M:clanWarQueue()
     self:request('ranked','clanwar')
 end
 function M.stale(s,cur)return type(s)=='table'and type(cur)=='table'and type(s.serial)=='number'and type(cur.serial)=='number'and s.serial<cur.serial end
+function M:leaveRoom()
+    local s=self.data;local party=s and s.party
+    if not(party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId)then self:request('cancel');return end
+    require(script.Parent.LobbyConfirm).window(self,{title='파티에서도 나가져요',label='나가기',callback=function()
+        require(script.Parent.TelemetryStep).step('social','partyLeaveRoom',{count=#party.users})
+        self:request('leaveParty')
+    end})
+end
 function M:request(action,value,after,handle)
     if self.busy then Veil.hide();return end
     self.requests=self.requests or Requests.new(12)
@@ -280,7 +295,7 @@ function M:request(action,value,after,handle)
         local ok,r=pcall(function()return pack.LobbyRequest:InvokeServer(action,value)end)
         if not self.requests:complete(operation)then return end
         Pending.finish(pend);self.busy=false
-        if not ok or not r.ok then Veil.hide()elseif r.teleport then Veil.teleport('난입전으로 이동 중…')elseif action=='play'or action=='again'then Veil.settle(3)end
+        if not ok or not r.ok then Veil.hide()elseif r.teleport then Veil.teleport('난입전으로 이동 중…',90)elseif action=='play'or action=='again'then Veil.settle(3)end
         if not ok then require(script.Parent.TelemetryStep).step('lobby','requestFailed',{item=type(action)=='string'and action or nil,reason='network'});self.notify('연결 끊김 / 다시 시도',true);self:refresh();return end
         if r.state and not M.stale(r.state,self.data)then self.data=r.state;self.queueUpdated=os.clock()end
         if handle and handle(r)then self:refresh();return end
@@ -298,7 +313,8 @@ function M:leaveResult(toMenu)
     self:request('hq',nil,nil,function(r)if r.public then toMenu();return true end;if r.ok then Veil.teleport('로비로 이동 중…')end end)
 end
 function M:announce(q)
-    local key=q and q.mode=='pvp'and q.phase=='transferring'and 'go'or nil
+    local rankDue=q and q.trophySolo and(q.phase=='transferring'or q.phase=='found'and q.remaining~=nil and q.remaining<=os.clock()-(self.queueUpdated or os.clock()))
+    local key=q and(q.mode=='pvp'and q.phase=='transferring'or rankDue)and 'go'or nil
     local previous=self.queueKey;self.queueKey=key
     require(script.Parent.LobbyMusic).queue(key)
     if q and q.room then self.lastRoom=q end
@@ -324,7 +340,7 @@ function M:practiceBadge()
 end
 function M:refresh()
     if self.inMenu==false then if self.hiddenDrawn then return end;self.hiddenDrawn=true end
-    local Probe=require(script.Parent.FrameProbe);Probe.start('Lobby.refresh');self:refreshBody();Probe.stop('Lobby.refresh')
+    local Probe=require(script.Parent.FrameProbe);local timing=Probe.startLatency('Lobby.refresh');self:refreshBody();Probe.stopLatency(timing)
 end
 function M:refreshBody()
     local s=self.data;local q=s and s.queue;local party=s and s.party;local p=self.account.progress or {}
@@ -366,8 +382,9 @@ function M:refreshBody()
     else self.goalTitle.Text=string.format('누적 출석 %d일',p.login and p.login.claims or 0);self.goalSub.Text=string.format('다음 접속 +%d 코인',p.login and p.login.nextReward or 20)end
     if self.drawnMap~=self.map then self.drawnMap=self.map;self.raster:setPreview(Maps.preview(self.map));task.defer(function()self.raster:fit();self.raster:draw()end)end
     if self.matchRoom then local prefs=self.account.preferences or {};local since=os.clock()-(self.queueUpdated or os.clock())
-        self.matchRoom:update(q,{menu=self.inMenu~=false,page=self.page,practice=s and s.practice,remaining=q and q.remaining and q.remaining-since,elapsed=since,busy=self.busy,reduced=prefs.reducedEffects})end
-    if self.deployment then local prefs=self.account.preferences or {};self.deployment:update(s and s.battlefields,q,{menu=self.inMenu~=false,practice=s and s.practice,reduced=prefs.reducedEffects,busy=self.busy,party=party,userId=Players.LocalPlayer.UserId,live=s and s.live,world=s and s.world,recent='최근 / '..(Maps.meta(self.map)or Maps.catalog[1]).label..' / '..({Easy='쉬움',Medium='보통',Hard='어려움',Impossible='불가능'})[self.settings.difficulty or 'Medium']})end
+        self.matchRoom:update(q,{menu=self.inMenu~=false,page=self.page,practice=s and s.practice,remaining=q and q.remaining and q.remaining-since,elapsed=since,busy=self.busy,reduced=prefs.reducedEffects,trophy=s and s.ranked and s.ranked.trophySolo})end
+    if self.trophySheet then self.trophySheet:update(s and s.ranked and s.ranked.trophySolo,self.inMenu~=false and not(self.matchRoom and self.matchRoom.open))end
+    if self.deployment then local prefs=self.account.preferences or {};self.deployment:update(s and s.battlefields,q,{menu=self.inMenu~=false,practice=s and s.practice,reduced=prefs.reducedEffects,busy=self.busy,party=party,userId=Players.LocalPlayer.UserId,live=s and s.live,world=s and s.world,trophy=s and s.ranked and s.ranked.trophySolo,recent='최근 / '..(Maps.meta(self.map)or Maps.catalog[1]).label..' / '..({Easy='쉬움',Medium='보통',Hard='어려움',Impossible='불가능'})[self.settings.difficulty or 'Medium']})end
     if self.teamRoster and self.teamRoster.frame.Visible then
         local field=q and q.field==self.teamRoster.id and q or nil
         if not field then for _,candidate in ipairs(s and s.battlefields and s.battlefields.fields or {})do if candidate.id==self.teamRoster.id then field=candidate;break end end end
@@ -384,6 +401,9 @@ function M:refreshBody()
 end
 local subPages={joinCode=true,customCode=true,customRules=true,maps=true,benefits=true,confirm=true}
 function M:openPage(page)
+    if page=='ranked'and self.trophySheet and self.data and self.data.ranked and self.data.ranked.trophySolo then
+        if self.data.queue and self.data.queue.trophySolo then self.matchRoom:restore()else self.trophySheet:show(true)end;return
+    end
     local from=self.page
     if not subPages[page]then self.backTo=nil elseif from and from~=page and (from=='custom'or from=='solo')then self.backTo=from end
     if page=='missions'then if not self.goalTab then self.goalTab=require(script.Parent.GoalsScreen).defaultTab(self)end;self.goalsOpen=nil end
@@ -446,7 +466,7 @@ function M:closePage()if self.page then require(script.Parent.TelemetryClient).e
     self.page=nil;if not animated then self.overlay.Visible=false end;if self.mapBrowser then self.mapBrowser:destroy();self.mapBrowser=nil end;require(script.Parent.LiveWatchPage).release(self,false);self:layout()end
 function M:drawPage()
     if not self.page then return end
-    local Probe=require(script.Parent.FrameProbe);Probe.start('Lobby.drawPage');self:drawPageBody();Pending.restore();Probe.stop('Lobby.drawPage')
+    local Probe=require(script.Parent.FrameProbe);local timing=Probe.startLatency('Lobby.drawPage');self:drawPageBody();Pending.restore();Probe.stopLatency(timing)
 end
 function M:drawPageBody()
     local scroll=self.pageBody.CanvasPosition
@@ -510,16 +530,21 @@ function M:roomCover(on)
         local shown=self.inMenu~=false;if self.frame.Visible~=shown then self.frame.Visible=shown;if shown then self:layout()end end
     end
 end
-function M:layout()
-    local w,h=self.root.AbsoluteSize.X/Theme.scale,self.root.AbsoluteSize.Y/Theme.scale;if w<1 then return end
-    local short=h<500;local narrow=w<600;local width=math.min(short and 340 or 360,w-24);local x=w-width-12
-    self.topbarLeft,self.topbarRight,self.topbarHeight=12,12,0
+function M:topbar()
+    self.topbarLeft,self.topbarRight,self.topbarHeight,self.topbarBottom=12,12,0,0
     pcall(function()
         local service=game:GetService('GuiService');local device=service:GetInsetArea(Enum.ScreenInsets.DeviceSafeInsets);local bar=service:GetInsetArea(Enum.ScreenInsets.TopbarSafeInsets)
         self.topbarLeft=math.max(12,(bar.Min.X-device.Min.X)/Theme.scale+8)
         self.topbarRight=math.max(12,(device.Max.X-bar.Max.X)/Theme.scale+8)
         self.topbarHeight=math.max(0,(bar.Max.Y-device.Min.Y)/Theme.scale)
+        local gi=service:GetGuiInset()
+        self.topbarBottom=math.max(self.topbarHeight,(service.TopbarInset.Max.Y-(device.Min.Y+gi.Y))/Theme.scale)
     end)
+end
+function M:layout()
+    local w,h=self.root.AbsoluteSize.X/Theme.scale,self.root.AbsoluteSize.Y/Theme.scale;if w<1 then return end
+    local short=h<500;local narrow=w<600;local width=math.min(short and 340 or 360,w-24);local x=w-width-12
+    self:topbar()
     local ph=short and 158 or 232;local y=math.max(56,h-68-ph)
     UI.box(self.header,12,8,short and 166 or 200,44);UI.box(self.brandTop,12,4,180,12);UI.box(self.brand,12,14,180,28);self.brand.TextSize=short and 21 or 24;self.brandTop.TextSize=short and 12 or 13
     self.tag.Visible=false

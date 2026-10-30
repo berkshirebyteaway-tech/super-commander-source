@@ -1,6 +1,15 @@
 local Manifest=require(script.Parent.CosmeticMeshManifest)
 local M={state={},diagnostics={},enabled=true}
-local templates={};local waiting={};local watchers={};local rigs={}
+local templates={};local waiting={};local watchers={};local rigs={};local retrying={}
+local scheduleRetry
+local function finishWatchers(key,ready)
+    local list=watchers[key];watchers[key]=nil;retrying[key]=nil
+    for entry in pairs(list or {})do
+        if entry.connection then entry.connection:Disconnect();entry.connection=nil end
+        if ready and entry.run then local ok,err=pcall(entry.run);if not ok then M.diagnostics[key]=tostring(err)end end
+        entry.run=nil
+    end
+end
 local LIMIT=4;local active=0;local queue={}
 local RETRIES=3;local BACKOFF={15,60,180};local fails={}
 local Assets=(function()local ok,s=pcall(function()return game:GetService('AssetService')end);return ok and s or nil end)()
@@ -25,8 +34,7 @@ local function settle(key)
     local item=Manifest[key];local failed=false
     for _,d in ipairs(item.parts)do local t=templates[d.meshId];if t==nil then return end;if t==false then failed=true end end
     M.state[key]=failed and 'failed'or 'ready'
-    local list=watchers[key];watchers[key]=nil
-    if not failed and list then for _,fn in ipairs(list)do local ok,err=pcall(fn);if not ok then M.diagnostics[key]=tostring(err)end end end
+    if failed then scheduleRetry(key)else finishWatchers(key,true)end
 end
 local function pump()
     while active<LIMIT and #queue>0 do
@@ -44,14 +52,27 @@ local function pump()
 end
 function M.has(key)return M.enabled and Manifest[key]~=nil end
 local function retry(key,now)
-    local again,pending={},false
-    for _,d in ipairs(Manifest[key].parts)do local id=d.meshId;if templates[id]==nil then pending=true end
+    local again={}
+    for _,d in ipairs(Manifest[key].parts)do local id=d.meshId
         if templates[id]==false then local f=fails[id]
             if not f or f.n>RETRIES or now-f.at<BACKOFF[f.n]then return false end
             again[id]=true end end
-    if not next(again)and not pending then return false end
     for id in pairs(again)do templates[id]=nil end
     M.state[key]=nil;return true
+end
+scheduleRetry=function(key)
+    if retrying[key]or not watchers[key]then return end
+    local delay=0;local now=os.clock()
+    for _,d in ipairs(Manifest[key].parts)do if templates[d.meshId]==false then
+        local f=fails[d.meshId]
+        if not f or f.n>RETRIES then finishWatchers(key,false);return end
+        delay=math.max(delay,f.at+BACKOFF[f.n]-now)
+    end end
+    local token={};retrying[key]=token
+    task.delay(math.max(.05,delay),function()
+        if retrying[key]~=token then return end;retrying[key]=nil
+        if watchers[key]and M.request(key)=='failed'then scheduleRetry(key)end
+    end)
 end
 function M.request(key)
     if not M.has(key)then return nil end
@@ -69,13 +90,21 @@ function M.request(key)
     return M.state[key]
 end
 function M.ready(key)return M.has(key)and M.request(key)=='ready'end
-function M.watch(key,fn)
-    local s=M.request(key);if s~='loading'then return false end
-    watchers[key]=watchers[key]or {};table.insert(watchers[key],fn);return true
+local function subscribe(key,fn)
+    local s=M.request(key);if s~='loading'and s~='failed'then return nil end
+    local entry={run=fn};watchers[key]=watchers[key]or {};watchers[key][entry]=true
+    if s=='failed'then scheduleRetry(key)end
+    return entry.run and entry or nil
 end
+function M.watch(key,fn)return subscribe(key,fn)~=nil end
 function M.watchModel(key,model,fn)
-    local dead=false;pcall(function()model.Destroying:Once(function()dead=true end)end)
-    return M.watch(key,function()if not dead then fn(model)end end)
+    local entry=subscribe(key,function()fn(model)end);if not entry then return false end
+    local ok,connection=pcall(function()return model.Destroying:Once(function()
+        local list=watchers[key];if list then list[entry]=nil;if not next(list)then watchers[key]=nil;retrying[key]=nil end end
+        entry.run=nil;if entry.connection then entry.connection:Disconnect();entry.connection=nil end
+    end)end)
+    if ok then entry.connection=connection end
+    return true
 end
 function M.prefetch(styleId)
     if type(styleId)~='string'then return end

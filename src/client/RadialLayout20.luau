@@ -2,9 +2,9 @@ local Players=game:GetService('Players')
 local RunService=game:GetService('RunService')
 local Tween=game:GetService('TweenService')
 local Theme=require(script.Parent.Theme)
-local G=require(script.Parent.Parent.Core.WorldGeometry)
 local Input=require(script.Parent.Parent.Core.CommandInteraction)
 local Commands=require(script.Parent.Parent.Core.CommandPresentation)
+local Units=require(script.Parent.Parent.Core.UnitRules)
 local M={};M.__index=M
 M.PAN=.18
 M.SETTLE=.2
@@ -13,7 +13,7 @@ local K
 local function kit()K=K or require(script.Parent.Kit20);return K end
 function M.new(o)
     local self=setmetatable({o=o},M)
-    for _,b in ipairs({o.confirm,o.alliance,o.gold,o.troops,o.transport,o.rockets})do
+    for _,b in ipairs({o.confirm,o.alliance,o.gold,o.troops,o.transport,o.rockets,o.max})do
         b.Activated:Connect(function()if b:GetAttribute('Enabled')==false then self:why(b)end end)
     end
     return self
@@ -57,6 +57,16 @@ function M:fill(state,f,context,route)
     elseif f then o.alliance.Active=true;o.alliance:SetAttribute('Why20',nil)end
     o.detail.Visible=f~=nil;o.signal.Visible=f~=nil;o.emoji.Visible=f~=nil
 end
+function M:unit(u)
+    local o=self.o
+    o.sheet:SetAttribute('Ring20','unit')
+    for _,b in ipairs({o.confirm,o.max})do b:SetAttribute('Why20',nil)end
+    if not Units.structures[u.kind]or Units.upgradable[u.kind]or(u.owner or 1)~=1 then return end
+    o.confirm.Text='강화'
+    for _,b in ipairs({o.confirm,o.max})do
+        b.Visible=true;Theme.enabled(b,false);b.Active=true;b:SetAttribute('Why20','강화할 수 없는 건물')
+    end
+end
 function M:cells(kind,g,anchor,flipX,flipY)
     local out={}
     for _,s in ipairs(Input.fixedSlots(kind,g,flipX,flipY))do
@@ -74,16 +84,6 @@ end
 local function body()
     local char=Players.LocalPlayer.Character
     return char and char:FindFirstChild('HumanoidRootPart'),char and char:FindFirstChildOfClass('Humanoid')
-end
-function M:room(shift)
-    local r=self.o.renderer;local hrp,hum=body()
-    if not r.map or r.dropActive or not hrp or hrp.Anchored or(hum and hum.WalkSpeed==0)then return false end
-    local from=r.parent.AbsolutePosition+r.parent.AbsoluteSize/2
-    local a,b=r:groundAt(from),r:groundAt(from+shift*Theme.scale)
-    if not a or not b then return false end
-    local origin=(r.overview or r.targetTile)and r.focus or hrp.Position
-    local halfX,halfZ=r.map.meta.width*G.scale/2,r.map.meta.height*G.scale/2
-    return math.abs(origin.X+a.X-b.X)<=halfX and math.abs(origin.Z+a.Z-b.Z)<=halfZ
 end
 function M:drag(step)
     local r=self.o.renderer;local hrp=body()
@@ -135,25 +135,18 @@ function M:placeholder(kind,g,slots)
 end
 function M:plan(kind,g,anchor,blocks,w,h,tile,revision)
     local key=kind..':'..tostring(tile)..':'..tostring(revision)
+    local limit=math.floor(math.min(w,h)/2)
     if self.key~=key and tile then
         self.key=key;self.flipX,self.flipY=false,false;self.o.sheet:SetAttribute('Open20',key)
-        local limit=math.floor(math.min(w,h)/2)
         local sx,sy=Input.ringShift(self:cells(kind,g,anchor,false,false),blocks,w,h,limit)
-        if sx~=0 or sy~=0 then
-            if sy>0 and not self:room(Vector2.new(0,sy))then self.flipY=true end
-            if sx<0 and not self:room(Vector2.new(sx,0))then self.flipX=true end
-            if self.flipX or self.flipY then sx,sy=Input.ringShift(self:cells(kind,g,anchor,self.flipX,self.flipY),blocks,w,h,limit)end
-            if sx~=0 or sy~=0 then self:pan(Vector2.new(sx,sy),tile,anchor)end
-        end
+        if sx~=0 or sy~=0 then self:pan(Vector2.new(sx,sy),tile,anchor)end
         self.blockCount=#blocks
     elseif tile and #blocks>(self.blockCount or 0)and not self.bound then
         self.blockCount=#blocks
-        local limit=math.floor(math.min(w,h)/2)
-        local sx,sy=Input.ringShift(self:cells(kind,g,anchor,self.flipX,self.flipY),blocks,w,h,limit)
-        if sy>0 and not self:room(Vector2.new(0,sy))and not self.flipY then self.flipY=true;sx,sy=Input.ringShift(self:cells(kind,g,anchor,false,true),blocks,w,h,limit)end
-        if (sx~=0 or sy~=0)and self:room(Vector2.new(sx,sy))then self:pan(Vector2.new(sx,sy),tile,anchor)end
+        local sx,sy=Input.ringShift(self:cells(kind,g,anchor,false,false),blocks,w,h,limit)
+        if sx~=0 or sy~=0 then self:pan(Vector2.new(sx,sy),tile,anchor)end
     end
-    local slots=Input.fixedSlots(kind,g,self.flipX,self.flipY)
+    local slots=Input.fixedSlots(kind,g,false,false)
     self:placeholder(kind,g,slots)
     return slots
 end

@@ -8,6 +8,8 @@ M.defaults={
     dailyOp=true,
     clans=true,
     ranked=true,
+    ranked1v1=true,
+    rankedWindow='open',
     rankedScreen=false,
     seasonScreen=false,
     sales=true,
@@ -83,6 +85,7 @@ function M.publish()
     pack:SetAttribute('LiveXPBoost',M.xpBoost())
     pack:SetAttribute('LiveVictoryCinematic',M.get('victoryCinematic')~=false)
     pack:SetAttribute('LiveRankedScreen',M.get('rankedScreen')==true);pack:SetAttribute('LiveSeasonScreen',M.get('seasonScreen')==true)
+    pack:SetAttribute('LiveRanked1v1',M.get('ranked1v1')==true)
     pack:SetAttribute('LaunchSaleEndsAt',M.salesOpen()and M.saleEndsAt()or 0)
     pack:SetAttribute('HalloweenEndsAt',require(pack.Core.HalloweenEvent).publishedEnd(M.get('halloween'),os.time()))
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())

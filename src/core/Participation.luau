@@ -2,11 +2,13 @@ local Rules=if script then require(script.Parent.OutgameRules)else require('./Ou
 local Recap=if script then require(script.Parent.OperationRecap)else require('./OperationRecap')
 local B=if script then require(script.Parent.BigNat)else require('./BigNat')
 local Campaign=if script then require(script.Parent.CampaignRules)else require('./CampaignRules')
+local Units=if script then require(script.Parent.UnitRules)else require('./UnitRules')
 local M={};M.__index=M
 function M.new(id,mode,map,humans,now)
     return setmetatable({id=id,mode=mode,map=map,humans=humans,seconds=0,peak=0,cities=0,supports=0,tactics={nukes=0,transports=0,upgrades=0,built={}},days={},weeks={},weeklyActions={},milestones={},units={},revision=0,lastAction=-1e9,created=now,dirty=false,recap=Recap.new()},M)
 end
 function M:command(action,value,now)
+    if action=='build'and Units.nukes[value]then action='nuclear'end
     self.recap:command(action,value)
     if table.find({'spawn','attack','build','nuclear','upgrade','delete','transport','moveWarship','moveWarships','retaliate','cancelTransport','alliance','support','cancelAttack','embargoAll'},action)then self.lastAction=now;self.lastKind=action end
     if action=='spawn'then self.spawnedAt=now end

@@ -108,7 +108,7 @@ function M.view(state)
     local rank,total;if not continuing then rank,total=M.rank(state,won)end
     return {title=title,won=won,continuing=continuing,status=status,message=message,rewardNote=rewardNote,base=base,winner=M.winner(state,won),
         peak=math.clamp(r.peak or (state.player and state.player.share)or 0,0,1),cities=r.cities or 0,supports=r.supports or 0,seconds=r.seconds or 0,
-        xp=status=='practice'and 0 or xp,medals=status=='practice'and 0 or medals,rank=rank,total=total,daily=r.daily,campaign=r.campaign,supply=r.supply,
+        xp=status=='practice'and 0 or xp,medals=status=='practice'and 0 or medals,rank=rank,total=total,daily=r.daily,campaign=r.campaign,supply=r.supply,casual=state.casual and true or nil,
         retryIntro=M.retryIntro(state),
         nextStage=state.intro and not M.retryIntro(state)and r.campaign and r.campaign.next or nil,
         tomorrow=state.intro and status~='practice'and M.tomorrow(r.progression)or nil,

@@ -6,9 +6,12 @@ local c55,s55=at(55);local c125,s125=at(125)
 M.factionSlots={{'Confirm',0,0},{'SupportTroops',0,0},{'Alliance',0,-1},{'Transport',1,0},{'Rockets',-1,0},{'SupportGold',-1,0},{'Details',c55,s55},{'Emojis',0,1},{'Signals',c125,s125}}
 M.minorSlots={Details=true,Signals=true,Emojis=true}
 M.neutralSlots={{'Confirm',0,0},{'Transport',1,0},{'Rockets',-1,0},{'Empty',0,-1}}
+M.buildSlots={{'RingCity',0,-1},{'RingFactory',hex,-.5},{'RingPort',hex,.5},{'RingDefensePost',0,1},{'RingMissileSilo',-hex,.5},{'RingSAMLauncher',-hex,-.5}}
+M.unitSlots={{'Confirm',0,0},{'Demolish',-1,0},{'UpgradeMax',0,1},{'OpenBuild',1,0},{'Rockets',1,0}}
+local KINDS={nation=M.factionSlots,land=M.neutralSlots,build=M.buildSlots,unit=M.unitSlots}
 function M.fixedSlots(kind,g,flipX,flipY)
     local out={}
-    for _,s in ipairs(kind=='nation'and M.factionSlots or M.neutralSlots)do
+    for _,s in ipairs(KINDS[kind]or M.neutralSlots)do
         local k=M.minorSlots[s[1]]and g.low/g.radius or 1
         table.insert(out,{s[1],s[2]*k*(flipX and -1 or 1),s[3]*k*(flipY and -1 or 1)})
     end

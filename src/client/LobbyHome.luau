@@ -163,7 +163,7 @@ function M:refresh()
         title=q.mode=='custom'and '방 보기'or q.phase=='transferring'and '이동 중'or '대기 중'
         sub=q.phase=='transferring'and '같은 전장으로 이동 중…'or q.mode=='custom'and string.format('%d/%d명 / 준비 대기',q.count,q.max)
             or left and string.format('출발 %s / %d명 + AI',clock(left),q.count)or string.format('곧 출발 / %d명 + AI',q.count)
-    elseif follower then title=Party.isReady(party,me)and '준비 완료'or '준비';sub='방장 출전 시 함께 출발'
+    elseif follower then title='방장이 고르는 중';sub='방장이 고른 방으로 같이 가요'
     elseif s and s.rejoin and mode=='quick'then title='경기로 복귀';sub=((Maps.meta(s.rejoin.map)or {}).label or s.rejoin.map or '진행 중인 경기')..' / 내 자리가 남아 있어요'
     elseif mode=='quick'then
         local pick=d and d:quickPick()
@@ -242,7 +242,7 @@ function M:go()
     if l.busy or l.loading then require(script.Parent.TelemetryStep).step('lobby','deploy',{result='rejected',reason=l.loading and 'loading'or 'busy'});return end
     if l.firstLesson and not q and self.mode~='daily'then l:closePage();l.callbacks.learn();return end
     if q then if q.mode=='custom'then l:openPage('room')elseif q.room and l.matchRoom then l.matchRoom:restore()elseif q.mode=='ranked'then l:openPage('ranked')else d:open('all',q.field)end;l:layout();return end
-    if party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId then l:request('ready');return end
+    if party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId then d:open('all');l:layout();return end
     if self.mode=='quick'and not(s and s.rejoin)and self.fieldPreview:joinSelected()then require(script.Parent.TelemetryStep).step('lobby','deploy',{item='row_'..tostring(self.fieldPreview.selected)});l:layout();return end
     local m=self.mode;require(script.Parent.TelemetryStep).step('lobby','deploy',{item=(s and s.rejoin and m=='quick')and 'rejoin'or m})
     if s and s.rejoin and m=='quick'then l:request('rejoin');return end

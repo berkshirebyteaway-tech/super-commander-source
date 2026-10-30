@@ -18,7 +18,7 @@ function M.build(view,parent,callbacks)
     u.clock=K.num(plate,'Clock','',24,C.accent,Enum.TextXAlignment.Right);u.clock:SetAttribute('Num20',true)
     u.state=K.text(plate,'State','',13,C.muted,800,Enum.TextXAlignment.Right)
     u.suggest=K.button(plate,'Suggested',{kind='out',text='사람 있는 전장',size=14,weight=800},function()
-        if view.queue and view.queue.room and callbacks.matchRoom then callbacks.matchRoom()elseif view.practiceAvailable and not view.suggested then view.callbacks.practice()else view:inspectSuggestion()end end)
+        if view.queue and (view.queue.room or view.queue.trophySolo)and callbacks.matchRoom then callbacks.matchRoom()elseif view.practiceAvailable and not view.suggested then view.callbacks.practice()else view:inspectSuggestion()end end)
     u.cancel=K.button(plate,'Cancel',{kind='plain',text='대기 취소',size=14,weight=800},function()callbacks.cancel()end)
     u.suggest.button.Visible=false
     view.bar=bar;view.q20=u;view.barHeight=56
@@ -44,6 +44,10 @@ function M.paint(view,q,info)
         if ranked then
             u.title.Text=string.format('랭크 %s',q.ladder=='clanwar'and '클랜전'or q.ladder=='2v2'and '2대2'or q.ladder=='ffa'and '개인전'or '1대1')
             word=q.phase=='transferring'and '상대 찾음, 이동 중…'or '상대 찾는 중'
+            if q.trophySolo then
+                if q.phase=='found'then clockText=info.clock((q.remaining or 0)-(info.elapsed or 0))
+                elseif q.phase=='recovering'then word='상대 다시 찾는 중'end
+            end
         else
             u.title.Text=info.title or ''
             if q.phase=='transferring'then word='이동 중…'elseif q.phase=='recovering'then word='연결 확인 중…'

@@ -40,6 +40,7 @@ function M.watch(hub,page)
     if state.cur and state.cur.owner~=page then M.close(true)end
     local first=hub.anim20~=page;hub.anim20=page;return first
 end
+function M.panel()return state.cur and state.cur.kind=='sheet'and state.cur.panel or nil end
 function M.isOpen(name)return state.cur~=nil and(name==nil or state.cur.name==name)end
 local function catcher(root)
     local b=K.make('TextButton',root,{Name='Catch',Text='',BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,Size=UDim2.fromScale(1,1),ZIndex=1})

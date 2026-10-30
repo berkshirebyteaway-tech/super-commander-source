@@ -13,7 +13,7 @@ function S.new(accounts)
     self.worker=Worker.new(self.store,function(id,e,unpaid)return self.daily:apply(accounts,id,e,unpaid)end,Validate.reward)
     self.pending=self.worker.pending;self.busy=self.worker.busy
     task.spawn(function()while not self.closing do task.wait(12);self:pulse()end end)
-    game:BindToClose(function()
+    require(script.Parent.CloseHook)(function()
         self.closing=true;local deadline=os.clock()+24
         repeat self:pulse();task.wait(.25)until not next(self.pending)and not next(self.busy)and not self.daily:hasPending()or os.clock()>=deadline
     end)

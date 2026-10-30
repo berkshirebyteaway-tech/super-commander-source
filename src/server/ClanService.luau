@@ -45,7 +45,7 @@ local function adapter()
             players.PlayerRemoving:Connect(function(p)self:leaving(p)end)
             for _,p in ipairs(players:GetPlayers())do self.a.spawn(function()self:load(p)end)end
             task.spawn(function()while not self.closing do task.wait(12);self.warDelivery:retry();self.warArchive:retry();self.personalWarArchive:retry()end end)
-            game:BindToClose(function()
+            require(script.Parent.CloseHook)(function()
                 self.closing=true;local finish=os.clock()+25
                 repeat self.warDelivery:flush();task.wait(.5)until not next(self.warDelivery.worker.pending)or os.clock()>=finish
             end)

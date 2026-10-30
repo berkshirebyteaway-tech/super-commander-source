@@ -2,7 +2,6 @@ local Players=game:GetService('Players')
 local K=require(script.Parent.Kit20)
 local S=require(script.Parent.Sheet20)
 local Localization=require(script.Parent.Localization)
-local Party=require(script.Parent.Parent.Core.PartyFormation)
 local C=K.colors
 local M={}
 local DANGER_TEXT=Color3.fromRGB(255,138,138)
@@ -91,17 +90,12 @@ local function seat(root,lobby,fmt,x,y,size,id,anchorName)
         local status=s and s.partyStatus and s.partyStatus[tostring(id)]
         if status and status~='hq'and status~='ready'then face.ImageTransparency=.45 end
         if grouped and party.leader==id then local c=K.icon(holder,'crown',size>60 and 18 or 14,C.gold,'Leader');local cs=size>60 and 18 or 14;K.box(c,size-cs+2,-2,cs,cs);c.ZIndex=3 end
-        if grouped and party.leader~=id and Party.isReady(party,id)then
-            local cs=size>60 and 20 or 16
-            local r=K.make('Frame',holder,{Name='Ready',BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=3});K.round(r,'pill');K.stroke(r,S.BG,2);K.box(r,size-cs+2,size-cs+2,cs,cs)
-            local ic=K.icon(r,'check',cs-6,C.bg,'Check');ic.ZIndex=4;K.box(ic,3,3,cs-6,cs-6)
-        end
         if id~=me then
             holder.Activated:Connect(function()
                 require(script.Parent.ToyAudio).play('click')
                 local pl=Players:GetPlayerByUserId(id);local items={}
                 local labels={away='다른 서버',loading='불러오는 중',results='결과 화면',match='경기 중',queued='대기 중',ready='준비',hq='로비'}
-                table.insert(items,{text=pl and pl.DisplayName or '지휘관',value=party.leader==id and '방장'or Party.isReady(party,id)and '준비 완료'or labels[status or 'hq']or '로비',muted=false})
+                table.insert(items,{text=pl and pl.DisplayName or '지휘관',value=party.leader==id and '방장'or labels[status or 'hq']or '로비',muted=false})
                 if pl then table.insert(items,{text='전적',icon='records',fn=function()require(script.Parent.CommanderProfile).open(lobby,pl,'party')end})end
                 if party.leader==me then table.insert(items,{text='내보내기',icon='x',fn=function()lobby:request('kick',id)end})end
                 S.menu(lobby,holder,items)
@@ -181,9 +175,6 @@ function M.draw(lobby,body)
             for _,hard in ipairs({false,true})do local r=play.coop(lobby.map,party,hard)
                 table.insert(acts,{name=hard and 'PartyHard'or 'PartyCoop',text=string.format(hard and '어려움 %d vs %d'or '협동 %d vs %d',#users,r.aiCount),kind=hard and 'plain'or 'out',fn=function()require(script.Parent.CustomDeployment).party(lobby,hard)end})
             end
-        else
-            local ready=Party.isReady(party,me)
-            table.insert(acts,{name='Ready',text=ready and '준비 취소'or '준비',kind=ready and 'plain'or 'out',fn=function()lobby:request('ready')end})
         end
         table.insert(acts,{name='LeaveParty',text='파티 나가기',fn=function()lobby:request('leaveParty')end,muted=true,apart=true})
         local x0=pt and 16 or p+inset;local x1=x0+(pt and sw-32 or sw-2*(p+inset))

@@ -87,7 +87,7 @@ function S.new(onChanged)
             end
         end
     end)
-    game:BindToClose(function()
+    require(script.Parent.CloseHook)(function()
         self.closing=true
         local deadline=os.clock()+25
         while next(self.repo.busy) and os.clock()<deadline do task.wait(.1) end

@@ -1,5 +1,6 @@
 import {readFile,writeFile,readdir,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {shipSource} from './ship-source.mjs';
 import path from 'node:path';import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const verification=!process.argv.includes('--lite');
@@ -54,7 +55,7 @@ if(!verification)for(const list of [entries,services])for(let i=list.length-1;i>
 const devPurge=verification?'':`for _,n in ipairs(${JSON.stringify(devModules).replace('[','{').replace(/]$/,'}')})do for _,f in ipairs({folders.Client,folders.Core,services})do local s=f:FindFirstChild(n);if s then s:Destroy()end end end\n`;
 const mapDataEntries=entries.filter(e=>e.folder==='Maps'&&e.name.startsWith('Map_'));
 for(const e of mapDataEntries){entries.splice(entries.indexOf(e),1);e.folder='MapData';}
-const runtime=[];for(const [name,cls,f] of [['FrontierNativeServer','Script','MultiplayerServer.server.luau'],['FrontierNativeClient','LocalScript','NativeExperience.client.luau'],['FrontierLoading','LocalScript','LoadingScreen.client.luau']])runtime.push({name,cls,first:f.startsWith('LoadingScreen'),source:await readFile(path.join(root,'src/runtime',f),'utf8')});
+const runtime=[];for(const [name,cls,f] of [['FrontierNativeServer','Script','MultiplayerServer.server.luau'],['FrontierNativeClient','LocalScript','NativeExperience.client.luau'],['FrontierLoading','LocalScript','LoadingScreen.client.luau']])runtime.push({name,cls,first:f.startsWith('LoadingScreen'),source:shipSource(await readFile(path.join(root,'src/runtime',f),'utf8'))});
 const runner={name:'FrontierNativeVerification',cls:'Script',source:'if not game:GetService("RunService"):IsStudio() then return end\nlocal p=game.ReplicatedStorage.FrontierNative\nlocal results={}\nfor _,name in ipairs({"LocalizationChecks","FirstPlayChecks","OutgameChecks","FeedbackChecks","CombinedArmsChecks","ArmsParity","Parity","CombatParity","EconomyParity","MapParity","SettlementChecks","PresentationChecks","TribeParity","SkirmishChecks","NationParity","NationChecks","CommerceChecks","DiplomacyChecks","WinChecks","MultiplayerChecks"}) do task.wait();results[name]=require(p.Tests[name]).run() end\np:SetAttribute("Verified",true)\nprint("NATIVE CHECKS PASS",game.HttpService:JSONEncode(results))\n'};
 runner.source=runner.source.replace('local results={}', 'local results={}\nresults.PlaytestChecks=require(p.Tests.PlaytestChecks).run()');
 for(const e of [...entries,...mapDataEntries,...services,...runtime,runner])if(e.source.length>=200000||e.source.includes(']====]'))throw Error('Source size/delimiter '+e.name);

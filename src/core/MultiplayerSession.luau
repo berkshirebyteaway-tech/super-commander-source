@@ -36,21 +36,11 @@ end
 function M:joinCandidate()
     if self.phase=="spawn" then local first;for id in pairs(self.nations)do if not first or id<first then first=id end end;return first end
     if self.phase~="playing" then return nil end
-    local players=self.sim.players
-    local function bigger(a,b)local x,y=players[a].tiles.size,players[b].tiles.size;return x>y or x==y and a<b end
-    local ranked={};for id,p in ipairs(players)do if p.tiles.size>0 then table.insert(ranked,id)end end
-    table.sort(ranked,bigger)
-    local top={};for i=1,math.min(3,#ranked)do top[ranked[i]]=true end
-    local list={};for id in pairs(self.nations)do if players[id].tiles.size>0 then table.insert(list,id)end end
-    if #list==0 then return nil end
-    table.sort(list,bigger)
-    local median=players[list[math.ceil(#list/2)]].tiles.size
-    local best,gap
-    for _,id in ipairs(list)do
-        local size=players[id].tiles.size
-        if not top[id]and size>=median*.25 then local d=math.abs(size-median);if not best or d<gap then best,gap=id,d end end
+    local players=self.sim.players;local best
+    for id in pairs(self.nations)do local size=players[id].tiles.size
+        if size>0 and (not best or size>players[best].tiles.size or size==players[best].tiles.size and id<best)then best=id end
     end
-    return best or list[#list]
+    return best
 end
 function M:takeOver(entry,id)
     id=id or self:joinCandidate();local ai=id and self.nations[id]
@@ -58,6 +48,7 @@ function M:takeOver(entry,id)
     local p,r=self.sim.players[id],self.resources[id];local country=r.name
     self.parked=self.parked or {};self.parked[id]=ai;self.nations[id]=nil
     p.kind="HUMAN";p.name=entry.name;p.userId=entry.userId;r.kind="HUMAN";r.name=entry.name;r.country=country
+    r.countryFlag=r.flag;r.flag=nil
     self.roster[id]=entry;self.spawned[id]=p.spawnTile or 0;self.eliminated[id]=nil;self.playerEvents[id]=nil;r.disconnected=nil
     local text=string.format("%s, %s 지휘",entry.name,tostring(country))
     for other,q in ipairs(self.sim.players) do if q.kind=="HUMAN" and other~=id then self:notify(other,text,"diplomacy") end end
@@ -72,6 +63,7 @@ function M:handBack(id)
     local ai=self.parked and self.parked[id]or Nation.new(self,id,"handback-"..id.."-"..self.sim.ticks)
     if self.parked then self.parked[id]=nil end
     p.kind="NATION";p.userId=nil;p.name=name;r.kind="NATION";r.name=name;r.relations=r.relations or {}
+    r.flag=r.countryFlag;r.countryFlag=nil
     self.nations[id]=ai
     return true
 end

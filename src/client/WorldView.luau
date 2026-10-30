@@ -18,6 +18,7 @@ local Art=require(script.Parent.CollectionArt)
 local Pattern=require(script.Parent.TerritoryCollection)
 local PoseBatch=require(script.Parent.RenderPoseBatch)
 local Probe=require(script.Parent.FrameProbe)
+local RunTrack=require(script.Parent.CharacterRunTrack)
 local Glints=require(script.Parent.TerritoryGlints)
 local Plinth=require(script.Parent.PlinthSkin)
 local M={};M.__index=M
@@ -30,6 +31,8 @@ end
 function M.new(parent)
     local self=setmetatable({parent=parent,owners={},view={w=1000},lastRevision=-1,chunks={},queue={},units={},yaw=0,tilt=math.rad(89.9),enabled=false,overview=true},M)
     self.playback=Playback.new()
+    self.runTrack=RunTrack.new()
+    Players.LocalPlayer.CharacterRemoving:Connect(function(c)if self.runTrack.character==c then self.runTrack:clear();self.walkTrack=nil end end)
     self.popups={};self.animated={}
     self.combined=Combined.new(self)
     self.folder=Instance.new("Folder");self.folder.Name="FrontierClientView";self.folder.Parent=workspace
@@ -369,16 +372,7 @@ function M:stepDragWalk(dt,char,hrp,hum)
         char:PivotTo(CFrame.new(hrp.Position)*rot)
         if look:Dot(self.dragHeading)>.999 or not self.dragging and self.dragSpeed<.5 then self.dragHeading=nil end
     end
-    if self.walkChar~=char then
-        if self.walkTrack then self.walkTrack:Stop(0);self.walkTrack=nil end
-        self.walkChar=char
-        local folder=char and char:FindFirstChild("Animate");local value=folder and folder:FindFirstChild("run")
-        local clip=value and value:FindFirstChildWhichIsA("Animation");local animator=hum and hum:FindFirstChildOfClass("Animator")
-        if clip and animator then
-            local ok,track=pcall(function()return animator:LoadAnimation(clip)end)
-            if ok and track then track.Priority=Enum.AnimationPriority.Movement;track.Looped=true;self.walkTrack=track end
-        end
-    end
+    self.walkTrack=self.runTrack:get(char,hum,os.clock())
     local track=self.walkTrack;if not track then return end
     local walking=self.dragSpeed>2 and hum~=nil and hum.MoveDirection.Magnitude<.01 and not self.dropActive
     if walking then

@@ -166,4 +166,100 @@ function M.view(raw,ladder,time)
         placementLeft=l.placement or 0,placementTotal=l.placementTotal or M.placements,
         tier=t.id,tierName=t.name,division=div,color=t.color,nextTier=nextTier and nextTier.id,toNext=nextAt and nextAt-l.rp or nil}
 end
+M.trophy={schema=1,start=0,base=30,gapDivisor=20,minDelta=20,maxDelta=40,
+    bronzeLoss=.5,repeatSeconds=86400,repeatHalfAt=6,repeatZeroAt=11,
+    noShowWindow=3600,noShowSeconds={120,300,900},countdown=5,rematchWait=10,
+    normalWindows={{0,300},{15,600},{30,math.huge}},legendTop=100}
+M.trophyTiers={
+    {id='bronze',name='브론즈',min=0,color={201,138,75}},
+    {id='silver',name='실버',min=400,color={191,201,212}},
+    {id='gold',name='골드',min=800,color={245,196,81}},
+    {id='platinum',name='플래티넘',min=1200,color={143,227,238}},
+    {id='diamond',name='다이아몬드',min=1600,color={111,168,255}},
+    {id='master',name='마스터',min=2000,color={196,107,255}},
+}
+local function trophyNumber(n)
+    return type(n)=='number'and n==n and n>=0 and n<math.huge and math.floor(n)or 0
+end
+function M.trophyTier(t)
+    local tier=M.trophyTiers[1]
+    for _,v in ipairs(M.trophyTiers)do if t>=v.min then tier=v end end
+    return tier
+end
+function M.trophyLegend(t,rank)
+    return t>=M.trophyTiers[#M.trophyTiers].min and type(rank)=='number'and rank>=1 and rank<=M.trophy.legendTop
+end
+function M.trophyNew(time)
+    return {schema=M.trophy.schema,season=M.seasonOf(time),t=M.trophy.start,best=M.trophy.start,floor=0,games=0,wins=0,recent={},ban={}}
+end
+function M.trophyRead(raw,time)
+    if raw~=nil and (type(raw)~='table'or raw.schema~=M.trophy.schema)then return nil,'unsupported-trophy-schema'end
+    local p=raw and table.clone(raw)or M.trophyNew(time)
+    p.season=p.season or M.seasonOf(time)
+    p.t=trophyNumber(p.t);p.best=math.max(p.t,trophyNumber(p.best))
+    p.floor=math.max(M.trophyTier(trophyNumber(p.floor)).min,M.trophyTier(p.best).min)
+    p.t=math.max(p.floor,p.t);p.games=trophyNumber(p.games);p.wins=math.min(p.games,trophyNumber(p.wins))
+    p.recent=type(p.recent)=='table'and table.clone(p.recent)or {}
+    p.ban=type(p.ban)=='table'and table.clone(p.ban)or {}
+    return p
+end
+function M.trophyDelta(mine,opponent,won)
+    local gap=math.round((opponent-mine)/M.trophy.gapDivisor)
+    local value=math.clamp(M.trophy.base+(won and gap or -gap),M.trophy.minDelta,M.trophy.maxDelta)
+    if not won and mine<M.trophyTiers[2].min then value=math.round(value*M.trophy.bronzeLoss)end
+    return won and value or -value
+end
+function M.trophyRepeat(raw,opponent,time)
+    local n=0;local key=tostring(opponent)
+    for _,g in ipairs(raw and raw.recent or {})do
+        if g.o==key and type(g.t)=='number'and g.t>time-M.trophy.repeatSeconds and g.t<=time then n+=1 end
+    end
+    return n>=M.trophy.repeatZeroAt-1 and 0 or n>=M.trophy.repeatHalfAt-1 and .5 or 1
+end
+local function trophyRecent(list,time)
+    local out,counts,ordered={},{},{}
+    for i,g in ipairs(list)do table.insert(ordered,{g=g,order=i})end
+    table.sort(ordered,function(a,b)return a.g.t<b.g.t or a.g.t==b.g.t and a.order<b.order end)
+    for i=#ordered,1,-1 do local g=ordered[i].g
+        if g.t>time-M.trophy.repeatSeconds then
+            local n=counts[g.o]or 0
+            if n<M.trophy.repeatZeroAt-1 then counts[g.o]=n+1;table.insert(out,g)end
+        end
+    end
+    local sorted={};for i=#out,1,-1 do table.insert(sorted,out[i])end;return sorted
+end
+function M.trophyApply(raw,result)
+    local p,why=M.trophyRead(raw,result.time);if not p then return nil,0,why end
+    local mine=result.mine or p.t
+    local factor=M.trophyRepeat(p,result.opponents[1],result.time)
+    local d=M.trophyDelta(mine,result.opponent,result.won)
+    d=(d<0 and -1 or 1)*math.round(math.abs(d)*factor)
+    local before=p.t;p.t=math.max(p.floor,p.t+d)
+    p.best=math.max(p.best,p.t);p.floor=math.max(p.floor,M.trophyTier(p.t).min)
+    p.games+=1;p.wins+=result.won and 1 or 0
+    table.insert(p.recent,{o=tostring(result.opponents[1]),t=result.time})
+    p.recent=trophyRecent(p.recent,result.time)
+    return p,p.t-before
+end
+function M.trophyNoShow(raw,time,matchId)
+    local p,why=M.trophyRead(raw,time);if not p then return nil,why end
+    local b=p.ban
+    if b.id==matchId or type(b.last)=='number'and time<b.last then return p end
+    local n=type(b.last)=='number'and time-b.last<M.trophy.noShowWindow and (b.strikes or 0)+1 or 1
+    n=math.min(n,#M.trophy.noShowSeconds)
+    p.ban={id=matchId,last=time,strikes=n,untilTime=time+M.trophy.noShowSeconds[n]}
+    return p
+end
+function M.trophyBanLeft(raw,time)
+    local b=raw and raw.ban
+    return b and math.max(0,(b.untilTime or 0)-time)or 0
+end
+function M.trophyView(raw,time,rank)
+    local p=M.trophyRead(raw,time);if not p then return {available=false}end
+    local tier=M.trophyTier(p.t);local index=table.find(M.trophyTiers,tier);local following=M.trophyTiers[index+1]
+    local legend=M.trophyLegend(p.t,rank)
+    return {available=true,season=p.season,t=p.t,best=p.best,floor=p.floor,games=p.games,wins=p.wins,losses=p.games-p.wins,
+        tier=legend and M.legend.id or tier.id,tierName=legend and M.legend.name or tier.name,color=legend and M.legend.color or tier.color,
+        min=tier.min,nextAt=following and following.min or nil,rank=rank,banLeft=M.trophyBanLeft(p,time)}
+end
 return M

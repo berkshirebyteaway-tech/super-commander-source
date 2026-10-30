@@ -9,7 +9,7 @@ M.enums={
  action=M.actions,feature=M.features,
  input_mode=set('mouse touch gamepad unknown'),viewport_bucket=set('small medium large portrait unknown'),
  phase=set('boot lobby queue transfer drop playing spectate result closed unknown'),
- mode=set('lobby single training practice coop pvp custom official ranked ffa teams duel unknown'),
+ mode=set('lobby single training practice coop pvp custom official ranked world ffa teams duel unknown'),
  result=set('ok failed rejected cancelled timeout unknown duplicate accepted unavailable active inactive ready won lost forfeit expired serverStop skipped complete opened closed shown selected intercepted detonated pending granted retry joined left loaded refused version intro guide goal timer territory lastCommander lastTeam hardLimit none right'),
  verb=set('invite accept decline leave kick ready leader team join cancel create update play again follow attend promote war share other'),
  reason=set('none unknown invalid stale busy loading paused not_playing observer insufficient_cost territory relation cooldown capacity party teamfull private subscription_required storage_unavailable policy_restricted sales_disabled cancelled timeout disconnected completed replaced missing response_missing network failed auto manual random fallback input_limited abandoned shutdown skipped closed granted duplicate not_loaded gap host opponent rules ready automatic team full locked expired invalid_target out_of_range unreachable not_owner relation_missing refused version'),

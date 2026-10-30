@@ -5,7 +5,6 @@ local Maps=require(script.Parent.Parent.Maps.MapLoader)
 local Raster=require(script.Parent.RasterMap)
 local TeamFormat=require(script.Parent.Parent.Core.TeamFormat)
 local Tags=require(script.Parent.TagChips)
-local Party=require(script.Parent.Parent.Core.PartyFormation)
 local PartyPlay=require(script.Parent.Parent.Core.PartyPlay)
 local QueueUI=require(script.Parent.Parent.Core.QueuePresentation)
 local Flow=require(script.Parent.Parent.Core.PlayFlow)
@@ -44,6 +43,9 @@ function M.new(parent,callbacks)
     self.empty=K.text(self.list,'Empty','전장 목록을 확인하는 중…',15,C.muted,700,Enum.TextXAlignment.Center);self.empty.TextWrapped=true
     self.emptyCreate=K.button(self.list,'EmptyCreate',{kind='out',text='협동 방 만들기',size=15},function()if self.party and #self.party.users>1 then callbacks.partyCoop(false)else callbacks.create(self.sub=='pvp'and 'ffa'or 'coop')end end)
     self.emptyCreate.button.Visible=false
+    self.trophyRow=require(script.Parent.TrophyRankRow).new(self.list,{
+        find=callbacks.rankFind,inspect=callbacks.rankInspect,refuse=callbacks.rankRefuse,restore=callbacks.matchRoom,
+    })
     self.shortcut=UI.button(parent,'OpenDeployment','출전',function()self:setOpen(true)end,true);self.shortcut.ZIndex=20;self.shortcut.Visible=false
     if require(script.Parent.Lobby20).ENABLED then require(script.Parent.QueueBar20).build(self,parent,callbacks)
     else
@@ -87,6 +89,7 @@ function M:update(directory,queue,options)
     options=options or {};self.inMenu=options.menu~=false;self.reduced=options.reduced;self.busy=options.busy
     self.queue=queue;self.party=options.party;self.userId=options.userId;self.liveCount=options.live and #options.live or 0
     if options.world~=self.world then self.world=options.world;self.worldAt=os.clock()end
+    self.trophy=options.trophy;self.rankWaiting=directory and directory.rankWaiting or 0
     if directory and directory~=self.directorySource then
         self.directorySource=directory
         self.fields=directory.fields or {};self.upcoming=directory.next or {};self.updated=os.clock();self.directoryNow=directory.now;self.directoryError=directory.unavailable
@@ -111,14 +114,14 @@ function M:join(id)
     local f=self.lookup and self.lookup[id];if not f or self.busy or self.directoryError then return end
     require(script.Parent.TelemetryClient).emit('battlefield_selected',{entry=self.quickJoining and 'quick'or 'list',format=f.rules.mode=='teams'and 'team'or f.rules.mode=='coop'and 'coop'or 'ffa',field_id=f.id,map_key=f.rules.map})
     if self.queue and self.queue.field==id then if f.kind=='custom'then self.callbacks.room()end;return end
-    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ready();return end
+    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ask({field=f.id,revision=f.revision});return end
     if not PartyPlay.assess(f,self.party,self.queue and self.queue.field)then require(script.Parent.TelemetryStep).step('lobby','fieldBlocked',{item=f.kind=='custom'and 'custom'or 'official',reason='party'});return end
     self.callbacks.join({field=f.id,revision=f.revision,quick=self.quickJoining or nil})
 end
 function M:joinWorld()
     local f=self.lookup and self.lookup.world;if not f or self.busy then return end
     require(script.Parent.TelemetryStep).step('lobby','world',{result='selected',count=f.count})
-    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ready();return end
+    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ask({field='world'});return end
     if self.callbacks.world then self.callbacks.world()end
 end
 function M:worldField()
@@ -190,16 +193,17 @@ end
 
 function M:action(f)
     local q=self.queue and self.queue.field==f.id;local party=self.party;local grouped=party and #party.users>1
-    local follower=grouped and party.leader~=self.userId;local ready=follower and Party.isReady(party,self.userId)
+    local follower=grouped and party.leader~=self.userId
     local text=q and (f.kind=='custom'and '방 보기'or '참가 중')or f.count>=f.rules.maximum and '만석'or self.queue and '옮겨 참가'or f.kind=='custom'and '방 참가'or f.kind=='world'and '난입'or '참가'
     local on=not self.busy and not self.directoryError and (q and f.kind=='custom'or not q and f.count<f.rules.maximum)
     if grouped and not q then
-        text=follower and (ready and '준비 완료'or '준비')or '파티 참가'
-        on=not self.busy and not self.directoryError and (follower and not self.queue or not follower and f.count+(self.queue and self.queue.field==f.id and 0 or #party.users)<=f.rules.maximum)
+        local asked=follower and party.ask and party.ask.from==self.userId and party.ask.field==f.id
+        text=follower and (asked and '방장 확인'or '가자')or '파티 참가'
+        on=not self.busy and not self.directoryError and not asked and f.count+(self.queue and self.queue.field==f.id and 0 or #party.users)<=f.rules.maximum
     end
     if grouped and not q and f.kind~='custom'and #party.users>sideCap(f.rules)then text='파티 인원 초과';on=false end
     if f.teamPlan and f.teamPlan.locked and not q then text='출발 준비';on=false end
-    local plain=text=='참가'or text=='난입'or text=='방 참가'or text=='옮겨 참가'or text=='파티 참가'
+    local plain=text=='참가'or text=='난입'or text=='방 참가'or text=='옮겨 참가'or text=='파티 참가'or text=='가자'
     return text,on,plain,q
 end
 
@@ -335,11 +339,22 @@ function M:render()
     local lit=mineId or (not self.queue and not world and pick and pick.id)
     local y,index,rows=0,0,{}
     if self.split then self.split.frame.Visible=false end
-    if world then
-        local sp=self:paintSplit(world,fmt,y,lw,rh,elapsed)
-        require(script.Parent.TelemetryStep).change('worldRow','lobby','world',{result='shown',count=world.count})
-        table.insert(rows,sp.frame);y+=rh+gap
+    local rankShown=self.filter~='custom'and not ranked and self.trophy and self.trophy.enabled
+    local pair=require(script.Parent.Parent.Core.TrophyEntry).layout(lw,gap,rankShown,world~=nil)
+    self.trophyRow.frame.Visible=rankShown==true
+    if rankShown and self.trophyRow:paint(0,y,pair.rankWidth,rh,fmt,{trophy=self.trophy,party=party,queue=self.queue,busy=self.busy,waiting=self.rankWaiting,split=pair.split})then
+        table.insert(rows,self.trophyRow.frame)
     end
+    if self.trophyWorldRow then self.trophyWorldRow.press.button.Visible=false end
+    if world and rankShown then
+        table.insert(rows,require(script.Parent.TrophyFieldPair).paint(self,world,pair.worldX,y,pair.worldWidth,rh,fmt,elapsed))
+    elseif world then
+        local sp=self:paintSplit(world,fmt,y,lw,rh,elapsed);sp.ranked.frame.Visible=true
+        table.insert(rows,sp.frame)
+    end
+    if world then require(script.Parent.TelemetryStep).change('worldRow','lobby','world',{result='shown',count=world.count})end
+    if rankShown or world then y+=rh+gap end
+    local entryHeight=y
     if not ranked then
         for _,id in ipairs(self.order)do local f=self.lookup[id]
             if f and (self.filter=='all'or self.filter==f.kind)and (self.sub=='all'or self.sub=='pvp'and f.rules.mode~='coop'or self.sub==f.rules.mode)then
@@ -351,14 +366,13 @@ function M:render()
         end
     end
     require(script.Parent.TelemetryStep).change('fieldsEmpty','lobby','fieldsEmpty',{item=require(script.Parent.TelemetryStep).code(tostring(self.filter or 'all')..'_'..tostring(self.sub or 'any')),total=index,result=index==0 and 'shown'or 'closed',reason=index==0 and (self.directoryError and 'network'or grouped and 'party'or 'none')or nil})
-    local top=y
     self.empty.Visible=index==0
     self.empty.Text=ranked and '랭크전 준비 중'or self.directoryError and '연결 확인 중…'or grouped and '파티 전장 0'or self.filter=='custom'and '열린 방 0'or '전장 목록을 확인하는 중…'
-    K.box(self.empty,0,top+16,lw,40)
+    K.box(self.empty,0,entryHeight+16,lw,40)
     local ec=index==0 and (self.filter=='custom'or grouped)and not self.directoryError and not ranked
     self.emptyCreate.button.Visible=ec
-    if ec then self.emptyCreate:setText(self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),top+64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
-    S.canvas(self.list,index==0 and top+(ec and 116 or 64)or y-gap)
+    if ec then self.emptyCreate:setText(self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),entryHeight+64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
+    S.canvas(self.list,index==0 and entryHeight+(ec and 116 or 64)or y-gap)
     if want then
         if not self.frame.Visible or self.leavingNow or self.entering then
             local fresh=not self.frame.Visible or self.leavingNow
@@ -387,7 +401,7 @@ function M:render()
     self.suggested=QueueUI.suggestion(self.queue,{fields=self.fields,unavailable=self.directoryError},self.directoryNow and self.directoryNow+elapsed,grouped and #party.users or 1)
     if self.q20 then
         self.practiceAvailable=Flow.practice(self.queue,self.directoryNow and self.directoryNow+elapsed,self.practicing)
-        local room=self.queue and self.queue.room~=nil and self.queue.phase~='transferring'
+        local room=self.queue and (self.queue.room~=nil or self.queue.trophySolo)and self.queue.phase~='transferring'
         local sv=(room or self.suggested~=nil or self.practiceAvailable or self.queue and self.queue.mode=='custom')and self.inMenu==true
         local q=self.queue
         require(script.Parent.QueueBar20).paint(self,q,{title=title({rules=q and q.rules or {map='world'}}),clock=clock,elapsed=elapsed,busy=self.busy,
@@ -402,7 +416,7 @@ function M:render()
         self.cancel.Text=q.partyCount and '파티 대기 취소'or '대기 취소';UI.enabled(self.cancel,not self.busy and not q.locked)
     end
     self.practiceAvailable=Flow.practice(self.queue,self.directoryNow and self.directoryNow+elapsed,self.practicing)
-    local room=self.queue and self.queue.room~=nil and self.queue.phase~='transferring'
+    local room=self.queue and (self.queue.room~=nil or self.queue.trophySolo)and self.queue.phase~='transferring'
     self.suggest.Visible=(room or self.suggested~=nil or self.practiceAvailable or self.queue and self.queue.mode=='custom')and self.inMenu;self.suggest.Text=room and '대기실'or self.queue and self.queue.mode=='custom'and '방 보기'or self.suggested and '사람 있는 전장'or '기다리며 연습'
     UI.enabled(self.suggest,not self.busy and not(self.queue and self.queue.locked))
     local bw=self.bar.Size.X.Offset;local bl=QueueUI.layout(bw,self.suggest.Visible);self.barHeight=bl.height

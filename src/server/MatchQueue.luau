@@ -5,13 +5,16 @@ local Http=game:GetService('HttpService')
 local Core=game.ReplicatedStorage.FrontierNative.Core
 local Lobby=require(Core.LobbyModel)
 local Model=require(Core.BattlefieldModel)
+local Rules=require(Core.BattlefieldRules)
 local Config=require(script.Parent.MultiplayerConfig)
 local Storage=require(script.Parent.BattlefieldStore)
+local TrophyRecovery=require(script.Parent.TrophyMatchRecovery)
 local M={};M.__index=M
 M.arrivalSeconds=75
 function M.new()
     local localQueue=Lobby.new()
     local self=setmetatable({localQueue=localQueue,membership=localQueue.membership,active={},locations={},reserving={},arrivals={},attempts={},sending={},retryAt={},deferredCancels={},cancelling={},joining={},live=Config.globalPvpEnabled and not Run:IsStudio()},M)
+    self.timeOffset=os.time()-os.clock()
     if self.live then
         local memory=game:GetService('MemoryStoreService')
         local suffix='_v'..Config.queueProtocol
@@ -105,6 +108,13 @@ function M:directory(id)
         for _,f in ipairs(own and Model.directory(own,now,id).fields or {})do if (f.kind=='custom'or (self.membership[id]or {}).field==f.id)and not seen[f.id]then table.insert(d.fields,f);seen[f.id]=true end end
         for _,f in ipairs(self.storage.public)do if not seen[f.id]then table.insert(d.fields,f);seen[f.id]=true end end
     end
+    local ranks=self.live and self.storage.cache.ranked or self.state
+    if not self.live or os.clock()-(self.rankReadAt or -math.huge)<12 then
+        local count=0;for _,t in pairs(ranks and ranks.tickets or {})do
+            if t.field=='ranked-r1v1'and not t.match and now-t.seen<Rules.leaseSeconds then count+=1 end
+        end
+        d.rankWaiting=count
+    end
     d.global=self.live;d.unavailable=self.live and (not self.lastGood or os.clock()-self.lastGood>12)or nil
     return d
 end
@@ -119,7 +129,7 @@ function M:deferCancel(id,token,bucket)
 end
 function M:retire(id,token,bucket)
     local retired=self:deferCancel(id,token,bucket)
-    local removed=self:update({kind='cancel',userId=id,token=token,bucket=bucket})
+    local removed=self:update({kind='cancel',userId=id,token=token,bucket=bucket,leaving=true})
     if removed and self.deferredCancels[token]==retired then self.deferredCancels[token]=nil end
 end
 function M:deferJoin(op)
@@ -177,7 +187,8 @@ function M:joinFieldNow(ids,ticket,now,invited,request)
         clans[tostring(id)]=p:GetAttribute('CommanderClan');friends[tostring(id)]=self.friends[id]
     end
     local groupId=#ids>1 and Http:GenerateGUID(false)or nil
-    local op={kind='joinGroup',users=ids,tokens=tokens,names=names,levels=levels,clans=clans,friends=friends,group=groupId,leader=ids[1],field=ticket.field,revision=ticket.revision,invited=invited==true,ratings=ranked and ticket.ratings or nil,clan=ranked=='clanwar'and ticket.clan or nil}
+    local op={kind='joinGroup',users=ids,tokens=tokens,names=names,levels=levels,clans=clans,friends=friends,group=groupId,leader=ids[1],field=ticket.field,revision=ticket.revision,invited=invited==true,ratings=ranked and ticket.ratings or nil,clan=ranked=='clanwar'and ticket.clan or nil,
+        previous=ranked=='r1v1'and ticket.previous or nil,window=ranked=='r1v1'and ticket.window or nil}
     local destination=self.live and self:bucket(op)or (custom and 'room:'..ticket.field or ranked and 'ranked'or 'official')
     local retired={};for _,id in ipairs(ids)do if self.live and self.active[id]and self.locations[id]~=destination then retired[id]={token=self.active[id],bucket=self.locations[id]}end end
     request.tokens=tokens;request.destination=destination
@@ -197,7 +208,7 @@ function M:joinFieldNow(ids,ticket,now,invited,request)
     end
     if not self:joinValid(request)then self:rollbackJoin(request);return false,'파티 상태 바뀜'end
     local t=s.tickets[tostring(ids[1])]
-    local field=t.match and s.matches[t.match]or custom and s.customs[t.field]or ranked and {rules=require(game.ReplicatedStorage.FrontierNative.Core.RankedRules).rules(ranked=='clanwar'and '2v2'or ranked,0)}or (function()for _,f in ipairs(s.fields)do if f.id==t.field then return f end end end)()
+    local field=t.match and s.matches[t.match]or custom and s.customs[t.field]or ranked and {rules=require(Core.RankedRules).rules(require(Core.RankedQueue).rulesLadder(ranked),0)}or (function()for _,f in ipairs(s.fields)do if f.id==t.field then return f end end end)()
     if not field then self:rollbackJoin(request);return false,'매칭 연결 확인 중'end
     local membership={users=table.clone(ids),leader=ids[1],group=groupId,mode=custom and 'custom'or ranked and 'ranked'or 'pvp',ladder=ranked,field=t.field,joined=now,rules=field.rules}
     for _,id in ipairs(ids)do
@@ -288,8 +299,13 @@ function M:cancel(id,now,leaving)
     for _,uid in ipairs(ids)do if self.sending[uid]then return false,'전장 이동 중'end end
     local cancellation={};local tokens={}
     for _,uid in ipairs(ids)do self.cancelling[uid]=cancellation;tokens[uid]=self.active[uid]end
-    local token=self.active[id];local ok=self:update({kind='cancel',userId=id,token=token})
+    local token=self.active[id];local ok,s=self:update({kind='cancel',userId=id,token=token,leaving=leaving==true})
     for _,uid in ipairs(ids)do if self.cancelling[uid]==cancellation then self.cancelling[uid]=nil end end
+    if not leaving then
+        if ok and s.notice=='locked'then return false,'출격 준비 중'end
+        if not ok and group and group.ladder=='r1v1'then return false,'매칭 연결 확인 중'end
+    end
+    if ok then TrophyRecovery.scan(self,s)end
     for _,uid in ipairs(ids)do
         if self.active[uid]==tokens[uid]then
             if not ok and tokens[uid]then self:deferCancel(uid,tokens[uid],self.locations[uid])end
@@ -301,10 +317,10 @@ end
 function M:status(id,now)
     if not self.active[id]then return self.localQueue:status(id,now)end
     local status=Model.status(self.state,id,self.active[id],self.live and os.time()or now)
-    if not status then local last=self.membership[id]or {};return {mode='pvp',field=last.field,rules=last.rules,count=1,max=last.rules and last.rules.maximum or 10,minimum=1,phase='recovering',global=true}end
+    if not status then local last=self.membership[id]or {};local trophy=last.ladder=='r1v1';return {mode=trophy and 'ranked'or 'pvp',ladder=last.ladder,trophySolo=trophy or nil,joined=last.joined,field=last.field,rules=last.rules,count=1,max=last.rules and last.rules.maximum or 10,minimum=1,phase='recovering',global=true,locked=trophy or nil}end
     if os.clock()-(self.lastGood or 0)>12 then status.phase='recovering';status.remaining=nil end
     status.global=self.live
-    status.locked=self.sending[id]~=nil
+    status.locked=self.sending[id]~=nil or status.trophySolo and status.phase~='searching'or false
     for _,uid in ipairs((self.membership[id]or {}).users or {})do if self.sending[uid]then status.locked=true;break end end
     return status
 end
@@ -312,7 +328,7 @@ function M:take(mode,now)
     if mode~='pvp'then return self.localQueue:take(mode,now)end
     if self.live then return nil end
     self:update({kind='pulse',tokens=self:activeTokens()})
-    for mid,m in pairs(self.state.matches)do if m.phase=='reserving'then
+    for mid,m in pairs(self.state.matches)do if m.phase=='reserving'and (not m.departAt or now>=m.departAt)then
         local users={};for uid in pairs(m.members)do table.insert(users,tonumber(uid))end
         local selection=Model.selection(m,users)
         for _,id in ipairs(users)do self.state.tickets[tostring(id)]=nil;self.active[id]=nil;self.membership[id]=nil end
@@ -344,6 +360,7 @@ function M:hurry()
     return false
 end
 function M:transfer(id,m,ticket)
+    if m.departAt and (self.live and os.time()or os.clock())<m.departAt then return end
     local p=Players:GetPlayerByUserId(id);if not p or self.updating or self.sending[id]or self.cancelling[id]or os.clock()<(self.retryAt[id]or 0)then return end
     if self.live then local s=self.storage.cache['match:'..ticket.match];if not s or not s.committed then return end end
     local ids,players={},{}
@@ -356,7 +373,7 @@ function M:transfer(id,m,ticket)
     end
     if #players==0 then return end
     for _,uid in ipairs(ids)do if (self.attempts[uid]or 0)>=3 then
-        self:cancel(uid,os.clock());for _,other in ipairs(ids)do if self.telemetry then self.telemetry:flowUser(other,'queue','transferGiveUp',{result='cancelled',reason='network',count=3})end;self:notify(other,'이동 실패, 모집 취소')end;return
+        self:cancel(uid,os.clock(),true);for _,other in ipairs(ids)do if self.telemetry then self.telemetry:flowUser(other,'queue','transferGiveUp',{result='cancelled',reason='network',count=3})end;self:notify(other,'이동 실패, 모집 취소')end;return
     end end
     for _,uid in ipairs(ids)do self.sending[uid]=os.clock();self.attempts[uid]=(self.attempts[uid]or 0)+1 end
     local attempt=self.attempts[ids[1]]or 1
@@ -380,8 +397,15 @@ function M:arrival(p)
     self.callbacks.arrival(p.UserId,true)
     task.spawn(function()
         local success,s
-        for attempt=1,3 do success,s=self:update({kind='claim',match=hint,privateId=game.PrivateServerId});if success then break end;task.wait(attempt*2)end
+        for attempt=1,3 do success,s=self:update({kind='claim',match=hint,privateId=game.PrivateServerId,userId=p.UserId});if success then break end;task.wait(attempt*2)end
         local m=success and s.matches[hint]
+        if m and m.trophySolo and m.phase=='cancelled'and m.members[tostring(p.UserId)]and m.destination==game.JobId then
+            if m.absent[tostring(p.UserId)]and m.penaltyAck[tostring(p.UserId)]then
+                self.callbacks.arrival(p.UserId,false);self:notify(p.UserId,'랭크 잠시 대기');return
+            end
+            self.arrivals[hint]=self.arrivals[hint]or {since=os.clock(),users={}}
+            self.arrivals[hint].users[p.UserId]=true;TrophyRecovery.scan(self,s);return
+        end
         if m and m.phase=='running'and m.destination==game.JobId and m.members[tostring(p.UserId)]then self.callbacks.arrival(p.UserId,false);return end
         if not m or m.destination~=game.JobId or not m.members[tostring(p.UserId)]or m.phase~='ready'then
             self.callbacks.arrival(p.UserId,false);if self.telemetry then self.telemetry:flow(p,'queue','arrival',{result='rejected',reason=success and 'missing'or 'storage_unavailable'})end
@@ -403,7 +427,7 @@ function M:poll()
     end
     if retired then
         retired.retryAt=cleanupNow
-        local removed=self:update({kind='cancel',userId=retired.userId,token=retired.token,bucket=retired.bucket})
+        local removed=self:update({kind='cancel',userId=retired.userId,token=retired.token,bucket=retired.bucket,leaving=true})
         if removed and self.deferredCancels[id]==retired then self.deferredCancels[id]=nil end
     end
     local ok,s
@@ -423,10 +447,18 @@ function M:poll()
             end end
             for id,token in pairs(self.active)do local found,where=pcall(self.storage.locate,self.storage,id,token,self.locations[id]);if found then self.locations[id]=where end end
             for mid in pairs(self.arrivals)do self.storage:match(mid)end
+            for mid in pairs(self.trophyPending or {})do self.storage:match(mid)end
             if hasLobby then self.storage:list(now)end
+            local rankVisible=hasLobby and self.callbacks and self.callbacks.trophyAllowed and self.callbacks.trophyAllowed()
+            if rankVisible and os.clock()-(self.rankReadAttempt or -math.huge)>=5 then
+                self.rankReadAttempt=os.clock()
+                local read=pcall(self.storage.read,self.storage,'ranked');if read then self.rankReadAt=os.clock()end
+            end
             local keep={official=true,[self.directoryBucket or 'official']=true}
+            if rankVisible then keep.ranked=true end
             for _,bucket in pairs(self.locations)do keep[bucket]=true end
             for mid in pairs(self.arrivals)do keep['match:'..mid]=true end
+            for mid in pairs(self.trophyPending or {})do keep['match:'..mid]=true end
             for _,op in pairs(self.joining)do if op.destination then keep[op.destination]=true end end
             for _,old in pairs(self.deferredCancels)do if old.bucket then keep[old.bucket]=true end end
             for bucket,state in pairs(self.storage.cache)do if not keep[bucket]then
@@ -444,6 +476,7 @@ function M:poll()
         end end
         return
     end
+    TrophyRecovery.scan(self,s)
     if not self.live then return end
     for mid,m in pairs(s.matches)do if m.creator==game.JobId and m.phase=='reserving'then task.spawn(function()self:reserve(mid,m)end)end end
     s=self.state
@@ -466,11 +499,17 @@ function M:poll()
     end
     for mid,a in pairs(self.arrivals)do
         local m=s.matches[mid]
+        if m and m.trophySolo and m.phase=='cancelled'then continue end
         if not m or m.phase~='ready'then for id in pairs(a.users)do self.callbacks.arrival(id,false);self:notify(id,'모집 끝남')end;self.arrivals[mid]=nil;continue end
         local users={};local expected=0
         for id in pairs(m.members)do expected+=1;if Players:GetPlayerByUserId(tonumber(id))then table.insert(users,tonumber(id))end end
         table.sort(users)
         local late=os.clock()-a.since>=M.arrivalSeconds or os.time()>=m.expires-10
+        if m.trophySolo and late and #users<expected then
+            local cancelled,result=self:update({kind='rankedFail',match=mid,users=users})
+            if cancelled then TrophyRecovery.scan(self,result)end
+            continue
+        end
         if #users>=(m.kind=='custom'and m.rules.minimum or 1)and (#users==expected or late)then
             local started,result=self:update({kind='start',match=mid,users=users})
             if started and result.matches[mid]and result.matches[mid].phase=='running'then
@@ -497,7 +536,7 @@ end
 function M:start(callbacks)
     self.callbacks=callbacks
     task.spawn(function()while true do
-        if #Players:GetPlayers()>0 and (not self.live or next(self.active)or next(self.arrivals)or next(self.deferredCancels)or not callbacks.hasLobby or callbacks.hasLobby())then
+        if (#Players:GetPlayers()>0 or next(self.trophyPending or {}))and (not self.live or next(self.active)or next(self.arrivals)or next(self.deferredCancels)or next(self.trophyPending or {})or not callbacks.hasLobby or callbacks.hasLobby())then
             local ok,err=pcall(function()self:poll()end);if not ok then warn('TOYFRONT match coordinator',err)end
         end
         local rest=math.min((next(self.active)or next(self.arrivals))and 10 or 20,3*2^(self.failures or 0))

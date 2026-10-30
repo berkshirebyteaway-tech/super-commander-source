@@ -23,13 +23,17 @@ end
 function S:allowed()return self.config.rankedEnabled==true and require(script.Parent.LiveConfig).enabled('ranked')or Run:IsStudio()end
 function S:store(seasonKey,ladder)
     if self.local_ then return nil end
-    local name='SuperCommanderRanked_'..seasonKey..'_'..ladder
+    local name=ladder=='trophySolo'and 'SuperCommanderTrophySolo_v1'or 'SuperCommanderRanked_'..seasonKey..'_'..ladder
     self.stores[name]=self.stores[name]or game:GetService('DataStoreService'):GetOrderedDataStore(name)
     return self.stores[name]
 end
 function S:record(id)local p=self.careers.profiles[id];return p and p.ranked end
 function S:ladderView(id,ladder,now)return Rules.view(self:record(id),ladder,now or os.time())end
 function S:submit(id,saved,result)
+    if result.trophySolo then
+        local c=self.boards.alltrophySolo;if c then c.at=-math.huge end
+        self.boardWriter:queue(id,'all','trophySolo');return
+    end
     local ladder=result.ladder;local season=result.time and Season.at(result.time).key or saved.ranked and saved.ranked.season
     if not season then return end
     local cached=self.boards[season..ladder];if cached then cached.at=-math.huge end
@@ -65,14 +69,19 @@ function S:readBoard(seasonKey,ladder,limit)
     local rows={}
     if self.local_ then
         for id,p in pairs(self.careers.profiles)do local r=p.ranked;local l=r and r.season==seasonKey and r.ladders[ladder]
+            if ladder=='trophySolo'then local t=p.trophySolo;l=t and t.games>0 and {rp=t.t,placement=0}or nil end
             if l and (l.placement or 0)<=0 then table.insert(rows,{userId=id,rp=l.rp})end end
         table.sort(rows,function(a,b)return a.rp>b.rp or a.rp==b.rp and a.userId<b.userId end)
     else
         local page=self:store(seasonKey,ladder):GetSortedAsync(false,limit):GetCurrentPage()
         for _,row in ipairs(page)do table.insert(rows,{userId=tonumber(row.key),rp=row.value})end
     end
-    local shown={};for i=1,math.min(#rows,S.boardSize)do shown[i]=rows[i]end;self:fillNames(shown)
-    for i,row in ipairs(rows)do row.rank=i;row.tier=Rules.isLegend(row.rp,i)and 'legend'or Rules.tierOf(row.rp).id;if i<=S.boardSize then row.name=self:name(row.userId)end end
+    local shown={};local display=ladder=='trophySolo'and Rules.trophy.legendTop or S.boardSize
+    for i=1,math.min(#rows,display)do shown[i]=rows[i]end;self:fillNames(shown)
+    for i,row in ipairs(rows)do row.rank=i
+        row.tier=ladder=='trophySolo'and (Rules.trophyLegend(row.rp,i)and 'legend'or Rules.trophyTier(row.rp).id)or (Rules.isLegend(row.rp,i)and 'legend'or Rules.tierOf(row.rp).id)
+        if i<=display then row.name=self:name(row.userId)end
+    end
     return rows
 end
 function S:cachedBoard(seasonKey,ladder)
@@ -83,6 +92,11 @@ function S:cachedBoard(seasonKey,ladder)
     return c and c.rows or {}
 end
 function S:track(id,saved,result,before)
+    if result.trophySolo then
+        local r=saved.lastTrophySolo
+        if r and r.id==result.id then log(id,'result',{item='r1v1',result=r.won and 'won'or 'lost',amount=r.delta,value=math.abs(r.delta),level=r.t})end
+        return
+    end
     local ladder=result.ladder;local now=os.time()
     local b=Rules.view(before and before.ranked,ladder,now);local a=Rules.view(saved.ranked,ladder,now)
     log(id,'result',{item='r'..tostring(ladder),result=result.won and 'won'or 'lost',value=math.abs(a.rp-b.rp),amount=a.rp-b.rp,count=a.games,level=a.rp})
@@ -92,7 +106,7 @@ end
 local reasonOf={['랭크전은 곧 열려요.']='paused',['클랜전은 곧 열려요.']='paused'}
 function S:join(queue,ids,ladder,now)
     local ok,msg=self:joinNow(queue,ids,ladder,now)
-    for _,id in ipairs(ids)do log(id,'join',{item=ladder=='clanwar'and 'clanwar'or 'r'..tostring(ladder),count=#ids,result=ok and 'accepted'or 'rejected',reason=not ok and (reasonOf[msg]or (tostring(msg):find('불러오')and 'not_loaded')or (tostring(msg):find('레벨')and 'locked')or 'invalid')or nil})end
+    for _,id in ipairs(ids)do log(id,'join',{item=(ladder=='clanwar'or ladder=='r1v1')and ladder or 'r'..tostring(ladder),count=#ids,result=ok and 'accepted'or 'rejected',reason=not ok and (reasonOf[msg]or (tostring(msg):find('불러오')and 'not_loaded')or (tostring(msg):find('레벨')and 'locked')or 'invalid')or nil})end
     return ok,msg
 end
 function S:level(id)
@@ -102,6 +116,7 @@ function S:level(id)
     return type(xp)=='number'and (Outgame.level(xp))or nil
 end
 function S:joinNow(queue,ids,ladder,now)
+    if ladder=='r1v1'then return self:joinTrophy(queue,ids,now)end
     if not self:allowed()then return false,'랭크전은 곧 열려요.'end
     if ladder=='clanwar'and not War.open then return false,'클랜전은 곧 열려요.'end
     if type(ids)~='table'or #ids<1 or #ids>(ladder=='clanwar'and 5 or 2)then return false,ladder=='clanwar'and '클랜전은 클랜원 2~5명이 파티로 함께 참가해요.'or '랭크 전장을 다시 골라 주세요.'end
@@ -125,6 +140,64 @@ function S:joinNow(queue,ids,ladder,now)
         ratings[tostring(id)]=self:ladderView(id,ladder,os.time()).rp
     end
     return queue:joinField(ids,{field='ranked-'..ladder,revision=0,ratings=ratings},now)
+end
+function S:trophyLive()
+    return self.a.live or (script and require(script.Parent.LiveConfig))
+end
+function S:trophyAllowed()
+    local live=self:trophyLive()
+    return live~=nil and live.get('ranked1v1')==true and live.enabled('ranked')and (self.config.rankedEnabled==true or self.local_)
+end
+function S:trophyScoreView(id)
+    local profile=self.careers.profiles[id];local rank
+    for i,row in ipairs(self:cachedBoard('all','trophySolo'))do
+        if i>Rules.trophy.legendTop then break end
+        if row.userId==id then rank=i;break end
+    end
+    return Rules.trophyView(profile and profile.trophySolo,self.a.time(),rank)
+end
+function S:trophyView(id)
+    local now=self.a.time();local profile=self.careers.profiles[id]
+    local v=Rules.trophyView(profile and profile.trophySolo,now)
+    v.enabled=self:trophyAllowed();v.loaded=profile~=nil;v.level=self:level(id);v.minLevel=Rules.minLevel
+    local worker=self.careers.worker;v.pending=worker and (worker.pending[id]~=nil or worker.busy[id]~=nil or worker.recovery[id]~=nil)or nil
+    v.board={};v.boardLoading=false
+    if v.enabled then
+        local rows=self:cachedBoard('all','trophySolo');v.boardLoading=self.boards.alltrophySolo==nil
+        for i,row in ipairs(rows)do if i<=Rules.trophy.legendTop then
+            table.insert(v.board,{rank=i,userId=row.userId,name=row.name,value=row.rp,tier=row.tier,self=row.userId==id or nil})
+            if row.userId==id then
+                local actual=Rules.trophyView(profile and profile.trophySolo,now,i)
+                v.rank=i;v.tier=actual.tier;v.tierName=actual.tierName;v.color=actual.color
+            end
+        end end
+    end
+    v.last=profile and profile.lastTrophySolo or nil
+    return v
+end
+function S:joinTrophy(queue,ids,now)
+    if not self:trophyAllowed()then return false,'랭크 점검 중'end
+    if type(ids)~='table'or #ids~=1 then return false,'혼자일 때만'end
+    local id=ids[1]
+    if type(id)~='number'or id%1~=0 or id==0 or math.abs(id)==math.huge then return false,'참가 정보 확인'end
+    local level=self:level(id);if not level then return false,'전적 불러오는 중'end
+    if not Rules.levelOk(level)then return false,'레벨 5부터'end
+    local profile=self.careers.profiles[id];local worker=self.careers.worker
+    if not profile or worker and (worker.pending[id]or worker.busy[id]or worker.recovery[id])then return false,'전적 저장 중'end
+    local trophy=Rules.trophyRead(profile.trophySolo,self.a.time())
+    if not trophy then return false,'전적 확인 필요'end
+    if Rules.trophyBanLeft(trophy,self.a.time())>0 then return false,'랭크 잠시 대기'end
+    local last=trophy.recent[#trophy.recent]
+    return queue:joinField(ids,{field='ranked-r1v1',revision=0,ratings={[tostring(id)]=trophy.t},previous=last and last.o or nil,window=self:trophyLive().get('rankedWindow')},now)
+end
+function S:noShow(id,matchId,time)
+    local worker=self.careers.worker
+    if not worker then return false end
+    local event={id='r1v1-noShow:'..matchId,revision=1,startedAt=time,time=time,won=false,counted=false,trophyNoShow=true}
+    if not worker:record(id,event)then return false end
+    if not worker:drain(id)then return false end
+    if self.a.players:GetPlayerByUserId(id)then pcall(function()require(script.Parent.TelemetryService).new():flowUser(id,'queue','noShow',{item='r1v1',result='rejected'})end)end
+    return true
 end
 function S:clans()local c=self.accounts and self.accounts.clans;return c and type(c.warParty)=='function'and c or nil end
 function S:joinClanWar(queue,ids,now)
@@ -175,6 +248,14 @@ function S:clanWarBoard(id)
 end
 function S:result(room,id,won)
     local ladder=room.ranked;if not ladder then return nil end
+    if room.trophySolo then
+        local opponent
+        for other in pairs(room.members)do if other~=id then opponent=other;break end end
+        if not opponent then return nil end
+        room.resultTime=room.resultTime or self.a.time()
+        return {ladder='1v1',trophySolo=true,time=room.resultTime,mine=(room.ratings or {})[id]or 0,
+            opponent=(room.ratings or {})[opponent]or 0,opponents={opponent}}
+    end
     local s=room.session;local mine=room.members[id];local myTeam=s.sim.players[mine].team
     local team,teamN,opp,oppN,opponents=0,0,0,0,{}
     for other,faction in pairs(room.members)do local rp=(room.ratings or {})[other]or Rules.start
@@ -255,6 +336,7 @@ function S:view(id)
     if s.n>=1 and type(paid)=='table'then out.lastReward=paid[Season.key(s.n-1)]end
     local r=self:record(id);out.last=self.careers.profiles[id]and self.careers.profiles[id].lastRanked or nil
     out.history=r and r.history or nil
+    out.trophySolo=self:trophyView(id)
     return out
 end
 return S

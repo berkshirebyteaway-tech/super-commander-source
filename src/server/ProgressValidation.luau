@@ -25,7 +25,11 @@ function M.reward(e)
     return object(e.days,64,counts)and object(e.weeks,32,function(v)return finite(v)end)and object(e.weeklyActions,32,counts)and object(e.milestones,8,function(v)return type(v)=='boolean'end)
 end
 function M.career(e)
-    return type(e.won)=='boolean'and (e.forfeited==nil or type(e.forfeited)=='boolean')and (e.ranked==nil or type(e.ranked)=='boolean')and (e.eligible==nil or type(e.eligible)=='boolean')and (e.counted==nil or type(e.counted)=='boolean')and finite(e.startedAt)and (e.opponent==nil or finite(e.opponent,10000))
+    if e.trophyNoShow~=nil then
+        return e.trophyNoShow==true and e.won==false and e.counted==false and e.ladder==nil and e.trophySolo==nil and finite(e.time)and finite(e.startedAt)
+    end
+    if e.trophySolo~=nil and not(e.trophySolo==true and e.ladder=='1v1'and finite(e.mine)and finite(e.opponent)and type(e.opponents)=='table'and #e.opponents==1)then return false end
+    return type(e.won)=='boolean'and (e.forfeited==nil or type(e.forfeited)=='boolean')and (e.ranked==nil or type(e.ranked)=='boolean')and (e.eligible==nil or type(e.eligible)=='boolean')and (e.counted==nil or type(e.counted)=='boolean')and finite(e.startedAt)and (e.opponent==nil or finite(e.opponent,e.trophySolo and 1e12 or 10000))
         and (e.ladder==nil or (e.ladder=='1v1'or e.ladder=='2v2'or e.ladder=='ffa')and finite(e.time)and (e.team==nil or finite(e.team,10000))
             and (e.players==nil or finite(e.players,10)and e.players%1==0)
             and (e.pairs==nil or type(e.pairs)=='table'and #e.pairs<=9 and (function()for _,v in ipairs(e.pairs)do if not finite(v,10000)then return false end end;return true end)())

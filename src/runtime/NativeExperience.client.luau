@@ -132,6 +132,7 @@ showNotice=function()
     local n=notices.current;toast.Visible=n~=nil;if not n then return end
     local m=root:FindFirstChild('Modal');toast.ZIndex=m and m.Visible and 31 or toast.Parent==root and 29 or 17
     noticeUI:show(n,armsUI.input.touch())
+    if state and state.phase=='menu'then local d=multiplayerLobby and multiplayerLobby.deployment;noticeUI:dodge({require(pack.Client.Pop20).panel(),d and d.frame.Visible and d.sheet})end
 end
 local function notify(message,error,tile,queued)
     if notices:push(message,error,os.clock(),tile,queued)then showNotice()end
@@ -481,7 +482,8 @@ for _,kind in ipairs({"City","Factory","Port","DefensePost","MissileSilo","SAMLa
 end
 armsUI.ring.Warship.TextColor3=C.bg
 armsUI.ringBlock=function(kind)
-    if not state or not selectedTile then return "" end
+    if not state or state.phase~="playing" or state.observer or not state.costs or not selectedTile then return "" end
+    if armsUI.rules and armsUI.rules.disabled(state.settings,kind)then return "이 전장에선 불가"end
     local prerequisite=armsUI.commands.prerequisite(state,kind);if prerequisite then return prerequisite end
     local here=armsUI.buildables and armsUI.buildables[kind]
     if kind=="Warship"and not (armsUI.context and armsUI.context.warship)then return "항구 옆 바다 선택" end
@@ -489,7 +491,7 @@ armsUI.ringBlock=function(kind)
     if not affordable(state.costs[kind])then return "골드 부족" end
 end
 armsUI.ringBuild=function(kind)
-    if not state or state.paused or not selectedTile then return end
+    if not state or state.phase~="playing" or state.observer or state.paused or not state.costs or not selectedTile then return end
     local why=armsUI.ringBlock(kind)
     if why=="골드 부족" then refuseCost(kind);return end
     if why then armsUI.audio.play("error");notify(why,true);return end
@@ -633,7 +635,7 @@ armsUI.closeRadial=function()
 end
 armsUI.primaryActions={[confirmButton]=executePrimary,[armsUI.transport]=function()if armsUI.context and armsUI.context.transportFull then return notify("수송선 3/3",true)end;if selectedTile then send("transport",fraction,selectedTile)end end,[supportTroops]=function()radialSupport("troops")end,[contextBuild]=armsUI.openContextBuild}
 armsUI.ring20=require(pack.Client.RadialLayout20).new({sheet=sheet,renderer=renderer,guard=armsUI.cameraGuard,notify=notify,anchor=function(v)if v then menuAnchor=v;positionSheet()end;return menuAnchor end,
-    confirm=confirmButton,alliance=allianceButton,gold=supportGold,troops=supportTroops,transport=armsUI.transport,rockets=armsUI.rockets,detail=armsUI.detail,signal=armsUI.signal,emoji=armsUI.emoji})
+    confirm=confirmButton,alliance=allianceButton,gold=supportGold,troops=supportTroops,transport=armsUI.transport,rockets=armsUI.rockets,detail=armsUI.detail,signal=armsUI.signal,emoji=armsUI.emoji,max=armsUI.upgradeMax})
 armsUI.primaryActions[armsUI.ring.Warship]=function()armsUI.ringBuild("Warship")end
 armsUI.primaryButton=function()
     if confirmButton.Visible and not armsUI.confirmDanger then return confirmButton end
@@ -771,6 +773,7 @@ local function renderSettings()
     armsUI.styleModal()
 end
 openModal=function(mode)
+    if not state and mode~="help" and mode~="feedback" and mode~="credits" then return end
     armsUI.sheets:closeAll();require(pack.Client.MatchBubble).close()
     local W=armsUI.modalSize(mode)-32;local Menu=require(pack.Client.MatchMenu)
     if mode~=modalMode then modalBody.CanvasPosition=Vector2.zero end
@@ -791,12 +794,12 @@ openModal=function(mode)
         armsUI.resultActions.Visible=true;button(armsUI.resultActions,'Back','결과로 돌아가기',function()openModal('result')end,true)
     elseif mode=="help" then
         modalTitle.Text="플레이 방법"
-        Menu.help({body=modalBody,width=W,short=screenSize().Y<500,tab=armsUI.helpTab,touch=armsUI.input.touch(),style=state and state.style,inLobby=state.phase=='menu',
+        Menu.help({body=modalBody,width=W,short=screenSize().Y<500,tab=armsUI.helpTab,touch=armsUI.input.touch(),style=state and state.style,inLobby=not state or state.phase=='menu',
             setTab=function(t)armsUI.helpTab=t;modalBody.CanvasPosition=Vector2.zero;openModal('help')end,
-            guide=function()tutorial=true;armsUI.coach.dismissed=false;closeModal();task.delay(.2,function()send(state.phase=='menu'and 'learn'or 'guide')end)end})
+            guide=function()if not state then return end;local version=state.version;tutorial=true;armsUI.coach.dismissed=false;closeModal();task.delay(.2,function()if state and state.version==version then send(state.phase=='menu'and 'learn'or 'guide')end end)end})
     elseif mode=="feedback" then
         modalTitle.Text="설정";local a=shop and shop.account or {}
-        Menu.settings({body=modalBody,width=W,shop=shop,prefs=a.preferences,ready=a.ready==true,lobby=state.phase=='menu',language=me:GetAttribute('ToyfrontLocale'),play=armsUI.audio.play,
+        Menu.settings({body=modalBody,width=W,shop=shop,prefs=a.preferences,ready=a.ready==true,lobby=not state or state.phase=='menu',language=me:GetAttribute('ToyfrontLocale'),play=armsUI.audio.play,
             setLanguage=function(v)me:SetAttribute('ToyfrontLocale',v~='auto'and v or nil);if shop and a.ready==true then shop:run(function()shop:request('preference','language',v)end)end;openModal('feedback')end,credits=function()openModal('credits')end,redraw=function()openModal('feedback')end})
     elseif mode=="pause" then
         modalTitle.Text="경기 메뉴"
@@ -832,7 +835,7 @@ openModal=function(mode)
         if not view.retryIntro and not view.nextStage and (state.casual or state.intro)and party and #party.users>1 and party.leader~=me.UserId then view.again='파티장과 함께 준비'end
         button(armsUI.resultActions,'Again',view.again,function()armsUI.veil.show('전장 준비 중…')
             local now=require(pack.Core.ResultPresentation).view(state)
-            if now.retryIntro or now.nextStage then multiplayerLobby:request('again',nil,function()pauseOwned=false;modal.Visible=false;modalMode=nil end)
+            if now.retryIntro or now.nextStage or state.personalResult and state.personalResult.trophySolo then multiplayerLobby:request('again',nil,function()pauseOwned=false;modal.Visible=false;modalMode=nil end)
             elseif state.intro then multiplayerLobby.skipIntro=true;multiplayerLobby.pendingDeployment='quick';send('menu');pauseOwned=false;modal.Visible=false;modalMode=nil;multiplayerLobby:closePage()
             elseif state.casual then multiplayerLobby:request('play',nil,function()pauseOwned=false;modal.Visible=false;modalMode=nil end)
             elseif state.multiplayer then
@@ -1069,7 +1072,7 @@ armsUI.drawMarkers=function()
 end
 refreshSheet=function()
     armsUI.telemetry.flow(sheetMode and 'opened'or 'closed',action)
-    if not state or state.phase=="menu" then sheet.Visible=false;return end
+    if not state or state.phase=="menu" then armsUI.ring20:close();sheet.Visible=false;armsUI.modeBar.Visible=false;for _,b in pairs(armsUI.ring)do b.Visible=false end;return end
     if not sheetMode and sheet.Visible then armsUI.ring20:close()end
     sheet.Visible=sheetMode~=nil;sheet:SetAttribute('Ring20',nil)
     for _,b in ipairs({cityButton,postButton,confirmButton,demolishButton,allianceButton,contextBuild,supportGold,supportTroops,armsUI.transport,armsUI.rockets,armsUI.detail,armsUI.signal,armsUI.emoji,armsUI.upgradeMax}) do b.Visible=false end
@@ -1130,6 +1133,7 @@ refreshSheet=function()
             UI.enabled(demolishButton,(state.deleteAvailableIn or 0)<=0 and not state.paused)
             if u.owner==1 and u.kind=="Port" then contextBuild.Visible=true;contextBuild.Text="군함" end
             if u.owner==1 and u.kind=="MissileSilo" then armsUI.rockets.Visible=true end
+            armsUI.ring20:unit(u)
         end
     elseif sheetMode=="tile" then
         if state.phase=="spawn" then
@@ -1141,8 +1145,9 @@ refreshSheet=function()
             local p=state.player;sheetTitle.Text=p.name.."의 영토"
             sheetDetail.Text=string.format("병력 %s / %s\n골드 %s",UI.troops(p.troops),UI.troops(p.cap),UI.number(p.gold))
             sheetDetail.Text="건물을 선택하면 이 위치의 건설 조건을 확인해요."
+            sheet:SetAttribute('Ring20','build')
             for _,kind in ipairs(armsUI.interaction.ringKinds)do
-                local b=armsUI.ring[kind];b.Visible=not armsUI.rules.disabled(state.settings,kind);b.Text=UI.number(state.costs[kind]or 0)
+                local b=armsUI.ring[kind];b.Visible=true;b.Text=UI.number(state.costs[kind]or 0)
             end
         elseif info and info.land and info.owner~=0 then
             local f=factions[info.owner]
@@ -1175,10 +1180,10 @@ refreshSheet=function()
                 local b=armsUI.ring.Warship;b.Visible=true;b.Text="군함\n"..UI.number(state.costs.Warship);UI.enabled(b,not state.paused)
             end
         end
-        if state.phase=="playing" and info and info.land and info.owner~=1 and armsUI.context then
-            local full=armsUI.context.transportFull==true;armsUI.transport.Visible=armsUI.context.transport==true or full;armsUI.transport.Text="수송\n"..(full and"3/3"or UI.troops(math.floor(state.player.troops*fraction)));UI.enabled(armsUI.transport,not state.paused and not full);armsUI.transport.Active=not state.paused
-            armsUI.rockets.Visible=armsUI.context.rockets==true
-            local f=factions[info.owner];if f or info.owner==0 then armsUI.ring20:fill(state,f,armsUI.context,armsUI.attackRoute)end
+        if state.phase=="playing" and info and info.land and info.owner~=1 then
+            local c=armsUI.context or{};local full=c.transportFull==true;armsUI.transport.Visible=c.transport==true or full;armsUI.transport.Text="수송\n"..(full and"3/3"or UI.troops(math.floor(state.player.troops*fraction)));UI.enabled(armsUI.transport,not state.paused and not full);armsUI.transport.Active=not state.paused
+            armsUI.rockets.Visible=c.rockets==true
+            local f=factions[info.owner];if f or info.owner==0 then armsUI.ring20:fill(state,f,c,armsUI.attackRoute)end
         end
     end
     if state.phase=='lost'or state.phase=='won'then
@@ -1462,11 +1467,10 @@ layout=function()
         local slots={}
         local fit=require(pack.Client.RadialFit)
         local blocks=fit.rects({hover,controls,hud,armsUI.modeBar,guide,operations,battle.banner,inbox.peek,armsUI.matchStatus.frame,armsUI.ranks.frame,pauseButton,armsUI.cameraShortcut,armsUI.motionShortcut,armsUI.eventLog.button,armsUI.chat.quickButton,armsUI.chat.emojiButton},gamePanel.AbsolutePosition,UI.scale)
-        local fixed=sheetMode=="tile" and sheet:GetAttribute('Ring20')
+        local fixed=sheet:GetAttribute('Ring20')
         for _,slot in ipairs(fixed and armsUI.ring20:plan(fixed,geometry,menuAnchor or Vector2.new(w/2,h/2),blocks,w,h,selectedTile,selectionRevision) or armsUI.detail.Visible and armsUI.interaction.factionSlots or armsUI.interaction.landSlots)do
             local btn=sheet:FindFirstChild(slot[1]);if btn then table.insert(slots,{btn,slot[2],slot[3]})end
         end
-        if sheetMode=="unit" then for _,slot in ipairs(slots) do if slot[1]==contextBuild or slot[1]==armsUI.rockets then slot[2]=1;slot[3]=0 end end end
         if not fixed then
             local turned=fit.turn(slots,primary,menuAnchor or Vector2.new(w/2,h/2),radius,size,Vector2.new(math.sqrt(.5),-math.sqrt(.5)),blocks,w,h,armsUI.transport)
             box(sheetClose,center+turned.X*radius-closeSize/2,center+turned.Y*radius-closeSize/2,closeSize,closeSize)
@@ -1728,7 +1732,7 @@ render=function(s)
         armsUI.spectator:update(s,true)
         armsUI.feedback:update(s,{})
         armsUI.tactical:update(s,{});armsUI.chat:update(s,{});armsUI.quick:update(s,{});armsUI.sheets:update(s);armsUI.nuclear:stop()
-        sheetMode=nil;action="inspect";selectedTile=nil;selectedUnit=nil;hover.Visible=false;resumeCommand=nil
+        sheetMode=nil;action="inspect";selectedTile=nil;selectedUnit=nil;hover.Visible=false;resumeCommand=nil;refreshSheet()
         if modalMode=="settings" then renderSettings() end
         if armsUI.sticksOff then armsUI.sticksOff=false;game:GetService('GuiService').TouchControlsEnabled=true end
         return
@@ -2037,10 +2041,11 @@ root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() layout() end)
 armsUI.input.changed:Connect(function() hover.Visible=false;applyScale();layout();refreshContext();dirty=true end)
 armsUI.probe=require(pack.Client.FrameProbe)
 RunService:BindToRenderStep('HUD',202,function(dt)
-    local P=armsUI.probe;P.start('HUD')
+    local P=armsUI.probe;local timing=P.startLatency('HUD.prepare')
     if armsUI.motionWheel then armsUI.motionWheel:step()end
     if notices:step(os.clock())then showNotice()end
     if armsUI.lobbyStale and multiplayerLobby and multiplayerLobby.frame.Visible then armsUI.lobbyStale=false;multiplayerLobby:layout()end
+    P.stopLatency(timing);P.start('HUD')
     if armsUI.markersWanted and not gamePanel.Visible then armsUI.drawMarkers()end
     if commanders.active and (not state or state.phase=="menu") then commanders:update(state,roomVisible,0) end
     P.start('HUD.commanders');commanders:step(dt,effects.reduced);P.stop('HUD.commanders')
@@ -2100,7 +2105,7 @@ armsUI.matchStatus:step(modal.Visible or armsUI.nuclear.active,false)
 end)
 pack:WaitForChild("VisualEvent").OnClientEvent:Connect(function(e) effects:receive(e) end)
 layout()
-pack:WaitForChild("State").OnClientEvent:Connect(function(v)armsUI.probe.start("Snapshot");render(v);armsUI.probe.stop("Snapshot")end)
+pack:WaitForChild("State").OnClientEvent:Connect(function(v)local timing=armsUI.probe.startLatency("Snapshot");render(v);armsUI.probe.stopLatency(timing)end)
 require(pack.Client.MapStuck).attach(root.LoadingCover,{inMatch=function()return state~=nil and state.phase~="menu"end,retry=function()task.spawn(function()local ok,f=pcall(read.InvokeServer,read);if ok then render(f)end end)end,lobby=function()armsUI.veil.show("로비로 이동 중…");send("menu")end})
 bootClocks[3]=os.clock()
 task.spawn(function() local ok,s=pcall(function() return read:InvokeServer() end);if ok then render(s) else notify("서버 연결 실패",true) end end)

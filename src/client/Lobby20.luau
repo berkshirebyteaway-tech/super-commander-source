@@ -262,8 +262,9 @@ function M.refresh(home)
         if q then
             local left=q.remaining and math.max(0,q.remaining-(os.clock()-(l.queueUpdated or os.clock())))
             cap=q.phase=='transferring'and '이동 중'or q.mode=='custom'and string.format('%d/%d명',q.count or 0,q.max or 0)or left and string.format('출발 %d:%02d',math.ceil(left)//60,math.ceil(left)%60)or '곧 출발'
-        elseif follower then cap=string.format('파티 %d명',#party.users)
+        elseif follower then cap=string.format('파티 %d명',#party.users);title='방장이 고르는 중'
         else local r=s.rejoin;cap=(require(script.Parent.Parent.Maps.MapLoader).meta(r.map)or {}).label or tostring(r.map or '')end
+    elseif party and #party.users>1 then cap=string.format('파티 %d명 함께',#party.users)
     else
         local n,people=0,0
         for _,f in ipairs(l.deployment and l.deployment.fields or {})do if f.kind~='custom'then n+=1;people+=tonumber(f.count)or 0 end end
@@ -290,6 +291,14 @@ function M.refresh(home)
                 local st2=seat.face:FindFirstChild('Stroke20');if st2 then st2.Color=id==me and C.accent or C.ink;st2.Transparency=id==me and 0 or .6 end end
             seat.id=id
         end
+    end
+    local grouped=party and #party.users>1;local status=s and s.partyStatus or {}
+    for _,seat in ipairs(c.seats)do
+        local away=grouped and seat.id~=nil and seat.id~=me and status[tostring(seat.id)]~=nil and status[tostring(seat.id)]~='hq'and status[tostring(seat.id)]~='ready'
+        local alpha=away and .45 or 0;if seat.face.ImageTransparency~=alpha then seat.face.ImageTransparency=alpha end
+        local lead=grouped and seat.id~=nil and seat.id==party.leader
+        if lead and not seat.crown then seat.crown=K.icon(seat.face,'crown',14,C.gold,'Leader');seat.crown.ZIndex=seat.face.ZIndex+2;K.box(seat.crown,seat.face.Size.X.Offset-12,-4,14,14)end
+        if seat.crown then seat.crown.Visible=lead==true;if lead then K.box(seat.crown,seat.face.Size.X.Offset-12,-4,14,14)end end
     end
     local online=0;for _,fr in ipairs(l.onlineFriends or {})do if fr.IsOnline~=false then online+=1 end end
     local ot=tostring(online);local tl=c.friends:FindFirstChild('Text');if tl and tl.Text~=ot then tl.Text=ot;c.layoutDirty=true end
@@ -335,14 +344,16 @@ function M.home(home,w,h,short,q,lift,portrait)
     local y=fmt=='pt'and(h-58-(lift or 0)-8-dh)or(h-B-dh-(lift or 0))
     local x2=w-R-dw;local x1=fmt=='pt'and R or x2-g-dw
     local show=not folded
-    c.single.b.button.Visible=show;c.multi.b.button.Visible=show
+    local party=l.data and l.data.party;local grouped=party~=nil and #party.users>1
+    local mx,mw=x2,dw;if grouped then mx,mw=x1,x2+dw-x1 end
+    c.single.b.button.Visible=show and not grouped;c.multi.b.button.Visible=show
     placeDoor(c.single,x1,y,dw,dh,fmt,fmt~='pt',nil)
     local queued=c.cancelWanted==true
-    placeDoor(c.multi,x2,y,dw,dh,fmt,fmt~='pt'and not queued,c.multi.cap.Text)
+    placeDoor(c.multi,mx,y,mw,dh,fmt,(fmt~='pt'or grouped)and not queued,c.multi.cap.Text)
     c.cancel.button.Visible=show and queued
-    if queued then local bw=fmt=='pc'and 72 or 60;local bh=fmt=='pc'and 40 or 34;c.cancel:place(dw-bw-(fmt=='pc'and 14 or 10),(dh-bh)/2,bw,bh)
+    if queued then local bw=fmt=='pc'and 72 or 60;local bh=fmt=='pc'and 40 or 34;c.cancel:place(mw-bw-(fmt=='pc'and 14 or 10),(dh-bh)/2,bw,bh)
         c.cancel.button.ZIndex=c.multi.b.face.ZIndex+3;c.cancel.face.ZIndex=c.cancel.button.ZIndex;if c.cancel.label then c.cancel.label.ZIndex=c.cancel.button.ZIndex+1 end end
-    c.tag.Visible=show and c.stage~=nil
+    c.tag.Visible=show and c.stage~=nil and not grouped
     if c.tag.Visible then local ts=fmt=='pc'and 13 or fmt=='ph'and 11 or 12;local th=fmt=='pc'and 24 or fmt=='ph'and 20 or 22
         c.tag.Size=UDim2.fromOffset(c.tag.Size.X.Offset,th);local tw=rechip(c.tag,ts)
         local icon=c.tag:FindFirstChild('Icon');if icon then local is=fmt=='pc'and 14 or fmt=='ph'and 12 or 13;K.box(icon,6,math.floor((th-is)/2),is,is);local t=c.tag:FindFirstChild('Text');K.box(t,6+is+4,0,K.width(t.Text,ts,t)+2,th);tw=6+is+4+K.width(t.Text,ts,t)+6;c.tag.Size=UDim2.fromOffset(tw,th)end
@@ -350,7 +361,7 @@ function M.home(home,w,h,short,q,lift,portrait)
     c.halloween.Visible=show and c.halloweenWanted==true
     if c.halloween.Visible then local ts=fmt=='pc'and 13 or fmt=='ph'and 11 or 12;local th=fmt=='pc'and 24 or fmt=='ph'and 20 or 22
         c.halloween.Size=UDim2.fromOffset(c.halloween.Size.X.Offset,th);local tw=rechip(c.halloween,ts)
-        K.box(c.halloween,x2+(fmt=='pt'and 10 or 12),y-(fmt=='pc'and 13 or 11),tw,th)end
+        K.box(c.halloween,mx+(fmt=='pt'and 10 or 12),y-(fmt=='pc'and 13 or 11),tw,th)end
     local tablet=fmt=='pc'and require(script.Parent.InputMode).touch()
     local seat=fmt=='pc'and 42 or fmt=='ph'and 34 or 40;local open=tablet and 2 or fmt=='pc'and 4 or fmt=='ph'and 1 or 2
     local pad=fmt=='pc'and 10 or 8;local sg=fmt=='pc'and 8 or fmt=='ph'and 6 or 8;local pillH=seat+(fmt=='pt'and 12 or fmt=='pc'and 18 or 16)

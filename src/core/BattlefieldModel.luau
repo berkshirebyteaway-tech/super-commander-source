@@ -3,6 +3,7 @@ local C=if script then require(script.Parent.CustomBattlefieldRules)else require
 local Formation=if script then require(script.Parent.PartyFormation)else require('./PartyFormation')
 local TeamLobby=if script then require(script.Parent.TeamLobby)else require('./TeamLobby')
 local Ranked=if script then require(script.Parent.RankedQueue)else require('./RankedQueue')
+local Departure=if script then require(script.Parent.RankedDeparture)else require('./RankedDeparture')
 local M={}
 local function size(t)local n=0;for _ in pairs(t)do n+=1 end;return n end
 local function count(s,f)
@@ -31,6 +32,7 @@ end
 local function customOpponents(s,f)local p=TeamLobby.plan(f.rules,members(s,f));return p and not p.needsOpponent end
 local function abort(s,id,now)
     local m=s.matches[id];if not m then return end
+    if m.trophySolo and m.phase~='running'then Departure.cancel(s,id,now);return end
     if m.kind=='ranked'and s.tickets then for _,t in pairs(s.tickets)do if t.match==id then t.match=nil end end;s.matches[id]=nil;return end
     for uid,t in pairs(s.tickets)do if t.match==id then s.tickets[uid]=nil end end
     s.matches[id]=nil
@@ -98,6 +100,7 @@ local function removeOne(s,id,now)
     local t=s.tickets[id];if not t then return end
     local f=s.customs and s.customs[t.field];if f then f.deadline=nil;f.lastAction=now end
     local m=t.match and s.matches[t.match]
+    if m and m.trophySolo and m.phase~='running'then Departure.cancel(s,t.match,now,{[id]=true});return end
     if m and m.phase~='running'then m.members[id]=nil;if not viable(m)then abort(s,t.match,now)end end
     s.tickets[id]=nil
     if f then resetTeamReady(s,f)end
@@ -116,7 +119,13 @@ function M.apply(previous,now,op)
     op=op or {};s.notice=nil;s.receipt=nil;s.exports=s.exports or {}
     for id,e in pairs(s.exports)do if now>=e.expires then s.exports[id]=nil end end
     if op.kind=='pulse'then for uid,token in pairs(op.tokens or {})do local t=s.tickets[uid];if t and t.host==op.host and t.token==token then t.seen=now end end end
-    for mid,m in pairs(s.matches)do if now>=m.expires then abort(s,mid,now)end end
+    for mid,m in pairs(s.matches)do if now>=m.expires then
+        if m.trophySolo and m.phase=='cancelled'then Departure.clear(s,mid)
+        elseif m.trophySolo and m.phase=='ready'then
+            local arrived={};for uid in pairs(m.arrived or {})do table.insert(arrived,tonumber(uid))end
+            Departure.cancel(s,mid,now,Departure.missing(m,arrived))
+        else abort(s,mid,now)end
+    end end
     for uid,t in pairs(s.tickets)do if not t.match and now-t.seen>=R.leaseSeconds then remove(s,uid,now)end end
     if not s.customOnly then for slot=1,R.recruitment.minimum do if not s.fields[slot]then promote(s,slot,now)end end end
     local waiting=0;for _,t in pairs(s.tickets)do if not t.match and not s.customs[t.field]and not Ranked.ladderOf(t.field)then waiting+=1 end end
@@ -133,7 +142,8 @@ function M.apply(previous,now,op)
         if n==0 then f.deadline=nil;f.emptyAt=f.emptyAt or now;f.rotateAt=f.rotateAt or now+R.emptySeconds;if now>=f.rotateAt then promote(s,slot,now)end
         else f.emptyAt=nil;f.rotateAt=nil end
     end
-    if op.kind=='joinGroup'and Ranked.ladderOf(op.field)then
+    if Departure.apply(s,now,op)then
+    elseif op.kind=='joinGroup'and Ranked.ladderOf(op.field)then
         local ids,seen={},{};local valid=type(op.users)=='table'and #op.users>=1 and #op.users<=(Ranked.ladderOf(op.field)=='clanwar'and 5 or 2)and type(op.tokens)=='table'
         if valid then for _,id in ipairs(op.users)do local uid=tostring(id)
             if type(id)~='number'or id~=id or math.abs(id)==math.huge or id%1~=0 or id==0 or seen[uid]or type(op.tokens[uid])~='string'then valid=false;break end
@@ -150,7 +160,8 @@ function M.apply(previous,now,op)
         if not s.notice and size(s.tickets)+newSeats>R.maxTickets then s.notice='capacity'end
         if not s.notice then
             for _,uid in ipairs(ids)do remove(s,uid,now)end
-            for _,uid in ipairs(ids)do s.tickets[uid]={field=op.field,revision=0,token=op.tokens[uid],host=op.host,joined=now,seen=now,name=string.sub((op.names or {})[uid]or '',1,80),rp=op.ratings[uid],ready=false,group=#ids>1 and op.group or nil,leader=#ids>1 and op.leader or nil,clan=Ranked.ladderOf(op.field)=='clanwar'and op.clan or nil}end
+            for _,uid in ipairs(ids)do s.tickets[uid]={field=op.field,revision=0,token=op.tokens[uid],host=op.host,joined=now,seen=now,name=string.sub((op.names or {})[uid]or '',1,80),rp=op.ratings[uid],ready=false,group=#ids>1 and op.group or nil,leader=#ids>1 and op.leader or nil,clan=Ranked.ladderOf(op.field)=='clanwar'and op.clan or nil,
+                window=op.field=='ranked-r1v1'and (op.window=='normal'and 'normal'or 'open')or nil,previous=op.field=='ranked-r1v1'and op.previous or nil}end
         end
     elseif op.kind=='joinGroup'then
         local f=find(s,op.field);local ids,seen={},{};local valid=type(op.users)=='table'and #op.users>=1 and #op.users<=5 and type(op.tokens)=='table'
@@ -264,7 +275,11 @@ function M.apply(previous,now,op)
         else t.ready=op.ready==true end
     elseif op.kind=='cancel'then
         local uid=tostring(op.userId);local t=s.tickets[uid]
-        if t and t.host==op.host and t.token==op.token then remove(s,uid,now)end
+        if t and t.host==op.host and t.token==op.token then
+            local m=t.match and s.matches[t.match]
+            if m and m.trophySolo and not op.leaving then s.notice='locked'
+            else remove(s,uid,now)end
+        end
     elseif op.kind=='detach'then
         local m=s.matches[op.match];local same=m and m.creator==op.host and m.phase=='ready'and type(op.roster)=='table'and size(m.members)==size(op.roster)
         if same then for uid,token in pairs(m.members)do if op.roster[uid]~=token then same=false;break end end end
@@ -275,7 +290,10 @@ function M.apply(previous,now,op)
     elseif op.kind=='ready'then
         local m=s.matches[op.match];if m and m.creator==op.host and m.phase=='reserving'then m.phase='ready';m.code=op.code;m.privateId=op.privateId;m.expires=now+110 end
     elseif op.kind=='claim'then
-        local m=s.matches[op.match];if m and m.phase=='ready'and m.privateId==op.privateId and (not m.destination or m.destination==op.host)then m.destination=op.host end
+        local m=s.matches[op.match];if m and (m.phase=='ready'or m.trophySolo and m.phase=='cancelled')and m.privateId==op.privateId and (not m.destination or m.destination==op.host)then
+            m.destination=op.host
+            if m.trophySolo and op.userId and m.members[tostring(op.userId)]and not(m.absent and m.absent[tostring(op.userId)])then m.arrived=m.arrived or {};m.arrived[tostring(op.userId)]=op.host end
+        end
     elseif op.kind=='start'then
         local m=s.matches[op.match];if m and m.phase=='ready'and m.destination==op.host then
             local arrived={};for _,uid in ipairs(op.users or {})do uid=tostring(uid);if m.members[uid]then arrived[uid]=m.members[uid]end end
@@ -388,7 +406,7 @@ function M.selection(m,users)
         local sorted=table.clone(users);table.sort(sorted);local teams,ratings={},{}
         for _,id in ipairs(sorted)do teams[id]=m.rules.mode=='teams'and m.teams[tostring(id)]or nil;ratings[id]=m.ratings[tostring(id)]end
         local parties={};for _,id in ipairs(sorted)do local g=m.groups and m.groups[tostring(id)];if g then parties[g]=parties[g]or {leader=m.leaders[g],users={}};table.insert(parties[g].users,id)end end
-        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,clanwar=m.clanwar and {size=m.warSize or 2,count=m.warCount or 2,clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties}
+        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,trophySolo=m.trophySolo,clanwar=m.clanwar and {size=m.warSize or 2,count=m.warCount or 2,clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties}
     end
     local out=(m.kind=='custom'and C or R).selection(m.rules,users,m.groups,m.teams);out.field=m.field;out.fieldRevision=m.revision
     if m.kind~='custom'and m.teams then for _,id in ipairs(users)do out.teams[id]=m.teams[tostring(id)]or out.teams[id]end;out.fill=R.fill(m.rules,users,out.teams)end

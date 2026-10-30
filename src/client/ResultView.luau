@@ -144,6 +144,7 @@ local function place(b,x,y,w,h)
         face.Depth.Band.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(math.max(0,cut-.001),1),NumberSequenceKeypoint.new(cut,.82),NumberSequenceKeypoint.new(1,.82)})end
 end
 
+local trophyControls={adopt=adopt,place=place,content=content}
 function M.new(body,compact,recap,relayout)
     local self=setmetatable({body=body,compact=compact,detailsExpanded=false,relayout=relayout,recap=recap,seq={}},M)
     self.root=K.make('Frame',body,{Name='Result20',BackgroundTransparency=1,Size=UDim2.fromScale(0,0)})
@@ -226,6 +227,7 @@ function M:dressCard()
     for _,b in ipairs({self.details,self.detailsText})do b.iconColorFixed=true;b.iconImage.ImageColor3=C.muted end
 end
 function M:teardown()
+    if self.trophyResult then require(script.Parent.TrophyResultView).destroy(self)end
     if self.skipConn then self.skipConn:Disconnect();self.skipConn=nil end
     if self.counter then self.counter:Disconnect();self.counter=nil end
     local s=self.saved;if not s then return end
@@ -267,6 +269,9 @@ function M:update(state,screenWidth)
     self.body:SetAttribute('DetailsExpanded',details)
     require(script.Parent.ResultCelebration).card=self.Rewards
     self.openedAt=self.openedAt or os.clock();self.resultId=state.personalResult and state.personalResult.id
+    if state.personalResult and state.personalResult.trophySolo then
+        return require(script.Parent.TrophyResultView).update(self,state,v,trophyControls)
+    end
     local fmt,W,H=self:format();self.fmt=fmt
     local cw,ch,cx,cy=W,H,0,0
     if fmt=='pc'then local inset=0;pcall(function()inset=game:GetService('GuiService'):GetGuiInset().Y/(UI.scale or 1)end)
@@ -562,7 +567,8 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
         if again then
             local f=adopt(again,'pri');place(again,p+leftW+bgap,by,cw-p*2-leftW-bgap,B.h)
             local t=again:GetAttribute('Text20')or ''
-            if v.campaign and v.again then t=v.again;again:SetAttribute('Text20',t)end
+            local party=t=='파티장과 함께 준비'or t==L.text('파티장과 함께 준비')
+            if (v.campaign or v.casual and not party) and v.again then t=v.again;again:SetAttribute('Text20',t)end
             if t=='같은 설정으로 한 판 더'then t='한 판 더'end
             content(f,C.bg,B.againIs and 'restore'or nil,B.againIs,L.text(t),B.againFs)
         end
@@ -680,6 +686,7 @@ function M:tryCount()
     end)
 end
 function M:skip()
+    if self.trophyResult then require(script.Parent.TrophyResultView).skip(self);return end
     if self.seqDone then return end;self.seqDone=true;self.skipped=true
     for _,s in ipairs(self.seqScales or {})do s.Scale=1 end
     for _,o in ipairs({self.Outcome,self.RankRow,self.StatsRow,self.Note,self.Best,self.RewardBand,self.Growth})do K.fade(o,true,0)end

@@ -24,7 +24,7 @@ function S.new()
             for id in pairs(self.boardPending)do self:flushBoard(id)end
         end
     end)
-    game:BindToClose(function()
+    require(script.Parent.CloseHook)(function()
         self.closing=true;local untilTime=os.clock()+25
         repeat
             for id in pairs(self.pending)do self:flush(id)end

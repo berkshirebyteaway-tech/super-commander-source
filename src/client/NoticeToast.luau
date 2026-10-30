@@ -45,6 +45,24 @@ function M:place(lane,w,h,touch)
         if chip and chip.Visible then y=math.max(y,chip.Position.Y.Offset+chip.Size.Y.Offset+6)end
     end
     K.box(self.frame,lane.x,y,lane.w,height)
+    self.home=self.frame.Position
+end
+function M:dodge(sheets)
+    local toast=self.frame;if self.home then toast.Position=self.home end
+    local sheet;for i=1,4 do local f=sheets[i];if f and f.Parent and f.Visible and f.AbsoluteSize.X>0 then sheet=f;break end end
+    local gui=toast:FindFirstAncestorWhichIsA('LayerCollector');if not sheet or not gui or toast.Size.Y.Offset<=0 then return end
+    local tp,ts,sp,ss,G=toast.AbsolutePosition,toast.AbsoluteSize,sheet.AbsolutePosition,sheet.AbsoluteSize,gui.AbsoluteSize
+    if tp.X>=sp.X+ss.X or tp.X+ts.X<=sp.X or tp.Y>=sp.Y+ss.Y or tp.Y+ts.Y<=sp.Y then return end
+    local k=ts.Y/toast.Size.Y.Offset;local gap=8*k
+    local gp=gui.AbsolutePosition;local top,bottom,left,right=math.max(gp.Y,0),gp.Y+G.Y,gp.X,gp.X+G.X
+    local x,y=tp.X,nil
+    if sp.Y-ts.Y-gap>=top+gap then y=sp.Y-ts.Y-gap
+    elseif sp.Y+ss.Y+gap+ts.Y<=bottom-gap then y=sp.Y+ss.Y+gap
+    elseif sp.X-ts.X-gap>=left+gap then x,y=sp.X-ts.X-gap,tp.Y
+    elseif sp.X+ss.X+gap+ts.X<=right-gap then x,y=sp.X+ss.X+gap,tp.Y
+    else x,y=sp.X+(ss.X-ts.X)/2,math.min(sp.Y+ss.Y,bottom)-ts.Y-gap end
+    if y==sp.Y-ts.Y-gap or y==sp.Y+ss.Y+gap then x=math.clamp(sp.X+(ss.X-ts.X)/2,left+gap,math.max(left+gap,right-ts.X-gap))end
+    toast.Position=toast.Position+UDim2.fromOffset(math.floor((x-tp.X)/k),math.floor((y-tp.Y)/k))
 end
 function M:paint20()
     local toast,text=self.frame,self.text
