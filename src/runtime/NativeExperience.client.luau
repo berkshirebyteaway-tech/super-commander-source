@@ -810,7 +810,7 @@ openModal=function(mode)
             leave=function()openModal("leave")end,toggleRules=function()armsUI.rulesOpen=not armsUI.rulesOpen;openModal("pause")end}})
     elseif mode=="leave" then
         modalTitle.Text="경기에서 나갈까요?"
-        Menu.confirm(modalBody,W,state and state.intro and "" or state and state.clanwar and "패배  클랜전 점수 감소" or state and state.ranked and "패배  랭크 점수 감소" or "기권  2분 넘으면 보상 절반","계속하기",closeModal,"나가기",function() pauseOwned=false;modal.Visible=false;modalMode=nil;armsUI.veil.show("로비로 이동 중…");send("menu") end,{"Cancel","ConfirmLeave"})
+        Menu.confirm(modalBody,W,state and state.intro and "" or state and state.clanwar and "패배  클랜전 점수 감소" or state and state.ranked and "나가면 패배, 트로피 감소" or "2분 지나서 나가면 보상 절반","계속하기",closeModal,"나가기",function() pauseOwned=false;modal.Visible=false;modalMode=nil;armsUI.veil.show("로비로 이동 중…");send("menu") end,{"Cancel","ConfirmLeave"})
     elseif mode=="demolish" then
         modalTitle.Text="건물을 철거할까요?";local id=selectedUnit and selectedUnit.id
         Menu.confirm(modalBody,W,selectedUnit and selectedUnit.kind=="City" and "30초 뒤 철거  환불 없음  병력 상한 줄어듦" or "30초 뒤 철거  환불 없음","취소",closeModal,"철거",function() if id then send("delete",id) end;closeModal() end,{"Cancel","ConfirmDelete"})
@@ -1215,7 +1215,7 @@ local function selectTile(tile,pos,secondary)
     armsUI.sheets:outside()
     if armsUI.ghostClick(tile,secondary)then return end
     if not armsUI.input.touch()and(armsUI.closeRadial()or secondary and action=="moveWarship"and armsUI.moving)then armsUI.telemetry.step('match','menuClosed',{result=secondary and'right'or'left',item=armsUI.moving and'move'or'ring'});armsUI.moving=nil;action="inspect";refreshContext();return end
-    if pos and not secondary and not sheet.Visible and action=="inspect"and not armsUI.input.touch()and not getUnit(tile,pos)and require(pack.Client.ClickAttack).pick(state,terrainInfo(tile),factions[owners[tile]],owners[tile])then send("attack",fraction,tile);return end
+    if pos and not secondary and action=="inspect"and(not armsUI.input.touch()or state.intro)and not getUnit(tile,pos)and require(pack.Client.ClickAttack).pick(state,terrainInfo(tile),factions[owners[tile]],owners[tile])and(not sheet.Visible or state.intro and tile~=selectedTile and(armsUI.closeRadial()or 1))then send("attack",fraction,tile);return end
     if not armsUI.input.touch()then require(pack.Client.RightClickStep).note(state,secondary)end
     if pos and action=="inspect"then local u=getUnit(tile,pos);if not(u and(u.owner or 1)==1)then tile=require(pack.Client.TapSnap).land(tile,(pos-map.AbsolutePosition)/UI.scale,currentMap,renderer,owners,armsUI.input.touch())or tile end end
     local last=armsUI.lastTap
@@ -1718,12 +1718,12 @@ render=function(s)
                 task.delay(.3,function()if state and state.phase=="menu"then me.CameraMinZoomDistance=PlazaLayout.minZoom;me.CameraMaxZoomDistance=PlazaLayout.maxZoom end end)
             end
             if s.loading then armsUI.introPending=true;land()
-            elseif not effects.reduced and not LobbyIntro.played and hum and not(multiplayerLobby and multiplayerLobby.account and multiplayerLobby.account.ready and next(multiplayerLobby.account.progress and multiplayerLobby.account.progress.history or {},next(multiplayerLobby.account.progress and multiplayerLobby.account.progress.history or {}))~=nil)then armsUI.introPending=nil
+            elseif not effects.reduced and not LobbyIntro.played and hum and not(multiplayerLobby and multiplayerLobby.firstLesson)and not(multiplayerLobby and multiplayerLobby.account and multiplayerLobby.account.ready and next(multiplayerLobby.account.progress and multiplayerLobby.account.progress.history or {},next(multiplayerLobby.account.progress and multiplayerLobby.account.progress.history or {}))~=nil)then armsUI.introPending=nil
                 if multiplayerLobby then multiplayerLobby.frame.Visible=false end
                 LobbyIntro.play(root,me.DisplayName,finalCF,CFrame.new(target),function()
                     land();if multiplayerLobby and state and state.phase=="menu"then multiplayerLobby:setScreen(true)end
                 end)
-            else armsUI.introPending=nil;LobbyIntro.played=hum;land() end
+            else armsUI.introPending=nil;LobbyIntro.played=hum and not(multiplayerLobby and multiplayerLobby.firstLesson);land() end
         end
     elseif me.Character then local hum=me.Character:FindFirstChildOfClass('Humanoid');if hum then hum.CameraOffset=Vector3.zero end end
     gui:SetAttribute("Phase",s.phase);gui:SetAttribute("Map",s.map or selectedMap);gui:SetAttribute("RenderedTick",s.tick or 0)
@@ -2060,7 +2060,7 @@ RunService:BindToRenderStep('HUD',202,function(dt)
     if not armsUI.lobbyReadyReported and state and state.phase=='menu'and not state.loading and not LobbyIntro.active and multiplayerLobby and multiplayerLobby.frame.Visible and os.clock()-(armsUI.lobbyReadySent or -1e9)>2 then
         armsUI.lobbyReadySent=os.clock();armsUI.experienceReady:FireServer(state.version)
     end
-    if not armsUI.autoLesson and armsUI.lobbyReadyReported and state and state.phase=='menu'and not state.loading and armsUI.lobbyLanded and os.clock()-math.max(armsUI.lobbyLanded,multiplayerLobby and multiplayerLobby.readyAt or 0)<20 and not LobbyIntro.active
+    if not armsUI.autoLesson and armsUI.lobbyReadyReported and state and state.phase=='menu'and not state.loading and armsUI.lobbyLanded and not LobbyIntro.active
         and multiplayerLobby and multiplayerLobby.frame.Visible and not multiplayerLobby.busy and not multiplayerLobby.page and not(multiplayerLobby.deployment and multiplayerLobby.deployment.expanded)and multiplayerLobby.firstLesson and not (multiplayerLobby.data and (multiplayerLobby.data.queue or multiplayerLobby.data.inviteRoomCode or multiplayerLobby.data.partyHost))and armsUI.rookie(multiplayerLobby.account.progress)
         and next(multiplayerLobby.account.progress.history or {})==nil and not modal.Visible and not armsUI.sheets:any()and not(multiplayerLobby.home and multiplayerLobby.home.listOpen)then
         armsUI.autoLesson=true;pcall(armsUI.telemetry.step,'tutorial','autoLesson',{result='opened'})

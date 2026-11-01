@@ -40,7 +40,7 @@ M.tiers={
 M.legend={id='legend',name='레전드',top=100,minRP=2100,color={255,214,120}}
 function M.isLegend(rp,rank)return rank~=nil and rank<=M.legend.top and (rp or 0)>=(M.legend.minRP or 0)end
 M.placements=5;M.replacements=3
-M.minLevel=5
+M.minLevel=1
 function M.levelOk(level)return type(level)=='number'and level>=M.minLevel end
 local divisions={'III','II','I'}
 function M.tierOf(rp)

@@ -49,6 +49,7 @@ function M:step(dt)
                 local pivot=model:GetPivot();local target=bounds(camera,pivot*CFrame.new(0,extents.Y*.5,0),extents)
                 if Rules.occludes(avatar,target)then self.target=.74;self.blocked=model;break end
             end
+            if not self.blocked and Rules.closeIntro(world.lastState,world.view)then self.target=.74 end
         end
     end
     self.fade=Rules.fade(self.fade,self.target,dt)

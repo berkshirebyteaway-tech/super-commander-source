@@ -413,6 +413,11 @@ function M:openPage(page)
     self.page=page;self.overlay.Visible=true;self.pageBody.CanvasPosition=Vector2.zero;self.goalsScrollTab=nil;self:layout();self:drawPage()
 end
 function M:invite(target,from)
+    if not self.inviteClosed then self.inviteClosed=Social.GameInvitePromptClosed:Connect(function(_,ids)
+        if type(ids)~='table'or #ids==0 then return end
+        self.invitedAt=self.invitedAt or {};for _,id in ipairs(ids)do self.invitedAt[id]=os.clock()end
+        self.notify('초대 보냄',false,nil,true);if self.drawPage then self:drawPage()end
+    end)end
     task.spawn(function()
         local me=Players.LocalPlayer
         local ok,can=pcall(function()return Social:CanSendGameInviteAsync(me,target)end)

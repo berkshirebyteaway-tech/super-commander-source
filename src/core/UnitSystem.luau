@@ -116,6 +116,7 @@ function M:preview(owner,kind,tile)
     r.valid=true;r.reason=U.nukes[kind] and "발사 가능" or "배치 가능";return r
 end
 function M:build(owner,kind,tile)
+    if kind=="Warship"and self.w.settings.noAIBoats then local k=self.w.sim.players[owner].kind;if k=="NATION"or k=="BOT"then return false,"noAIBoats"end end
     local p=self:preview(owner,kind,tile);if not p.valid then return false,p.reason end
     if p.upgrade then return self:upgrade(owner,p.upgrade,1) end
     if U.structures[kind] then table.insert(self.w.orders,{kind=kind,tile=tile,owner=owner});return true,"건설 명령을 보냈어요."

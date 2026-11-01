@@ -158,6 +158,8 @@ function M:pose(character,kind,tier)
     self.folder:SetAttribute("PoseRig",shoulder.ClassName)
 end
 local Gesture=require(script.Parent.Parent.Core.CommandGesture)
+local Kit=require(script.Parent.FxKit)
+M.streakLayer={spikes={count=6,len=1.5,width=.18,life=.26},ring={r0=.2,r1=1.7,width=.16,life=.4,segments=14}}
 function M:strike(char,kind,at,target,tint)
     local g=Gesture.kinds[kind];local epoch=self.epoch
     task.delay(math.max(0,g.flash-at),function()
@@ -172,7 +174,7 @@ function M:strike(char,kind,at,target,tint)
     if kind~="attack" or not g.trail or not target or not hand or #self.streaks>=4 then return end
     local s=Instance.new("Part");s.Name="CommandStreak";s.Anchored=true;s.CanCollide=false;s.CanQuery=false;s.CanTouch=false;s.CastShadow=false
     s.Material=Enum.Material.Neon;s.Color=tint:Lerp(Color3.new(1,1,1),.45);s.Transparency=1;s.Size=Vector3.new(.4,.15,.1);s.Parent=self.folder
-    table.insert(self.streaks,{part=s,hand=hand,target=target,born=os.clock()-at,from=g.trail[1],to=g.trail[2],epoch=epoch})
+    table.insert(self.streaks,{part=s,hand=hand,target=target,born=os.clock()-at,from=g.trail[1],to=g.trail[2],epoch=epoch,tint=tint,layer=M.streakLayer})
 end
 function M:stepStreaks()
     local now=os.clock();local camera=workspace.CurrentCamera
@@ -188,6 +190,11 @@ function M:stepStreaks()
                 local mid=hp+dir*((head+tail)/2)
                 v.part.Size=Vector3.new(w,.15,len);v.part.CFrame=CFrame.lookAt(Vector3.new(mid.X,y,mid.Z),Vector3.new(mid.X,y,mid.Z)+dir)
                 v.part.Transparency=.1+.9*k*k
+                if not v.hit and k*3>=1 then v.hit=true
+                    local at2=Vector3.new(v.target.X,v.target.Y+.06,v.target.Z);local L=v.layer;local c=v.tint:Lerp(Color3.new(1,1,1),.6)
+                    if L.spikes then Kit.spikes(at2,L.spikes.count,L.spikes.len,L.spikes.width,c,L.spikes.life,0,math.random()*math.pi)end
+                    if L.ring then Kit.ring(at2,L.ring.r0,L.ring.r1,c,L.ring.life,L.ring.width,L.ring.segments)end
+                end
             end
         end
     end

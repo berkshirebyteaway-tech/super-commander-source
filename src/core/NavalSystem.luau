@@ -38,6 +38,7 @@ end
 function M:transport(owner,tile,troops,route)
     local w=self.w
     if U.disabled(w.settings,"TransportShip") or self.s:count(owner,"TransportShip")>=3 then return false,"수송선 3/3" end
+    local kind=w.settings.noAIBoats and w.sim.players[owner].kind;if kind=="NATION"or kind=="BOT"then return false,"noAIBoats" end
     if not self.nav:valid(tile) or not self.nav:land(tile) or w.sim:owner(tile)==owner or w:friendly(owner,w.sim:owner(tile)) then return false,"상륙할 해안 선택" end
     if w:protectedTarget(owner,w.sim:owner(tile)) then return false,"상대 보호 시간" end
     local path,dst;if route then path,dst=route,route[#route] else path,dst=self.nav:transport(owner,tile) end

@@ -11,7 +11,8 @@ function M.new(store,apply,validate,now)
     return setmetatable({store=store,apply=apply,validate=validate,now=now or os.time,pending={},busy={},reading={},recovery={},errors={},metrics={persisted=0,applied=0,recovered=0,failures=0}},M)
 end
 function M:record(id,event)
-    if not revision(event)or self.validate and not self.validate(event)then return false,'invalid-event'end
+    if not revision(event)then return false,'invalid-event'end
+    if self.validate then local ok,why=self.validate(event);if not ok then return false,'invalid-event'..(why and ':'..tostring(why)or '')end end
     local list=self.pending[id]or {};self.pending[id]=list
     local old=list[event.id];if not old or event.revision>old.revision then list[event.id]=event end
     return true

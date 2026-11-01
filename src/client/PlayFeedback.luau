@@ -6,6 +6,7 @@ local Badge=require(script.Parent.FactionBadge)
 local Audio=require(script.Parent.ToyAudio)
 local Display=require(script.Parent.Parent.Core.MapPresentation)
 local NukeFx=require(script.Parent.NukeFx)
+local MatchFx=require(script.Parent.MatchFx)
 local NukeSkins=require(script.Parent.NukeSkins)
 local Units=require(script.Parent.Parent.Core.UnitRules)
 local Tween=game:GetService("TweenService")
@@ -86,13 +87,14 @@ function M:concerns(owner,tile)
     return f~=nil and (f.allied==true or f.teammate==true)
 end
 function M:emit(e)
+    MatchFx.kit.lite=self.effects.lite==true
     local kind=e.kind;local pos=self:position(e.tile);local visible=pos and self:visible(e.tile)
     local tint=(kind=="incoming" or kind=="allianceEnded" or kind=="defeat") and coral or mint
     self.feed:SetAttribute("LastEvent",kind);self.feed:SetAttribute("Events_"..kind,(self.feed:GetAttribute("Events_"..kind) or 0)+1)
     if kind=="complete" or kind=="upgraded" then
         Audio.play(kind=="upgraded"and "upgrade"or "complete")
         if e.first then self:moment("firstCity","병력 상한이 늘었어요") else self:moment(kind,e.name) end
-        if visible then self.effects:bricks(pos,self:colors(1),6,1.5,true,1);self.effects:ring(pos,e.first and UI.colors.gold or cream,3,1,"build") end
+        if visible then if kind=="upgraded"then MatchFx.upgraded(pos,self:colors(1)[1],self.effects.reduced)else MatchFx.built(pos,self:colors(1)[1],e.first,self.effects.reduced)end end
     elseif kind=="rocketWarning" then
         Audio.play(kind);self:buzz("explosion")
         if self:allow("warningCamera",3) then self.world:impulse(.13) end
@@ -139,8 +141,7 @@ function M:emit(e)
         if visible then
             local style=Catalog.forSlot(e.owner==1 and self.cosmetics or nil,"impact")
             local colors={Color3.fromRGB(table.unpack(style.primary)),Color3.fromRGB(table.unpack(style.accent)),cream}
-            self.effects:bricks(pos,colors,5,1.6,false,0)
-            self.effects:ring(pos,colors[2],1.6,0,nil)
+            MatchFx.shell(pos,colors[2],self.effects.reduced)
             if self:concerns(e.owner,e.tile)then Audio.play(kind,.6)end
         end
     elseif kind=="launch" then
@@ -160,8 +161,7 @@ function M:emit(e)
                 if at and self:visible(tile)then self.effects:ring(at,UI.colors.gold,4,1)end
             else self:moment("conquest",f and f.name or '')end
             if not V2 and at and self:visible(tile)then
-                self.effects:stamp(at,"⚑",UI.colors.gold);self.effects:ring(at,UI.colors.gold,4,1)
-                self.effects:bricks(at,{UI.colors.gold,cream,mint},8,2.2)
+                self.effects:stamp(at,"⚑",UI.colors.gold);MatchFx.conquest(at,self.effects.reduced)
             end
             if self:allow("conquestCamera",1.5)then self.world:impulse(.1)end
         end

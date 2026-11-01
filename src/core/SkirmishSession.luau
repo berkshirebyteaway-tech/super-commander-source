@@ -55,7 +55,11 @@ function M.new(map,settings,name,mode)
     local nationRandom=R.new(AI.hash(settings.seed or "frontier"))
     nationRandom:nextID()
     local count=settings.nations=="default" and #nationData or 0
-    if type(settings.nations)=="number" then
+    if type(settings.nationPick)=="table" then
+        local byName={};for _,n in ipairs(nationData)do byName[n.name]=n end
+        local list={};for _,name in ipairs(settings.nationPick)do if byName[name]then table.insert(list,byName[name])end end
+        nationData=list;count=#list
+    elseif type(settings.nations)=="number" then
         count=math.clamp(math.floor(settings.nations),0,400)
         nationData=nationRandom:shuffleArray(nationData)
         if count>#nationData then

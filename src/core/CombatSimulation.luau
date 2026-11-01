@@ -52,7 +52,8 @@ function M:conquer(id,t)
     owners[t+1]=id;self.players[id].tiles:add(t);self.ownerChanges+=1
     if old~=0 and old~=id and self.players[old].tiles.size==0 then
         local p=self.players[id];p.conqueredCountries=p.conqueredCountries or {}
-        if not p.conqueredCountries[old]then p.conqueredCountries[old]=true;p.countriesConquered=(p.countriesConquered or 0)+1 end
+        if not p.conqueredCountries[old]then p.conqueredCountries[old]=true;p.countriesConquered=(p.countriesConquered or 0)+1
+            if self.players[old].kind=='NATION'then p.nationsConquered=(p.nationsConquered or 0)+1 end end
     end
     self.players[id].lastTileChange=self.ticks;if old~=0 then self.players[old].lastTileChange=self.ticks end
     if self.fallout[t] then self.fallout[t]=nil;self.falloutRevision=(self.falloutRevision or 0)+1;if self.onFalloutCleared then self.onFalloutCleared(t) end end

@@ -95,10 +95,9 @@ local function build(room,W,H,key)
     room.content=f;K.round(f,14);K.stroke(f,C.line,1,0,true);K.box(f,x,y,sw,sh)
     local ui={key=key,ph=ph};room.trophyUI=ui;room.ui=ui
     local pad=pt and 19 or ph and 17 or 27;local headY=ph and 17 or pt and 19 or 27
-    ui.back=K.button(f,'Back',{kind='plain',text='‹ 로비',size=12,hit=48},function()room:minimize()end);ui.back:place(pad,headY,60,32)
     local chip,chipW=K.chip(f,'Ranked',L.text('랭크'),'gold',{size=11,height=22,icon=false})
-    chipW=math.max(36,chipW);K.box(chip,pad+70,headY+5,chipW,22)
-    local titleX=pad+80+chipW
+    chipW=math.max(36,chipW);K.box(chip,pad,headY+5,chipW,22)
+    local titleX=pad+10+chipW
     ui.title=K.text(f,'Mode','1대1',20,C.ink,800);K.box(ui.title,titleX,headY,65,32)
     ui.map=K.text(f,'Map','',ph and 14 or 16,C.ink,800,Enum.TextXAlignment.Right);K.box(ui.map,titleX+72,headY,math.max(0,sw-pad-titleX-72),32)
     local gap=pt and 46 or 78;local cw=math.floor((sw-pad*2-gap)/2);local cy=ph and 59 or pt and 69 or 79

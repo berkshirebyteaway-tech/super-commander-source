@@ -52,7 +52,7 @@ local function entries(hub,slot,shop)
     local base={style=C.default,category=family.id,loadout=loadout}
     local role=slot=='city'and 'City'or nil;local note=M.notes[family.id]
     local function preview(item)return function(parent,hero)
-        if family.id=='territory'and C.get(item.style).flat then return require(script.Parent.SkinMapScene).patch(parent,item)end
+        if family.id=='territory'then return require(script.Parent.SkinMapScene).patch(parent,item)end
         if family.id=='buildings'and hero then
             local v=Preview.create(parent,item,{roles=require(script.Parent.BuildingModels).previewOrder});v.Name='BuildingRow'
             return v

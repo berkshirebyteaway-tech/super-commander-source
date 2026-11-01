@@ -1,4 +1,5 @@
 local Audio=require(script.Parent.ToyAudio)
+local Kit=require(script.Parent.FxKit)
 local Sound=game:GetService('SoundService')
 local Tween=game:GetService('TweenService')
 local M={};M.__index=M
@@ -94,9 +95,16 @@ function M:deployed(at,color,own)
 end
 function M:landed(at,color,own)
     if not self.started then return end
-    local earth=Color3.fromRGB(176,160,132):Lerp(color,.25)
-    self:ring(at+Vector3.new(0,.15,0),own and 13 or 8,.65,color:Lerp(Color3.new(1,1,1),.55),own and .3 or .5)
-    if not self.reduced then self:dust(at+Vector3.new(0,.4,0),own and (self.touch and 12 or 20)or 5,earth,own and 9 or 6)end
+    local earth=Color3.fromRGB(176,160,132):Lerp(color,.25);local light=color:Lerp(Color3.new(1,1,1),.55)
+    local R=own and 9 or 6
+    if self.reduced then self:ring(at+Vector3.new(0,.15,0),R,.65,light,own and .3 or .5)
+    else
+        local g=at+Vector3.new(0,.15,0)
+        Kit.ring(g,R*.05,R,light,.65,own and .55 or .32,28)
+        Kit.spikes(g,own and 10 or 6,R*.45,own and .45 or .28,light,.36,0,math.random()*math.pi)
+        Kit.puffs(g,own and 2.6 or 1.7,own and (self.touch and 9 or 12)or 6,earth,1.3,.3,R*.7,true,.04,.3)
+        if own then self:dust(at+Vector3.new(0,.4,0),self.touch and 8 or 12,earth,9)end
+    end
     if own then Audio.play('dropLand',1);self.shake=math.max(self.shake,1.4)end
 end
 function M:step(dt,info)

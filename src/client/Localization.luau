@@ -9,7 +9,12 @@ end
 for _,p in ipairs(Players:GetPlayers())do M.addName(p.DisplayName)end
 Players.PlayerAdded:Connect(function(p)M.addName(p.DisplayName)end)
 function M.nation(f)if not f then return '' end;return f.userId and f.name or M.text(f.name or '')end
-local function specs(t)local out={};for c in t:gmatch('%%[%-+ #0]*%d*%.?%d*[%a%%]')do table.insert(out,c)end;return table.concat(out,'|')end
+local function specs(t)
+    local out={}
+    local rest=t:gsub('%%[%-+ #0]*%d*%.?%d*[%a%%]',function(c)table.insert(out,c);return ''end)
+    local _,literal=rest:gsub('%%','')
+    return table.concat(out,'|')..'#'..literal
+end
 function M.text(source,context)
     if type(source)~='string'or source==''then return source end
     if locale:sub(1,2)=='ko'then return Nations.ko(source,names)end

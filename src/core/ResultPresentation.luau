@@ -112,7 +112,7 @@ function M.view(state)
         retryIntro=M.retryIntro(state),
         nextStage=state.intro and not M.retryIntro(state)and r.campaign and r.campaign.next or nil,
         tomorrow=state.intro and status~='practice'and M.tomorrow(r.progression)or nil,
-        again=M.retryIntro(state)and '첫 작전 다시 도전'or state.intro and (r.campaign and r.campaign.next and string.format('다음 작전 %s',r.campaign.next)or '첫 공식전 출전')or r.campaign and (r.campaign.next and string.format('다음 작전 %s',r.campaign.next)or '다시 도전')or r.daily and '다시 도전'or state.casual and (state.nextRoundIn and string.format('다음 판 바로 시작 %d초',state.nextRoundIn)or '다음 판 바로 시작')or state.intro and '첫 공식전 출전'or state.multiplayer and (state.queueMode=='custom'and '같은 설정으로 방 만들기'or '다음 전장 고르기')or '같은 설정으로 한 판 더',
+        again=M.retryIntro(state)and '첫 작전 다시 도전'or state.intro and (r.campaign and r.campaign.next and string.format('다음 작전 %s',r.campaign.next)or '다시 도전')or r.campaign and (r.campaign.next and string.format('다음 작전 %s',r.campaign.next)or '다시 도전')or r.daily and '다시 도전'or state.casual and (state.nextRoundIn and string.format('다음 판 바로 시작 %d초',state.nextRoundIn)or '다음 판 바로 시작')or state.intro and '첫 공식전 출전'or state.multiplayer and (state.queueMode=='custom'and '같은 설정으로 방 만들기'or '다음 전장 고르기')or '같은 설정으로 한 판 더',
         invite=status~='practice'and type(r.invite)=='table'and r.invite or nil,
         bonus=r.bonus,progression=r.progression,goal=M.goal(r.progression),personalBest=M.personalBest(r,status),
         records=r.conquered~=nil and {conquered=r.conquered or 0,troops=r.troopsSent or 0,built=r.built or 0,nukes=r.nukes or 0}or nil,

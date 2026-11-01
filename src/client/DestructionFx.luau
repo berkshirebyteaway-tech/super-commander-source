@@ -1,6 +1,7 @@
 local TweenService=game:GetService("TweenService")
 local Debris=game:GetService("Debris")
 local RunService=game:GetService("RunService")
+local MatchFx=require(script.Parent.MatchFx)
 local M={active=0,budget=12}
 local UP=Vector3.yAxis
 local FLAT=CFrame.Angles(0,0,math.pi/2)
@@ -77,11 +78,12 @@ end
 
 function M.building(model,reduced)
     if not model or not model.Parent then return end
-    if reduced or not claim(2.2) then model:Destroy();return end
     local cf,size=model:GetBoundingBox();local at=Vector3.new(cf.Position.X,cf.Position.Y-size.Y/2,cf.Position.Z)
-    local s=math.max(size.X,size.Z);local color=rubble(model)
-    burst(folderOf(model),at,s,color,7,3,true)
-    ring(folderOf(model),at+UP*.05,s*.4,s*1.9,FIRE,.6)
+    local s=math.max(size.X,size.Z)
+    if reduced then MatchFx.explosion(at,s,SMOKE,nil,true);model:Destroy();return end
+    local full=claim(1.4);local owner=nil
+    for _,p in ipairs(model:GetDescendants())do if p:IsA("BasePart")and p.Name:find("Owner")then owner=p.Color;break end end
+    MatchFx.explosion(at,s,rubble(model),owner,false,not full or M.active>6)
     task.delay(.08,function()model:Destroy()end)
 end
 

@@ -11,8 +11,10 @@ function M.show(lobby,r)
     local title=UI.label(card,'Title',string.format('%s님이 파티에 초대했어요',r.name or '친구'),17);UI.box(title,14,8,w-28,30);title.TextXAlignment=Enum.TextXAlignment.Center;title.ZIndex=47
     local left=UI.label(card,'Remaining','',12,UI.colors.muted);UI.box(left,14,38,w-28,18);left.TextXAlignment=Enum.TextXAlignment.Center;left.ZIndex=47
     local bw=(w-28-8)/2
+    local dismiss
     M.current=match and card or nil
-    local function close()if card.Parent then card:Destroy()end;if lobby.inviteCard==card then lobby.inviteCard=nil end;if M.current==card then M.current=nil end;if M.changed then M.changed()end end
+    local function close()if card.Parent then card:Destroy()end;if lobby.inviteCard==card then lobby.inviteCard=nil end;if M.current==card then M.current=nil end;if M.dismiss==dismiss then M.dismiss=nil end;if M.changed then M.changed()end end
+    dismiss=function(from,how)if from==r.from and card.Parent then close();Step.step('social','inviteToast',{result=how or'answered',reason='list'})end end;M.dismiss=dismiss
     local accept=UI.button(card,'Accept','수락',function()close();Step.step('social','inviteToast',{result='accepted'});lobby:request('accept',r.from)end,true);UI.box(accept,14,64,bw,36);accept.ZIndex=47
     local decline=UI.button(card,'Decline','거절',function()close();Step.step('social','inviteToast',{result='rejected'});lobby:request('decline',r.from)end);UI.box(decline,14+bw+8,64,bw,36);decline.ZIndex=47
     local bar

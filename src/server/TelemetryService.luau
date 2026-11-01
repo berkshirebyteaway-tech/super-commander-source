@@ -70,7 +70,7 @@ function M:session(p)
  if self.closed or self.departed[p]or p.Parent~=Players then return nil end
  local now=os.clock();s={id=guid(),connection=guid(),actor=hash(tostring(game.GameId)..':'..p.UserId),at=now,phaseAt=now,phase='boot',phaseSeconds={},
   matches=0,context={},funnels={},nativeFunnelSent={},commands=Model.window(now),nativeCounts={},nativeAt=now,clientSeq=0,
-  clientBudget=Model.token(Schema.clientBurst,Schema.clientRate,now),nativeBudget=Model.token(40,16/60,now),seen={},order=Model.ring(1024),
+  clientBudget=Model.token(Schema.clientBurst,Schema.clientRate,now),nativeBudget=Model.token(60,60/60,now),seen={},order=Model.ring(1024),
   matchServer=game.PrivateServerId~=''and game.PrivateServerOwnerId==0,detail=p.UserId%100<M.sample('telemetryDetail',Config.detailSample)*100,perf=p.UserId%100<M.sample('telemetryPerf',Config.performanceSample)*100}
  self.sessions[p]=s;self:emit(p,'visit_entered',{phase='boot'});self:funnel(p,'Entry','visit',s.id)
  return s

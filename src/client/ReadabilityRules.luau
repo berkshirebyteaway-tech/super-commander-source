@@ -7,6 +7,7 @@ function M.occludes(avatar,target)
     local area=math.max(1,target.w*target.h)
     return M.overlap(avatar,target)/area>=.18
 end
+function M.closeIntro(state,view)return state and state.intro==true and view and(view.w or 999)<200 or false end
 function M.fade(value,target,dt)
     local v=value+(target-value)*(1-math.exp(-math.max(0,dt)*14))
     return math.abs(v-target)<.002 and target or v

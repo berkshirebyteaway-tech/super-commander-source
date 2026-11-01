@@ -2,6 +2,7 @@ local RunService=game:GetService("RunService")
 local TweenService=game:GetService("TweenService")
 local Themes=require(script.Parent.NukeThemes)
 local features=require(script.Parent.Parent.Core.CollectionDefinitions).features
+local Kit=require(script.Parent.FxKit)
 local M={}
 local V=Vector3.new
 local UP=Vector3.yAxis
@@ -143,6 +144,14 @@ function M.launch(folder,position,trailSkin,reduced)
 end
 
 local full,bursts=0,0
+M.layer={
+    spikes={color='flash',count=8,len=2.4,width=.16,life=.34},
+    fireball={colors={'core','fire','ember'},r=1.2,count=5,rise=.6,life=1},
+    smoke={r=.55,count=4,life=1.3,rise=1.2,spread=.9},
+}
+function M.layerFor(killer)
+    return Kit.layer(M.layer,killer and (killer.killLayer or (Themes.killLayers and Themes.killLayers[killer.theme or ""])))
+end
 function M.kill(folder,position,killer,victim,victimTrail,weapon,reduced,zoom)
     if reduced or not position or bursts>=10 then return end
     local light=weapon=="MIRVWarhead" and full>=2 or full>=4
@@ -193,6 +202,13 @@ function M.kill(folder,position,killer,victim,victimTrail,weapon,reduced,zoom)
                 table.insert(parts,{p=e,v=V(math.cos(a)*2.2,1.6+(i%3)*.6,math.sin(a)*2.2)*z,spin=Vector3.zero,ember=true})
             end
         end
+    end
+    local L=M.layerFor(killer)
+    local function col(slot,fallback)return killer and killer[slot] or fallback end
+    if L.spikes then Kit.spikes(position,L.spikes.count,L.spikes.len*z,L.spikes.width*z,col(L.spikes.color,flashC),L.spikes.life,0,math.random()*math.pi)end
+    if not light then
+        if L.fireball then local f=L.fireball;Kit.fireball(position-UP*f.r*z*.35,f.r*z,f.count,f.rise*z,f.life,{col(f.colors[1],coreC),col(f.colors[2],fireC),col(f.colors[3],fireC)})end
+        if L.smoke then local f=L.smoke;Kit.puffs(position,f.r*z,f.count,victimTrail and victimTrail.smoke or Color3.fromRGB(120,124,132),f.life,f.rise*z,f.spread*z,false,.1)end
     end
     local puff=not light and part(model,"Smoke",V(.4,.4,.4)*z,CFrame.new(position),victimTrail and victimTrail.smoke or Color3.fromRGB(110,114,122),SMOOTH,.5,"ell")
     local g=9*z

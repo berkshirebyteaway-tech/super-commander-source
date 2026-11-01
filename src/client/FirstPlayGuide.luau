@@ -70,9 +70,9 @@ function M:update(s,enabled,context)
     self.frame:SetAttribute('Stage',stage)
     local ready=context.primary and context.primary.Visible and context.primary:GetAttribute('Enabled')~=false and context.action=='inspect'
     local valid=ready and (g.stage=='settle'or context.enemyLand)
-    local text=Copy.instruction(stage,valid,(g.targetOwner or 0)>0,require(script.Parent.InputMode).touch())
+    local text=Copy.instruction(stage,valid,(g.targetOwner or 0)>0,require(script.Parent.InputMode).touch(),g.intro)
     if stage=='grow'then text=Copy.recruitmentHint(s,context.trend)end
-    if stage=='done'and g.intro then text='부족 2곳 흡수하면 승리'end
+    if stage=='done'and g.intro then text='나라 5곳 정복하면 승리'end
     if stage=='city'then
         local city=self.cityState
         if city.stage=='complete'then text='도시 완공, 병력 상한 '..Theme.troops(s.player.cap);if not self.cityCompletedAt then Telemetry.step('tutorial','cityDone',{result='complete',duration_ms=(os.clock()-(self.telemetryAt or os.clock()))*1000})end;self.cityCompletedAt=self.cityCompletedAt or os.clock()
@@ -125,9 +125,9 @@ function M:build20()
     if K.fonts[800]then tag.FontFace=K.fonts[800]end;K.round(tag,6);K.stroke(tag,K.colors.accent,1,.45,true)
     local function fitTag()
         local w=K.width(require(script.Parent.Localization).text(tag.Text),12,tag)+16;w+=w%2
-        tag.Size=UDim2.fromOffset(w,22);tag.Position=UDim2.fromOffset(19-w//2,44)
+        tag.Size=UDim2.fromOffset(w,22);tag.Position=UDim2.fromOffset(19-w//2,self.tagAbove and -28 or 44)
     end
-    tag:GetPropertyChangedSignal('Text'):Connect(fitTag);fitTag()
+    self.fitTag=fitTag;tag:GetPropertyChangedSignal('Text'):Connect(fitTag);fitTag()
 end
 local function format(size)
     local touch=require(script.Parent.InputMode).touch()
@@ -243,6 +243,9 @@ function M:stepFrame(reduced)
         local bottom=math.min(size.Y-125,(self.context and self.context.hudTop or size.Y)-80)
         self.ring.Position=UDim2.fromOffset(p.X,p.Y);self.ring.Visible=p.X>25 and p.X<size.X-25 and p.Y>90 and p.Y<bottom
         self.tag.Text=g.stage=='settle'and '시작 위치'or (g.targetOwner or 0)>0 and '공격 대상'or '확장 위치'
+        local own=self.state and self.state.player and self.state.player.labelTile;local q=own and self.view:project(own)
+        local above=q~=nil and q.Y>=p.Y-8 and math.abs(q.X-p.X)<110
+        if above~=(self.tagAbove==true)then self.tagAbove=above;if self.fitTag then self.fitTag()else UI.box(self.tag,-27,above and -28 or 44,92,28)end end
     end
     local needsLook=self.ringWanted and not self.ring.Visible
     if self.needsLook~=needsLook then

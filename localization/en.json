@@ -7071,5 +7071,17 @@
   "방장 경기 중": "Leader is in a match",
   "방장 응답 없음": "No answer from leader",
   "요청 지남": "Request expired",
-  "방장이 거절했어요": "Leader declined"
+  "방장이 거절했어요": "Leader declined",
+  "나가면 패배, 트로피 감소": "Leave = loss, trophies down",
+  "2분 지나서 나가면 보상 절반": "Leave after 2 min: half rewards",
+  "옆 상대 땅 탭": "Tap rival land next to you",
+  "옆 빈 땅 탭": "Tap empty land next to you",
+  "부족 5곳 흡수하면 승리": "Absorb 5 tribes to win",
+  "부족 5곳 흡수": "Absorb 5 tribes",
+  "부족 5곳을 흡수하면 바로 이겨요.": "Absorb 5 tribes to win at once.",
+  "한반도에서 시작해요. 이웃 부족을 흡수해요.": "You start on the Korean Peninsula. Absorb the tribes next to you.",
+  "나라 5곳 정복": "Conquer 5 nations",
+  "나라 5곳 정복하면 승리": "Conquer 5 nations to win",
+  "나라 5곳을 정복하면 바로 이겨요.": "Conquer 5 nations to win at once.",
+  "한반도에서 시작해요. 이웃 나라를 정복해요.": "You start on the Korean Peninsula. Conquer the nations next to you."
 }

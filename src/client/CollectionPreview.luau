@@ -129,9 +129,9 @@ function M.create(parent,item,options)
         for i,m in ipairs(row)do require(script.Parent.CosmeticMeshes).watchModel(item.style..'/'..options.roles[i],m,refit)end
         return frame,context
     end
-    local key=cat and(cat=='buildings'and item.style..'/'..(options.role or 'City')or(cat=='nuclear'or cat=='vehicle'or cat=='parachute'or cat=='motion')and item.style)
+    local key=cat and(cat=='buildings'and item.style..'/'..(options.role or 'City')or(cat=='nuclear'or cat=='vehicle'or cat=='parachute'or cat=='motion'or cat=='territory')and item.style)
     if key then require(script.Parent.CosmeticMeshes).watchModel(key,model,function()
-        if cat=='motion'then
+        if cat=='motion'or cat=='territory'then
             local fresh=M.model(item,options.role);fresh:PivotTo(model:GetPivot());fresh.Parent=world;model:Destroy()
             model=fresh;context.model=fresh;context.base=CFrame.identity
         end

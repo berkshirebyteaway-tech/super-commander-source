@@ -13,13 +13,14 @@ M.chests={{stars=15,coins=200},{stars=30,coins=300},{stars=45,coins=400},{stars=
 M.allClearPlate={kind='plate',id='campaign:hell',name='불지옥',color={214,72,48}}
 M.perfectPlate={kind='plate',id='campaign:perfect',name='만점 사령관',color={232,184,72}}
 M.introStage='1-1'
-M.introMinutes=3
+M.introMinutes=5
 M.growthBand={.25,.65}
 M.shareWindow=180
 local NUKES={'MissileSilo','AtomBomb','HydrogenBomb','MIRV','SAMLauncher'}
 M.stages={
-    {id='1-1',name='첫 작전',map='korea',nations=0,bots=20,intro=true,task={kind='count',key='countriesConquered',n=2,label='부족 2곳 흡수'},
-        brief='빈 땅부터 넓혀요. 병력이 차오르면 이웃 부족을 흡수해요.',tip='부족 2곳을 흡수하면 바로 이겨요.'},
+    {id='1-1',name='첫 작전',map='world',nations=5,bots=40,intro=true,landAt={x=822,y=143},infiniteTroops=true,
+        nationPick={'China','Mongolia','Thailand','India','Kazakhstan'},noAIBoats=true,task={kind='count',key='nationsConquered',n=5,label='나라 5곳 정복'},
+        brief='한반도에서 시작해요. 이웃 나라를 정복해요.',tip='나라 5곳을 정복하면 바로 이겨요.'},
     {id='1-2',name='충원의 법칙',map='yellowsea',nations=1,bots=40,startingGold=150000,task={kind='count',key='growthGreen',n=60,label='충원 초록 시간 60%'},
         brief='병력은 상한의 절반쯤일 때 가장 빨리 차요. 꽉 차면 멈춰요.',tip='병력 막대가 초록일 때 보내요.'},
     {id='1-3',name='넓을수록 큰 군대',map='caucasus',nations=3,bots=40,startingGold=250000,task={kind='built',unit='City',n=2,label='도시 2개 짓기'},
@@ -99,7 +100,7 @@ local function teamFlag(s)return s.team~=nil end
 function M.settings(stage)
     local ch=M.chapters[stage.chapter]
     local s={difficulty=stage.difficulty or ch.difficulty,nations=stage.nations,bots=stage.bots,startingGold=stage.startingGold or 0,
-        goldMultiplier=stage.goldMultiplier or 1,customAllianceDuration=5,infiniteGold=false,infiniteTroops=false,instantBuild=false}
+        goldMultiplier=stage.goldMultiplier or 1,customAllianceDuration=5,infiniteGold=false,infiniteTroops=stage.infiniteTroops==true,instantBuild=false,landAt=stage.landAt,nationPick=stage.nationPick}
     local gold=s.startingGold
     s.spawnImmunityDuration=stage.peace or (gold>=25000000 and 1500)or (gold>=5000000 and 450)or nil
     if ch.timer then s.maxTimerValue=ch.timer end

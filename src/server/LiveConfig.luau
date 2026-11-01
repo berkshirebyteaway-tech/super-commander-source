@@ -59,6 +59,7 @@ function M.get(key)
     if snapshot and not missing[key]then
         local ok,value=pcall(function()return snapshot:GetValue(key)end)
         if not ok or value==nil then missing[key]=true end
+        if ok and default==''and value=='-'then return ''end
         if ok and value~=nil and typeof(value)==typeof(default)then return value end
     end
     return default

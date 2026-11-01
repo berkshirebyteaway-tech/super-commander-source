@@ -4,6 +4,7 @@ local G=require(script.Parent.ToyGeometry)
 local WG=require(script.Parent.Parent.Core.WorldGeometry)
 local Themes=require(script.Parent.NukeThemes)
 local Skin=require(script.Parent.SkinMapStyle)
+local Kit=require(script.Parent.FxKit)
 local M={};M.__index=M
 local UP=Vector3.yAxis
 local V=Vector3.new
@@ -254,6 +255,19 @@ function M.stepTelegraph(t,now,dt,reduced)
     if t.skin and t.skin.animated then Skin.step(t.skin,now,false)end
 end
 
+M.layer={
+    ring={color='shock',r0=.2,r1=1.5,width=.06,segments=32,extra=.2},
+    spikes={color='flash',count=14,len=.8,width=.04,life=.45},
+    fireball={colors={'core','fire','ember'},r=.27,count=7,rise=.6,life=1.9},
+    dust={color='dust',r=.32,count=16,life=2.2,spread=1.2,delay=.1,head=.3},
+    embers={color='fire',count=10,s=.35,life=1.4},
+    billows={count=6,size=.72,head=.28},
+    lumps={count=3,head=.25},
+}
+M.cloudScale={HydrogenBomb=.68}
+function M.layerFor(skin,theme)
+    return Kit.layer(M.layer,skin.layer or (Themes.layers and theme and Themes.layers[theme]))
+end
 function M.new(folder,world)
     return setmetatable({folder=folder,world=world,active=0,light=0},M)
 end
@@ -307,13 +321,13 @@ function M:detonate(position,kind,radius,inner,skin,reduced)
         local glow=Instance.new("PointLight");glow.Color=skin.fire;glow.Shadows=false;glow.Range=math.min(60,R*(light and 1.6 or 2.6));glow.Brightness=0;glow.Parent=flash
         shared(function(t)
             if t<0 then flash.Transparency=1;return end
-            flash.Size=Vector3.one*R*(.2+((light and .55 or .95)-.2)*out2(k(t,0,.12)));flash.Transparency=out2(k(t,.1,.5))
+            flash.Size=Vector3.one*R*(.2+((light and .55 or .7)-.2)*out2(k(t,0,.12)));flash.Transparency=out2(k(t,.1,.5))
             glow.Brightness=(light and 3 or 8)*(1-out2(k(t,0,light and .5 or .9)))
         end)
     end
     local shock=d.add("Shockwave","cyl",V(.06,R*.3,R*.3),CFrame.new(ground+UP*.2)*FLAT,skin.shock,NEON,1)
     local shockTime=light and .7 or (kind=="HydrogenBomb"and 1.5 or 1.2)
-    shared(function(t)if t<0 then return end;local a=out4(k(t,0,shockTime));shock.Size=V(.06,R*(.3+2.7*a),R*(.3+2.7*a));shock.Transparency=.15+.85*a end)
+    shared(function(t)if t<0 then return end;local a=out4(k(t,0,shockTime));shock.Size=V(.06,R*(.3+2.7*a),R*(.3+2.7*a));shock.Transparency=(light and .15 or .9)+(light and .85 or .1)*a end)
     local fire=d.add("Fireball","ell",Vector3.one*R*.15,CFrame.new(ground+UP*R*.1),skin.core,NEON,1)
     shared(function(t)
         if t<0 then return end
@@ -323,12 +337,26 @@ function M:detonate(position,kind,radius,inner,skin,reduced)
         if not light then fire.CFrame=CFrame.new(ground+UP*R*(.1+.4*(1-math.cos(math.pi*k(t,0,1.9)))/2))end
     end)
     if not light then
+        local blastR=R;local R=R*(M.cloudScale[kind]or 1)
+        local L=M.layerFor(skin,skin.theme)
+        task.delay(delay,function()
+            local function col(slot)return skin[slot]or skin.fire end
+            if L.ring then Kit.ring(ground,blastR*L.ring.r0,blastR*L.ring.r1,col(L.ring.color),shockTime+L.ring.extra,blastR*L.ring.width,L.ring.segments)end
+            if L.spikes then Kit.spikes(ground,L.spikes.count,R*L.spikes.len,R*L.spikes.width,col(L.spikes.color),L.spikes.life,0,math.random()*math.pi)end
+            if L.fireball then local f=L.fireball;Kit.fireball(ground,R*f.r,f.count,R*f.rise,f.life,{col(f.colors[1]),col(f.colors[2]),col(f.colors[3])})end
+            if L.dust then local f=L.dust;Kit.puffs(ground,R*f.r,f.count,col(f.color),f.life,R*.05,R*f.spread,true,f.delay,f.head)end
+            if L.embers then local f=L.embers;Kit.sparks(ground+UP*R*.3,f.count,col(f.color),R*f.s,f.life,ground.Y)end
+        end)
         local dust=d.add("Dust","cyl",V(R*.06,R*.4,R*.4),CFrame.new(ground+UP*R*.03)*FLAT,skin.dust,SMOOTH,1)
         shared(function(t)if t<0 then return end;local a=out2(k(t,0,1.9));dust.Size=V(R*(.06-.04*a),R*(.4+2.1*a),R*(.4+2.1*a));dust.Transparency=.4+.6*a end)
         local stemW=R*.17;local stemH=R*.8
         local stem=d.add("Stem","cyl",V(.1,stemW,stemW),CFrame.new(ground)*FLAT,skin.smoke,SMOOTH,1)
         local cap=d.add("Cap","ell",V(R*.45,R*.25,R*.45),CFrame.new(ground+UP*R*.3),skin.ember,SMOOTH,1)
         local under=d.add("CapGlow","ell",V(R*.4,R*.14,R*.4),CFrame.new(ground+UP*R*.24),skin.fire,NEON,1)
+        local billows,lumps={},{}
+        local B,S=L.billows or {count=0,size=1,head=0},L.lumps or {count=0,head=0}
+        for i=1,B.count do billows[i]={d.add("Billow","ell",Vector3.one*.1,CFrame.new(ground),skin.ember,SMOOTH,1),d.add("BillowHead","ell",Vector3.one*.1,CFrame.new(ground),skin.ember,SMOOTH,1),i/B.count*math.pi*2+.4}end
+        for i=1,S.count do lumps[i]={d.add("StemLump","ell",Vector3.one*.1,CFrame.new(ground),skin.smoke,SMOOTH,1),d.add("StemLumpHead","ell",Vector3.one*.1,CFrame.new(ground),skin.smoke,SMOOTH,1)}end
         local collar=kind=="HydrogenBomb"and d.add("Collar","cyl",V(R*.05,R*.35,R*.35),CFrame.new(ground+UP*R*.45)*FLAT,skin.shock,SMOOTH,1)
         shared(function(t)
             if t<0 then return end
@@ -338,6 +366,18 @@ function M:detonate(position,kind,radius,inner,skin,reduced)
             cap.Size=V(R*(.45+.7*c),R*(.25+.3*c),R*(.45+.7*c));cap.CFrame=CFrame.new(ground+UP*R*(.3+.65*c));cap.Color=skin.ember:Lerp(skin.cap,out2(k(t,.3,1.9)))
             cap.Transparency=t<.1 and 1 or .1+.9*out2(k(t,2.6,5))
             under.Size=V(R*(.4+.5*c),R*(.14+.08*c),R*(.4+.5*c));under.CFrame=CFrame.new(ground+UP*R*(.24+.54*c));under.Transparency=t<.1 and 1 or .15+.85*out2(k(t,.6,2.1))
+            local light2=cap.Color:Lerp(Color3.new(1,1,1),B.head)
+            for i,b in ipairs(billows)do
+                local r=R*(.2+.4*c);local sz=R*(.22+.27*c)*B.size*(i%2==0 and .85 or 1)
+                local p=ground+UP*R*(.3+.62*c)+V(math.cos(b[3])*r,0,math.sin(b[3])*r)
+                b[1].Size=V(sz,sz*.8,sz);b[1].CFrame=CFrame.new(p);b[1].Color=cap.Color;b[1].Transparency=cap.Transparency
+                b[2].Size=Vector3.one*sz*.55;b[2].CFrame=CFrame.new(p+V(-.12,.26,-.12)*sz);b[2].Color=light2;b[2].Transparency=cap.Transparency
+            end
+            for i,l in ipairs(lumps)do
+                local sz=stemW*(1.25+.35*a)*(1-.12*i);local p=ground+UP*h*(i-.5)/S.count+V(math.cos(i*2.1),0,math.sin(i*2.1))*stemW*.2
+                l[1].Size=Vector3.one*sz;l[1].CFrame=CFrame.new(p);l[1].Transparency=stem.Transparency
+                l[2].Size=Vector3.one*sz*.55;l[2].CFrame=CFrame.new(p+V(-.12,.26,-.12)*sz);l[2].Color=skin.smoke:Lerp(Color3.new(1,1,1),S.head);l[2].Transparency=stem.Transparency
+            end
             if collar then local g=out2(k(t,.4,2.2));collar.Size=V(R*(.05-.02*g),R*(.35+1.05*g),R*(.35+1.05*g));collar.Transparency=t<.4 and 1 or .35+.65*g end
         end)
         local burnt=math.max(1,(inner or radius*.4)*WG.scale)*2

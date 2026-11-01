@@ -11,7 +11,7 @@ local function pct(v)local r=math.floor(v+.5);if math.abs(v-r)<.005 then return 
 local function thumb(parent,id)
     local item=require(script.Parent.Parent.Core.SupplyCatalog).find(id);if not item then return nil end
     if item.category=='commanderStandard'then return require(script.Parent.WearablePreview).create(parent,'commanderStandard',item.style,{flagOnly=true})end
-    if item.category=='territory'and require(script.Parent.Parent.Core.CosmeticCatalog).get(item.style).flat then return require(script.Parent.SkinMapScene).patch(parent,item)end
+    if item.category=='territory'then return require(script.Parent.SkinMapScene).patch(parent,item)end
     return require(script.Parent.CollectionPreview).create(parent,item,{role=item.category=='buildings'and 'City'or nil})
 end
 local function wrapped(parent,name,text,size,color,x,y,w)

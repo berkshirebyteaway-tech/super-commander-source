@@ -558,10 +558,7 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
     local B=G.big;local by=(B.y<0 and ch+B.y or B.y+lift)-ay
     local bigWatch=v.continuing and spectate or nil
     local leftW=bigWatch and(B.watchW or B.lobbyW)or B.lobbyW;local bgap=fmt=='ph'and 10 or fmt=='pt'and 8 or 12
-    if v.nextStage and lobby and again and not bigWatch then
-        local f=adopt(again,'plain');place(again,p,by,B.lobbyW,B.h);content(f,C.ink,nil,nil,v.nextStage,B.lobbyFs)
-        f=adopt(lobby,'pri');place(lobby,p+B.lobbyW+bgap,by,cw-p*2-B.lobbyW-bgap,B.h);content(f,C.bg,B.againIs and 'back'or nil,B.againIs,L.text('로비'),B.againFs)
-    else
+    do
         if bigWatch then local f=adopt(bigWatch,'plain');place(bigWatch,p,by,leftW,B.h);content(f,C.ink,'watch',B.watchIs or B.lobbyIs,L.text('관전'),B.lobbyFs)
         elseif lobby then local f=adopt(lobby,'plain');place(lobby,p,by,B.lobbyW,B.h);content(f,C.ink,B.lobbyIs and 'back'or nil,B.lobbyIs,L.text('로비'),B.lobbyFs)end
         if again then
@@ -570,7 +567,7 @@ function M:buttons(v,fmt,G,cw,ch,p,lift)
             local party=t=='파티장과 함께 준비'or t==L.text('파티장과 함께 준비')
             if (v.campaign or v.casual and not party) and v.again then t=v.again;again:SetAttribute('Text20',t)end
             if t=='같은 설정으로 한 판 더'then t='한 판 더'end
-            content(f,C.bg,B.againIs and 'restore'or nil,B.againIs,L.text(t),B.againFs)
+            content(f,C.bg,B.againIs and(t:find('다음 작전',1,true)and 'chev'or 'restore')or nil,B.againIs,L.text(t),B.againFs)
         end
     end
     local R1=G.row1

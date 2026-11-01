@@ -52,7 +52,8 @@ local function entries(lobby)
     for _,invite in ipairs(s.invites or {})do
         Localization.addName(invite.name)
         table.insert(list,{id='Accept'..invite.from,userId=invite.from,name=invite.name,status='초대 받음',dot=C.gold,invite=true,action='수락',actionKind='out',
-            onAction=function()lobby:request('accept',invite.from)end,decline=function()lobby:request('decline',invite.from)end})
+            onAction=function()local T=require(script.Parent.InviteToast);if T.dismiss then T.dismiss(invite.from,'accepted')end;lobby:request('accept',invite.from)end,
+            decline=function()local T=require(script.Parent.InviteToast);if T.dismiss then T.dismiss(invite.from,'rejected')end;lobby:request('decline',invite.from)end})
     end
     local here={};for _,pl in ipairs(Players:GetPlayers())do here[pl.UserId]=true end
     local playing,online={},{}
@@ -74,7 +75,8 @@ local function entries(lobby)
             onProfile=pl and function()require(script.Parent.CommanderProfile).open(lobby,pl,'server')end or nil})
     end end
     for _,f in ipairs(online)do count+=1
-        table.insert(list,{id='InviteFriend'..f.VisitorId,userId=f.VisitorId,name=f.DisplayName or f.UserName,status='온라인',dot=C.good2,action='초대',onAction=function()lobby:invite(f.VisitorId)end})
+        local at=lobby.invitedAt and lobby.invitedAt[f.VisitorId];local sentNow=at and os.clock()-at<60
+        table.insert(list,{id='InviteFriend'..f.VisitorId,userId=f.VisitorId,name=f.DisplayName or f.UserName,status=sentNow and '초대 보냄'or '온라인',dot=C.good2,action='초대',enabled=not sentNow,onAction=function()lobby:invite(f.VisitorId)end})
     end
     return list,count
 end

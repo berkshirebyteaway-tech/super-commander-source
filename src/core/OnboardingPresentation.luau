@@ -17,12 +17,13 @@ function M.city(s)
     if not cost then return {stage='saving'}end
     return {stage=B.compare(B.fromString((s.player or {}).gold or '0'),B.fromString(cost))>=0 and 'ready'or 'saving',cost=cost}
 end
-function M.instruction(stage,ready,rival,touch)
+function M.instruction(stage,ready,rival,touch,tap)
     if stage=='settle'then return ready and '정착'or '빈 땅 고르기'end
     if stage=='expand'or stage=='again'then
         if ready then return touch and '공격, 또는 한 번 더 탭'or '공격, 또는 한 번 더 클릭'end
         if stage=='again'then return '병력 회복, 다시 넓히기'end
         if not touch then return rival and '옆 상대 땅 클릭'or '옆 빈 땅 클릭'end
+        if tap then return rival and '옆 상대 땅 탭'or '옆 빈 땅 탭'end
         return rival and '옆 상대 땅 고르기'or '옆 빈 땅 고르기'
     end
     if stage=='grow'then return '↑ 초록 충원 가속  ↓ 주황 감속'end

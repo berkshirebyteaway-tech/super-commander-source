@@ -73,6 +73,7 @@ function M:rally(id,tile,now)
 end
 function M:randomTile(id)
     local p=self.players[id];local world=self.world
+    local at=world.settings and world.settings.landAt;if type(at)=='table'and tonumber(at.x)and tonumber(at.y)then local t=self:nearestTile(id,at.y*world.map.meta.width+at.x);if t then return t end end
     if world.settings and world.settings.besideTribes then local t=self:besideTribes(id);if t then return t end end
     return Spawn.random(world,'drop-'..id,world.settings.seed or 'frontier',p.area)
 end

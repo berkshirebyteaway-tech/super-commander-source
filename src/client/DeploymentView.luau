@@ -97,7 +97,7 @@ function M:update(directory,queue,options)
         for _,f in ipairs(self.fields)do
             if not known[f.id]then
                 local replaced=false;for i,id in ipairs(self.order)do local old=self.cards[id];if old and old.field.slot and old.field.slot==f.slot and old.field.kind==f.kind then
-                    self.order[i]=f.id;self.cards[f.id]=old;self.cards[id]=nil;old.field=f;if self.selected==id then self.selected=nil end;replaced=true;break
+                    self.order[i]=f.id;self.cards[f.id]=old;self.cards[id]=nil;old.field=f;old.swappedAt=os.clock();if self.selected==id then self.selected=nil end;replaced=true;break
                 end end
                 if not replaced then table.insert(self.order,f.id)end
             end
@@ -112,9 +112,10 @@ end
 function M:join(id)
     if id=='world'then self:joinWorld();return end
     local f=self.lookup and self.lookup[id];if not f or self.busy or self.directoryError then return end
+    local c=self.cards[id];if c and c.swappedAt and os.clock()-c.swappedAt<.6 then return end
     require(script.Parent.TelemetryClient).emit('battlefield_selected',{entry=self.quickJoining and 'quick'or 'list',format=f.rules.mode=='teams'and 'team'or f.rules.mode=='coop'and 'coop'or 'ffa',field_id=f.id,map_key=f.rules.map})
     if self.queue and self.queue.field==id then if f.kind=='custom'then self.callbacks.room()end;return end
-    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ask({field=f.id,revision=f.revision});return end
+    if self.party and #self.party.users>1 and self.party.leader~=self.userId then self.callbacks.ask({field=f.id,revision=f.revision,map=f.rules.map});return end
     if not PartyPlay.assess(f,self.party,self.queue and self.queue.field)then require(script.Parent.TelemetryStep).step('lobby','fieldBlocked',{item=f.kind=='custom'and 'custom'or 'official',reason='party'});return end
     self.callbacks.join({field=f.id,revision=f.revision,quick=self.quickJoining or nil})
 end

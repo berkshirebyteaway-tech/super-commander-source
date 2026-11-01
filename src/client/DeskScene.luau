@@ -2,10 +2,9 @@ local G=require(script.Parent.Parent.Core.WorldGeometry)
 local Geo=require(script.Parent.ToyGeometry)
 local M={}
 local rgb=Color3.fromRGB
-local slab,steel,bezel,inset=rgb(13,18,25),rgb(24,33,44),rgb(30,41,54),rgb(9,13,18)
+local steel,bezel,inset=rgb(24,33,44),rgb(30,41,54),rgb(9,13,18)
 local accent,ice,muted=rgb(54,226,208),rgb(191,239,255),rgb(138,151,168)
-function M.create(parent,meta)
-    local folder=Instance.new("Folder");folder.Name="ToyDesk";folder.Parent=parent
+local function warRoom(folder,meta)
     local w,d=meta.width*G.scale,meta.height*G.scale;local hx,hz=w/2,d/2;local y=G.surfaceY
     local function b(name,size,pos,color,rotation)
         local shape=(name=='OpsTable'or name=='TableLip'or name=='BezelFrame')and 'board'or 'armor'
@@ -22,14 +21,6 @@ function M.create(parent,meta)
         local t=Instance.new("TextLabel");t.Position=pos;t.Size=size;t.BackgroundTransparency=1;t.Text=value;t.TextSize=ts;t.TextColor3=color
         t.FontFace=font or Font.new("rbxasset://fonts/families/Oswald.json",Enum.FontWeight.Bold);t.TextXAlignment=align or Enum.TextXAlignment.Left;t:SetAttribute("LocalizationSkip",true);t.Parent=gui;return t
     end
-    local top=b("OpsTable",{w+150,4.2,d+130},{0,y-4.1,0},slab)
-    local grid=face(top,1024,768,.35)
-    for i=1,23 do rect(grid,UDim2.fromScale(i/24,0),UDim2.new(0,1,1,0),steel,.55)end
-    for i=1,17 do rect(grid,UDim2.fromScale(0,i/18),UDim2.new(1,0,0,1),steel,.55)end
-    local vignette=rect(grid,UDim2.fromScale(0,0),UDim2.fromScale(1,1),rgb(4,6,9),0)
-    local fade=Instance.new("UIGradient");fade.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.2),NumberSequenceKeypoint.new(.5,1),NumberSequenceKeypoint.new(1,.2)});fade.Parent=vignette
-    b("TableLip",{w+152,1.1,d+132},{0,y-6.5,0},inset)
-    b('TableEdgeTrim',{w+150,.22,d+130},{0,y-6,0},rgb(53,66,81))
     b("BezelFrame",{w+11,1.2,d+11},{0,y-1.25,0},bezel)
     local rim=b("BezelSignal",{w+7.2,.3,d+7.2},{0,y-.55,0},accent);rim.Material=Enum.Material.Neon;rim.Transparency=.35;rim.CastShadow=false
     b("BezelInset",{w+5.4,.24,d+5.4},{0,y-.28,0},inset)
@@ -78,7 +69,39 @@ function M.create(parent,meta)
         Geo.cylinder(folder,"PinStem",.35,4,base*CFrame.new(0,1.5,0),muted)
         Geo.ball(folder,"PinHead",Vector3.new(2.2,2.2,2.2),base*CFrame.new(0,3.8,0),i==0 and accent or ice)
     end
-    folder:SetAttribute("Theme","WarRoomV2");return folder
+end
+M.warRoom=false
+M.rim={rim=.012,inset=.004,line=.0035,glow=.06}
+local rimC,rimHi,brass,glowC,lipColor,floorColor=rgb(26,40,60),rgb(46,72,100),rgb(201,168,106),rgb(64,118,170),rgb(230,242,250),rgb(9,14,22)
+function M.create(parent,meta,map)
+    local folder=Instance.new("Folder");folder.Name="ToyDesk";folder.Parent=parent
+    local w,d=meta.width*G.scale,meta.height*G.scale;local hx,hz=w/2,d/2;local y=G.surfaceY
+    local L=math.max(w,d);local R=M.rim;local r,ri,rl,g=R.rim*L,(R.rim-R.inset)*L,(R.rim-R.inset-R.line)*L,R.glow*L
+    local function slab(name,size,cf,color,material)
+        local p=Instance.new("Part");p.Name=name;p.Anchored=true;p.CanCollide=false;p.CanTouch=false;p.CanQuery=false;p.CastShadow=false
+        p.Size=size;p.CFrame=typeof(cf)=="Vector3"and CFrame.new(cf)or cf;p.Color=color;p.Material=material or Enum.Material.SmoothPlastic
+        p.TopSurface=Enum.SurfaceType.Smooth;p.BottomSurface=Enum.SurfaceType.Smooth;p.Parent=folder;return p
+    end
+    local function paint(p,color,hi,fade)
+        local gui=Instance.new("SurfaceGui");gui.Name="RimPrint";gui.Face=Enum.NormalId.Top;gui.CanvasSize=Vector2.new(64,64);gui.LightInfluence=0;gui.MaxDistance=10000;gui.Parent=p
+        local fill=Instance.new("Frame");fill.Name="Fill";fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=Color3.new(1,1,1);fill.Parent=gui
+        local grad=Instance.new("UIGradient");grad.Color=ColorSequence.new(hi or color,color);grad.Rotation=45;grad.Parent=fill
+        if fade then grad.Color=ColorSequence.new(color);grad.Rotation=90;grad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,fade),NumberSequenceKeypoint.new(.55,.62),NumberSequenceKeypoint.new(1,1)})end
+    end
+    paint(slab("RimOuter",Vector3.new(w+2*r,3,d+2*r),Vector3.new(0,y-2.1,0),rimC),rimC,rimHi)
+    paint(slab("RimBrass",Vector3.new(w+2*ri,3,d+2*ri),Vector3.new(0,y-2,0),brass,Enum.Material.Metal),brass)
+    paint(slab("RimInner",Vector3.new(w+2*rl,3,d+2*rl),Vector3.new(0,y-1.9,0),rimC),rimC,rimHi)
+    for _,s in ipairs({{Vector3.zAxis,w+2*(r+g),hz},{-Vector3.zAxis,w+2*(r+g),hz},{Vector3.xAxis,d+2*r,hx},{-Vector3.xAxis,d+2*r,hx}})do
+        local out,len,half=s[1],s[2],s[3];local at=Vector3.new(0,y-3.5,0)+out*(half+r+g/2)
+        paint(slab("RimGlow",Vector3.new(len,.2,g),CFrame.lookAt(at,at-out),glowC),glowC,nil,.2)
+    end
+    for _,sz in ipairs({-1,1})do slab("GlazeLip",Vector3.new(w+.8,.4,.4),Vector3.new(0,y-.15,sz*(hz+.2)),lipColor).Reflectance=.08 end
+    for _,sx in ipairs({-1,1})do slab("GlazeLip",Vector3.new(.4,.4,d+.8),Vector3.new(sx*(hx+.2),y-.15,0),lipColor).Reflectance=.08 end
+    for i=-1,1 do for j=-1,1 do
+        paint(slab("Floor",Vector3.new(2048,.2,2048),Vector3.new(i*2048,y-4.7,j*2048),floorColor),floorColor)
+    end end
+    if M.warRoom then warRoom(folder,meta)end
+    folder:SetAttribute("Theme","BoardFrame24");return folder
 end
 function M.dropView(folder,on,sea)
     if not folder or not folder.Parent then return end

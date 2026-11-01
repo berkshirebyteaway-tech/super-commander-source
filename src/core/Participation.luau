@@ -34,7 +34,7 @@ function M:addTime(seconds,now)
 end
 function M:step(s,id,dt,now,connected,paused)
     local p=s.sim.players[id];if not p then return end
-    for _,key in ipairs({'troopsProduced','countriesConquered','troopsSent'})do
+    for _,key in ipairs({'troopsProduced','countriesConquered','troopsSent','nationsConquered'})do
         local value=p[key]or 0
         if value~=(self.tactics[key]or 0)then self.tactics[key]=value;self.dirty=true end
     end
@@ -105,7 +105,16 @@ function M:finish(outcome,now,final)
         self.milestones.finish=true;local day=Rules.day(now);self.days[day]=self.days[day]or {seconds=0,cities=0,finished=0};self.days[day].finished+=1
     end
 end
+local function bounded(v,max)if type(v)~='number'or v~=v or v<0 then return 0 end;return math.min(v,max or 1e12)end
+local tacticKeys={'troopsProduced','countriesConquered','nationsConquered','troopsSent','gold','alliances','intercepts','warships','fleetPeak','mirv','growthGreen','trainGold','allyTrainGold','tradeGold','tradeCaptures','embargoes','betrayals'}
 function M:event(now)
+    local e=self:rawEvent(now)
+    for _,key in ipairs({'seconds','peak','cities','supports','humans'})do if e[key]~=nil then e[key]=bounded(e[key])end end
+    for _,key in ipairs(tacticKeys)do if e.tactics[key]~=nil then e.tactics[key]=bounded(e.tactics[key])end end
+    for _,key in ipairs({'place','field'})do if e[key]~=nil then e[key]=math.floor(bounded(e[key],10000))end end
+    return e
+end
+function M:rawEvent(now)
     self.revision+=1;self.dirty=false
     return {id=self.id,revision=self.revision,mode=self.mode,map=self.map,humans=self.humans,seconds=math.floor(self.seconds),peak=self.peak,cities=self.cities,supports=self.supports,party=self.party==true,tactics=Rules.copy(self.tactics),days=Rules.copy(self.days),weeks=Rules.copy(self.weeks),weeklyActions=Rules.copy(self.weeklyActions),milestones=Rules.copy(self.milestones),outcome=self.outcome,final=self.final,basicsComplete=self.basicsComplete==true,daily=self.daily,campaign=self.campaign,official=self.official==true or nil,gameSeconds=self.gameSeconds,time=self.time or now,
         place=self.place,field=self.total,ranked=self.ranked==true or nil}

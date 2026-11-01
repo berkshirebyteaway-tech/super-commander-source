@@ -215,7 +215,7 @@ local function snapshot(e,full,shared,context)
     s.unrecorded=room.unrecorded==true;s.watchers=room.observerCount;s.ranked=room.ranked;s.clanwar=room.clanwar and {size=room.clanwar.size or 2,count=room.clanwar.count or 2}or nil
     s.casual=room.casual or nil;s.intro=room.intro or nil;s.awaitFirst=room.awaitFirst or nil;s.campaign=room.campaign
     s.spawnRemaining=math.max(0,math.ceil((room.spawnUntil or 0)-os.clock()));s.spawnLeft=math.max(0,(room.spawnUntil or 0)-os.clock())
-    s.allSpawned=room.allSpawned or nil;s.randomSpawn=room.randomSpawn or nil;s.nextRoundIn=room.endedAt and math.max(0,math.ceil(room.endedAt+Config.resultSeconds-os.clock()))or nil
+    s.allSpawned=room.allSpawned or nil;s.randomSpawn=room.randomSpawn or nil;s.nextRoundIn=room.endedAt and math.max(0,math.ceil(room.endedAt+(room.resultFor or Config.resultSeconds)-os.clock()))or nil
     s.drop=room.drop and room.session.phase=='spawn'and room.drop.players[e.faction]and room.drop.players[e.faction].userId==e.player.UserId and room.drop:snapshot(e.faction,os.clock())or nil
     local guide=room.guides and room.guides[e.player.UserId]
     if guide then s.guide=guide:view(room.session,e.faction,room.intro)end
@@ -490,7 +490,7 @@ local function createRoom(selection,single)
     if selection.intro and not selection.unrecorded and not selection.campaign then selection.campaign=Outgame.campaign.introStage end
     if selection.campaign then local seed=cfg.seed;cfg=Outgame.campaign.settings(Outgame.campaign.stage(selection.campaign));cfg.seed=seed end
     if selection.practice then cfg={difficulty="Medium",nations=3,bots=30,startingGold=125000,goldMultiplier=1,customAllianceDuration=5,seed=cfg.seed}end
-    if selection.intro then local n=Outgame.campaign.stage(Outgame.campaign.introStage).task.n;cfg={difficulty='Easy',nations=0,bots=20,randomSpawn=true,besideTribes=true,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=Outgame.campaign.introMinutes,goalConquer=n,seed=cfg.seed}end
+    if selection.intro then local st=Outgame.campaign.stage(Outgame.campaign.introStage);local n=st.task.n;cfg={difficulty='Easy',nations=st.nationPick and #st.nationPick or 0,nationPick=st.nationPick,goalNations=st.task.key=='nationsConquered'or nil,noAIBoats=st.noAIBoats or nil,bots=st.bots,randomSpawn=true,besideTribes=true,landAt=st.landAt,infiniteTroops=st.infiniteTroops==true,startingGold=0,goldMultiplier=1,customAllianceDuration=5,maxTimerValue=Outgame.campaign.introMinutes,goalConquer=n,seed=cfg.seed}end
     if single then cfg=require(pack.Core.SoloChallenge).resolve(Maps.meta(selection.map),cfg)end
     if not selection.intro and (selection.official or selection.goal or selection.campaign and not Outgame.campaign.stage(selection.campaign).team)then cfg.lastCommanderWins=true end
     if selection.ranked or selection.clanwar then cfg.lastCommanderWins=nil end
@@ -577,8 +577,9 @@ local function openRoom(e,selection)
     if ok then Guards.count(e.guards,'room',os.clock(),Guards.roomWindow)end
     return ok,message
 end
-local function casualRoom(count,late)
-    for _,r in ipairs(rooms)do if r.casual and not r.warming and not r.endedAt and not r.session.winnerId and (late or os.time()-(r.startedAt or os.time())<(Casual.minutes-6)*60)then
+local function rejoined(r,ids)if ids then for _,id in ipairs(ids)do if(r.stints and r.stints[id]or 0)>=2 then return true end end end end
+local function casualRoom(count,late,ids)
+    for _,r in ipairs(rooms)do if r.casual and not r.warming and not r.endedAt and not r.session.winnerId and not rejoined(r,ids)and (late or os.time()-(r.startedAt or os.time())<(Casual.minutes-6)*60)then
         local free=0;for id in pairs(r.session.nations)do if r.session.sim.players[id].tiles.size>0 then free+=1 end end
         if free>=count and r.session:joinCandidate()then return r end
     end end
@@ -611,7 +612,7 @@ joinCasual=function(ids)
         if not e or not user(id)or e.loading or e.arriving or worldField:pending(id)then return false,'경기 준비 중'end
         saved[id]={entry=e,player=e.player,version=e.version,room=e.room,party=parties[id]}
         local pr=e.room and e.room.progress[id]
-        if e.room and not(e.room.practice or e.room.intro or e.room.endedAt or pr and pr.ended)then return false,'경기 중'end
+        if e.room and not(e.room.practice or e.room.intro or e.room.endedAt or pr and pr.ended)then return false,id~=ids[1]and '파티원 경기 중'or '경기 중'end
     end
     for _,id in ipairs(ids)do local cancelled,why=queue:cancel(id,os.clock());if cancelled==false then return false,why end end
     for _,id in ipairs(ids)do local e,v=entries[id],saved[id]
@@ -619,7 +620,7 @@ joinCasual=function(ids)
             or e.loading or e.arriving or worldField:pending(id)or parties[id]~=v.party then return false,'경기 준비 중'end
     end
     for _,id in ipairs(ids)do local e=entries[id];if e.room then release(e,false)end end
-    local room=casualRoom(#ids)
+    local room=casualRoom(#ids,false,ids)
     if not room then
         local map=Casual.maps[Casual.next];Casual.next=Casual.next%#Casual.maps+1
         local created,why=createRoom({users=ids,teams={},mode='ffa',casual=true,casualMap=map},false)
@@ -636,7 +637,7 @@ joinCasual=function(ids)
             end
             ids=ready
             room=fresh and not fresh.endedAt and fresh or nil;if #ids==0 then return true end
-        else room=casualRoom(#ids,true)end
+        else room=casualRoom(#ids,true,ids)end
         if not room then return created,why end
     end
     local s=room.session;local factions={};local humans=0;for _ in pairs(room.members)do humans+=1 end
@@ -645,7 +646,7 @@ joinCasual=function(ids)
         local faction=s:takeOver({userId=id,name=p.DisplayName})
         if faction then
             table.insert(factions,faction);humans+=1
-            room.members[id]=faction;room.joined[id]=os.time();e.room=room;e.faction=faction;e.version=nextVersion()
+            room.members[id]=faction;room.joined[id]=os.time();room.stints=room.stints or {};room.stints[id]=(room.stints[id]or 0)+1;e.room=room;e.faction=faction;e.version=nextVersion()
             p:SetAttribute('FrontierRoom',room.id);p:SetAttribute('FrontierUnrecorded',nil)
             local pr=Participation.new(room.id..':'..id..':'..os.time(),'pvp',s.map.meta.key,humans,os.time());pr.startLevel=acc.progress and acc.progress.level or nil;pr.start=ResultPresentation.baseline(acc.progress);pr.benefitXPMultiplier=acc.billing.benefits.xpMultiplier;pr.official=room.official or nil;room.progress[id]=pr
             for _,other in pairs(room.progress)do if not other.ended then other.humans=math.max(other.humans or 1,humans)end end
@@ -770,7 +771,7 @@ local function handle(p,action,value,extra,requestId,version)
     if (action=='learn'or action=='practiceSolo')and not room then
         if queue.membership[p.UserId]then reply(false,'대기 중');return end
         if #group(p.UserId).users>1 then reply(false,'첫 연습은 혼자 해볼 수 있어요.');return end
-        ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map='korea',intro=true,unrecorded=action=='practiceSolo'or not accounts:snapshot(p).ready})
+        ok,message=openRoom(e,{users={p.UserId},teams={},mode='training',map=Outgame.campaign.stage(Outgame.campaign.introStage).map,intro=true,unrecorded=action=='practiceSolo'or not accounts:snapshot(p).ready})
     elseif action=="start" and not room and type(value)=="string"and Maps.meta(value)then
         if queue.membership[p.UserId]then reply(false,"대기 중");return end
         if extra=='goal'then
@@ -977,7 +978,7 @@ end
 equip.OnServerInvoke=function(p,id,slot)return accounts:equip(p,id,slot)end
 local ASK_SECONDS=10
 local askSerial=0
-local function askLeader(p,party,field,revision)
+local function askLeader(p,party,field,revision,map)
     local id=p.UserId;local e=entries[id]
     if #party.users<2 or party.leader==id then return {ok=false,message='파티장 전용'}end
     if not between(e)or e.loading then return {ok=false,message='경기 중'}end
@@ -988,7 +989,7 @@ local function askLeader(p,party,field,revision)
         ask.kind='world';ask.map='world';ask.count=w.humans or 0;ask.max=w.seats or 20
     else
         local f;for _,c in ipairs(queue:directory(id).fields)do if c.id==field then f=c;break end end
-        if not f or f.kind=='custom'then return {ok=false,message='전장 다시 선택'}end
+        if not f or f.kind=='custom'or revision and f.revision~=revision or map and f.rules.map~=map then return {ok=false,message='전장 다시 선택'}end
         ask.kind=f.kind;ask.revision=revision;ask.map=f.rules.map;ask.mode=f.rules.mode;ask.count=f.count;ask.max=f.rules.maximum
     end
     askSerial+=1;ask.id=askSerial;party.ask=ask
@@ -1026,7 +1027,7 @@ local function lobbyHandle(p,action,value)
         e.singleMap=value;e.settingsTouched=true;saveLobby(e)
     elseif action=='partyAsk'then
         if type(value)~='table'or type(value.field)~='string'then return {ok=false}end
-        return askLeader(p,party,value.field,finite(value.revision)and value.revision or nil)
+        return askLeader(p,party,value.field,finite(value.revision)and value.revision or nil,type(value.map)=='string'and value.map or nil)
     elseif action=='partyAnswer'then
         local ask=party.ask
         if party.leader~=id or type(value)~='table'or not ask or ask.id~=value.id then return {ok=false,message='요청 지남'}end
@@ -1405,6 +1406,7 @@ local function finish(room)
     for id,faction in pairs(room.members)do
         local p=s.sim.players[faction];local forfeited=s.resources[faction].forfeited==true
         local won=not forfeited and (s.winnerTeam and p.team==s.winnerTeam or s.winnerId==faction)
+        if room.casual and won then room.resultFor=Config.resultSeconds+Config.cinemaSeconds end
         if room.casual and os.time()-(room.joined[id]or room.startedAt)<Casual.winSeconds then won=false end
         local progress=room.progress[id];if progress then if room.intro then progress.basicsComplete=true end;progress:finish(won and 'won'or forfeited and 'forfeit'or 'lost',os.time(),true);recordProgress(id,progress)end
         if room.single then continue end
@@ -1492,7 +1494,7 @@ local function stepRoom(room,dt,now)
         end
         if room.progressTimer>=60 then room.progressTimer=0 end
         if s.winnerId and not room.endedAt then finish(room)end
-        if room.casual and room.endedAt and not room.rolled and now>=room.endedAt+Config.resultSeconds then
+        if room.casual and room.endedAt and not room.rolled and now>=room.endedAt+(room.resultFor or Config.resultSeconds) then
             room.rolled=true;local ids={}
             for id in pairs(room.members)do local e=entries[id];if e and e.room==room and not e.disconnectedAt and user(id)then table.insert(ids,id)end end
             if #ids>0 then task.defer(function()local ok,why=joinCasual(ids);if not ok then warn('casual rollover',why)end end)end

@@ -76,6 +76,7 @@ function M.step(model,at,reduced,phase,batch)
     phase=math.clamp(phase or state.phase,1,state.tier==5 and 3 or 1);state.phase=phase
     local pivot=model:GetPivot();local root=state.root
     local scale=model:GetScale();local hidden=model:GetAttribute('CollectionHidden')==true;local building=model:GetAttribute('Building')==true
+    local flat=model:GetAttribute('SealFlat')
     if (reduced or state.tier<3)and state.lastPivot==pivot and state.lastScale==scale and state.lastPhase==phase and state.lastHidden==hidden and state.lastBuilding==building and state.lastReduced==reduced then return end
     local moved=state.lastPivot~=pivot or state.lastScale~=scale or state.lastPhase~=phase or state.lastReduced~=reduced
     state.lastPivot=pivot;state.lastScale=scale;state.lastPhase=phase;state.lastHidden=hidden;state.lastBuilding=building;state.lastReduced=reduced
@@ -100,7 +101,8 @@ function M.step(model,at,reduced,phase,batch)
         local alpha=(item.phase>phase or hidden)and 1 or math.max(base,fade)
         if math.abs(p.Transparency-alpha)>1e-4 then p.Transparency=alpha end
         if moved or not still then
-            local world=pivot*(CFrame.new(cf.Position*scale)*(cf-cf.Position))
+            local at3=cf.Position*scale;if flat then at3=Vector3.new(at3.X,at3.Y*flat,at3.Z)end
+            local world=pivot*(CFrame.new(at3)*(cf-cf.Position))
             if batch then batch:put(p,world)else p.CFrame=world end
         end
     end
@@ -119,7 +121,7 @@ local eagleStamp={'.....#.....','#...###...#','##..#.#..##','###.###.###','.####
 local function territoryMotif(model,style,fill,add)
     local motif=style.motif;local light,dark=fill:Lerp(Color3.new(1,1,1),.34),fill:Lerp(Color3.new(),.38)
     local accent,trim=rgb(style.accent),rgb(style.secondary);local y=.066
-    if style.flat then
+    if style.flat or (style.tier or 1)<=3 then
         local Pattern=require(script.Parent.TerritoryCollection);local spec=Pattern.spec(style,1);local t=spec
         if not t or not spec then return nil end
         local step=math.max(1,t.w//16);local cell=4.6/16
@@ -194,9 +196,62 @@ function M.step(model,at,reduced,phase,batch)
         if a.pivot==pivot and a.scale==scale and a.phase==ph then return end
         a.pivot,a.scale,a.phase=pivot,scale,ph;at=0
     else a.pivot=nil end
-    a.fn(at,ph,function(p,cf)local world=pivot*CFrame.new(cf.Position*scale)*(cf-cf.Position);if batch then batch:put(p,world)else p.CFrame=world end end)
+    local flat=model:GetAttribute('SealFlat')
+    a.fn(at,ph,function(p,cf)local at3=cf.Position*scale;if flat then at3=Vector3.new(at3.X,at3.Y*flat,at3.Z)end;local world=pivot*CFrame.new(at3)*(cf-cf.Position);if batch then batch:put(p,world)else p.CFrame=world end end)
 end
+M.sealTiles={8,20,40};M.sealSlab=4.8
+function M.sealStep(share)return share>=.3 and 3 or share>=.1 and 2 or 1 end
+function M.sealScale(step)return M.sealTiles[step]*require(script.Parent.Parent.Core.WorldGeometry).scale/M.sealSlab end
+M.sealHigh=3
+function M.sealSize(model,step)
+    local old=model:GetAttribute('SealFlat')or 1
+    local function squash(k)
+        local pivot=model:GetPivot()
+        for _,p in ipairs(model:GetDescendants())do
+            if p:IsA('BasePart')then
+                local rel=pivot:ToObjectSpace(p.CFrame)
+                p.Size=Vector3.new(p.Size.X,p.Size.Y*k,p.Size.Z)
+                p.CFrame=pivot*CFrame.new(rel.X,rel.Y*k,rel.Z)*(rel-rel.Position)
+            end
+        end
+    end
+    if old~=1 then squash(1/old)end
+    model:SetAttribute('SealFlat',nil);model:ScaleTo(M.sealScale(step))
+    local _,size=model:GetBoundingBox();local tile=require(script.Parent.Parent.Core.WorldGeometry).scale
+    local k=size.Y>0 and math.min(1,M.sealHigh*tile/size.Y)or 1
+    if k<.99 then squash(k);model:SetAttribute('SealFlat',k)end
+end
+function M.sealFade(model,on)
+    if model:GetAttribute('SealFade')==on then return end
+    model:SetAttribute('SealFade',on);local k=on and .7 or 0
+    for _,p in ipairs(model:GetDescendants())do if p:IsA('BasePart')then p.LocalTransparencyModifier=k end end
+end
+local Meshes=require(script.Parent.CosmeticMeshes)
+local function meshSeal(style,ownerColor)
+    local model=Instance.new('Model');model.Name='TerritorySeal'
+    local list=Meshes.build(model,style.id,{origin=CFrame.Angles(0,math.pi,0),colors={team=ownerColor,primary=rgb(style.primary),secondary=rgb(style.secondary),accent=rgb(style.accent)}})
+    if not list then model:Destroy();return nil end
+    model.WorldPivot=CFrame.identity
+    local tier=style.tier or 4
+    local state={style=style,tier=tier,root=CFrame.identity,parts={},phase=1};states[model]=state
+    local moving={}
+    for _,r in ipairs(list)do
+        table.insert(state.parts,{part=r.part,home=r.home,mode=0,color=r.part.Color,phase=r.phase or 1})
+        if r.kind then table.insert(moving,r)end
+    end
+    model:SetAttribute('CollectionTier',tier);model:SetAttribute('CollectionStyle',style.id);model:SetAttribute('CollectionRole','territory')
+    model:SetAttribute('CollectionMotion',#moving>0 and(tier>=5 and 4 or 3)or 0);model:SetAttribute('CollectionPhases',tier==5 and 3 or 1)
+    model:SetAttribute('CollectionParticles',0);model:SetAttribute('CollectionGeometry',#list);model:SetAttribute('SealMesh',true)
+    if #moving>0 then animators[model]={fn=function(at,_,put)
+        for _,r in ipairs(moving)do local m=Meshes.motion(r,at,0,1);if m then put(r.part,m*r.home)end end
+    end}end
+    M.step(model,0,true,1)
+    return model
+end
+function M.sealMesh(style)return style.id~=nil and Meshes.ready(style.id)end
+function M.sealStale(model,style)return model:GetAttribute('SealMesh')~=true and Meshes.ready(style.id)end
 function M.territory(style,ownerColor)
+    if style.id and Meshes.ready(style.id)then local seal=meshSeal(style,ownerColor);if seal then return seal end end
     local model=Instance.new('Model');model.Name='TerritorySeal'
     local fill=ownerColor:Lerp(Color3.fromRGB(34,42,54),.4)
     local land=G.block(model,'Land',Vector3.new(4.8,.1,4.8),CFrame.identity,fill);land.CastShadow=false

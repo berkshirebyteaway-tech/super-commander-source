@@ -5,24 +5,28 @@ local function object(t,limit,fn)
     local n=0;for k,v in pairs(t)do n+=1;if n>limit or type(k)~='string'or #k>128 or not fn(v,k)then return false end end;return true
 end
 function M.reward(e)
-    if e.benefitXP2~=nil and type(e.benefitXP2)~='boolean'then return false end
-    if e.benefitXPMultiplier~=nil and e.benefitXPMultiplier~=1 and e.benefitXPMultiplier~=2 and e.benefitXPMultiplier~=4 then return false end
-    if not ({single=true,pvp=true,coop=true,custom=true,training=true})[e.mode]or type(e.map)~='string'or #e.map>64 then return false end
-    for _,key in ipairs({'seconds','cities','supports','humans','peak','time'})do if e[key]~=nil and not finite(e[key])then return false end end
+    if e.benefitXP2~=nil and type(e.benefitXP2)~='boolean'then return false,'benefitXP2' end
+    if e.benefitXPMultiplier~=nil and e.benefitXPMultiplier~=1 and e.benefitXPMultiplier~=2 and e.benefitXPMultiplier~=4 then return false,'benefitXPMultiplier' end
+    if not ({single=true,pvp=true,coop=true,custom=true,training=true})[e.mode]or type(e.map)~='string'or #e.map>64 then return false,'mode/map' end
+    for _,key in ipairs({'seconds','cities','supports','humans','peak','time'})do if e[key]~=nil and not finite(e[key])then return false,key end end
     if e.tactics~=nil then
-        if type(e.tactics)~='table'then return false end
-        for _,key in ipairs({'troopsProduced','countriesConquered','troopsSent','gold','alliances','intercepts','warships','fleetPeak','mirv','growthGreen','trainGold','allyTrainGold','tradeGold','tradeCaptures','embargoes','betrayals'})do if e.tactics[key]~=nil and not finite(e.tactics[key])then return false end end
+        if type(e.tactics)~='table'then return false,'tactics' end
+        for _,key in ipairs({'troopsProduced','countriesConquered','nationsConquered','troopsSent','gold','alliances','intercepts','warships','fleetPeak','mirv','growthGreen','trainGold','allyTrainGold','tradeGold','tradeCaptures','embargoes','betrayals'})do if e.tactics[key]~=nil and not finite(e.tactics[key])then return false,'tactics.'..key end end
     end
-    for _,key in ipairs({'place','field'})do if e[key]~=nil and not(finite(e[key],10000)and e[key]%1==0)then return false end end
-    if e.ranked~=nil and e.ranked~=true then return false end
-    if e.voided~=nil and e.voided~=true then return false end
-    if e.official~=nil and e.official~=true then return false end
-    if e.daily~=nil and not(finite(e.daily,1e6)and e.daily%1==0)then return false end
-    if e.campaign~=nil and not(type(e.campaign)=='string'and #e.campaign<=8 and e.campaign:match('^%d%-%d$'))then return false end
-    if e.gameSeconds~=nil and not(finite(e.gameSeconds,1e6)and e.gameSeconds%1==0 and e.gameSeconds>=0)then return false end
-    if e.outcome~=nil and not ({won=true,lost=true,forfeit=true,expired=true,serverStop=true})[e.outcome]then return false end
+    for _,key in ipairs({'place','field'})do if e[key]~=nil and not(finite(e[key],10000)and e[key]%1==0)then return false,key end end
+    if e.ranked~=nil and e.ranked~=true then return false,'ranked' end
+    if e.voided~=nil and e.voided~=true then return false,'voided' end
+    if e.official~=nil and e.official~=true then return false,'official' end
+    if e.daily~=nil and not(finite(e.daily,1e6)and e.daily%1==0)then return false,'daily' end
+    if e.campaign~=nil and not(type(e.campaign)=='string'and #e.campaign<=8 and e.campaign:match('^%d%-%d$'))then return false,'campaign' end
+    if e.gameSeconds~=nil and not(finite(e.gameSeconds,1e6)and e.gameSeconds%1==0 and e.gameSeconds>=0)then return false,'gameSeconds' end
+    if e.outcome~=nil and not ({won=true,lost=true,forfeit=true,expired=true,serverStop=true})[e.outcome]then return false,'outcome' end
     local function counts(b)return object(b,4,function(v,k)return ({seconds=true,cities=true,finished=true,supports=true})[k]and finite(v)end)end
-    return object(e.days,64,counts)and object(e.weeks,32,function(v)return finite(v)end)and object(e.weeklyActions,32,counts)and object(e.milestones,8,function(v)return type(v)=='boolean'end)
+    if not object(e.days,64,counts)then return false,'days'end
+    if not object(e.weeks,32,function(v)return finite(v)end)then return false,'weeks'end
+    if not object(e.weeklyActions,32,counts)then return false,'weeklyActions'end
+    if not object(e.milestones,8,function(v)return type(v)=='boolean'end)then return false,'milestones'end
+    return true
 end
 function M.career(e)
     if e.trophyNoShow~=nil then

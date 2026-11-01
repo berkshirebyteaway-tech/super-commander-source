@@ -252,7 +252,7 @@ local function clanSheet(ctx)
         lv:place(pad,y,pw-pad*2,44);lv.label.TextColor3=C.muted;y+=52
         if lobby.unitBusy then rf:setEnabled(false);lv:setEnabled(false)end
         if v.studio then
-            local list={{'xp','기여 +5,000'},{'reset','출석 초기화'},{'war','클랜전 승'},{'warLoss','클랜전 패'}}
+            local list={{'xp','기여 +5,000'},{'reset','출석 초기화'}};if War.open then table.insert(list,{'war','클랜전 승'});table.insert(list,{'warLoss','클랜전 패'})end
             local bw=(pw-pad*2-18)/4
             for i,b in ipairs(list)do
                 local d=K.button(p,'ClanDev_'..b[1],{kind='ghost',text=b[2],size=12},function()if b[1]=='warLoss'then ask(lobby,'dev','war','loss')else ask(lobby,'dev',b[1])end end)
@@ -541,7 +541,7 @@ local function guestList(ctx,sc,w,query,animate)
         end
     end
     if v.studio then
-        local list={{'xp','기여 +5,000'},{'reset','출석 초기화'},{'war','클랜전 승'},{'warLoss','클랜전 패'}}
+        local list={{'xp','기여 +5,000'},{'reset','출석 초기화'}};if War.open then table.insert(list,{'war','클랜전 승'});table.insert(list,{'warLoss','클랜전 패'})end
         local bw=(w-18)/4
         for i,b in ipairs(list)do
             local dv=K.button(sc,'ClanDev_'..b[1],{kind='ghost',text=b[2],size=12},function()if b[1]=='warLoss'then ask(lobby,'dev','war','loss')else ask(lobby,'dev',b[1])end end)

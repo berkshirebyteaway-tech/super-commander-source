@@ -1,4 +1,5 @@
 local Manifest=require(script.Parent.CosmeticMeshManifest)
+for k,v in pairs(require(script.Parent.TerritorySealManifest))do Manifest[k]=v end
 local M={state={},diagnostics={},enabled=true}
 local templates={};local waiting={};local watchers={};local rigs={};local retrying={}
 local scheduleRetry

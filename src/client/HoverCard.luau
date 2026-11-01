@@ -37,7 +37,7 @@ local function share(v)v=(v or 0)*100;return string.format(v>=10 and "%.1f%%" or
 local function hex(c)return string.format("#%02X%02X%02X",math.floor(c.R*255+.5),math.floor(c.G*255+.5),math.floor(c.B*255+.5))end
 function M.new(parent)
     local self=setmetatable({counts={},countsFor=nil},M)
-    local f=UI.make("Frame",parent,{Name="Hover",BackgroundColor3=C.panel,BackgroundTransparency=.04,BorderSizePixel=0,Visible=false,ZIndex=16,Size=UDim2.fromOffset(WIDTH,100)})
+    local f=UI.make("Frame",parent,{Name="Hover",BackgroundColor3=C.panel,BackgroundTransparency=.04,BorderSizePixel=0,Visible=false,ZIndex=21,Size=UDim2.fromOffset(WIDTH,100)})
     UI.corner(f,3);UI.stroke(f,C.line,1);self.frame=f
     self.edge=require(script.Parent.EdgeMask).fit(UI.make("Frame",f,{Name="RelationEdge",BorderSizePixel=0,BackgroundColor3=C.danger,Position=UDim2.fromOffset(0,0),Size=UDim2.new(0,3,1,0),ZIndex=17}))
     local function text(name,size,color,font,parent2)

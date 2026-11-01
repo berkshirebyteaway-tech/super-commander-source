@@ -60,7 +60,7 @@ function M:setMap(map)
     self.chunks={};self.chunkIndex={};self.queue={};self.units={};self.map=map;self.overview=true;self.lastRevision=-1;self.styleId=nil;self.playback:reset({});self.smoothDistance=nil;self.cameraImpulse=nil;self.lastStateTick=nil;self.glow={};self.glowCount=0
     local m=map.meta
     if self.desk then self.desk:Destroy() end
-    self.desk=Desk.create(self.folder,m);self.popups={};self.animated={}
+    self.desk=Desk.create(self.folder,m,map);self.popups={};self.animated={}
     for y=0,m.height-1,512 do for x=0,m.width-1,512 do
         local w,h=math.min(512,m.width-x),math.min(512,m.height-y)
         local p=part(self.folder,"Map_"..x.."_"..y,Vector3.new(h*G.scale,.025,w*G.scale),Vector3.new((x+w/2-m.width/2)*G.scale,G.surfaceY+.025,(y+h/2-m.height/2)*G.scale),Color3.fromRGB(31,52,74))
@@ -348,10 +348,16 @@ function M:setState(state)
     self.collectionSeals=self.collectionSeals or {};local sealAlive={}
     for _,f in ipairs(state.factions or {})do
         local style=Catalog.forSlot(loadouts[f.id],'territory');local tile=f.labelTile
-        if type(tile)=='number'and (style.tier or 0)>=1 and not style.flat then
+        if type(tile)=='number'and (style.tier or 0)>=4 and (not style.flat or Art.sealMesh(style))then
             sealAlive[f.id]=true;local seal=self.collectionSeals[f.id]
-            if seal and seal:GetAttribute('CollectionStyle')~=style.id then seal:Destroy();seal=nil end
-            if not seal then seal=Art.territory(style,FactionColors.get(f.id,f.kind));seal:ScaleTo(.28);seal.Parent=self.folder;self.collectionSeals[f.id]=seal end
+            if seal and (seal:GetAttribute('CollectionStyle')~=style.id or Art.sealStale(seal,style))then seal:Destroy();seal=nil end
+            if not seal then seal=Art.territory(style,FactionColors.get(f.id,f.kind));seal.Parent=self.folder;self.collectionSeals[f.id]=seal end
+            local grow=Art.sealStep(f.share or 0);if seal:GetAttribute('SealStep')~=grow then seal:SetAttribute('SealStep',grow);Art.sealSize(seal,grow)end
+            local w,r=self.map.meta.width,Art.sealTiles[grow]/2;local sx,sy,under=tile%w,tile//w,false
+            for _,u in ipairs(state.units or {})do
+                if UnitRules.structures[u.kind]and type(u.tile)=='number'then local dx,dy=u.tile%w-sx,u.tile//w-sy;if dx*dx+dy*dy<r*r then under=true;break end end
+            end
+            Art.sealFade(seal,under)
             if seal:GetAttribute('SealTile')~=tile then seal:SetAttribute('SealTile',tile);local x,y,z=G.toWorld(tile,self.map.meta.width,self.map.meta.height);seal:PivotTo(CFrame.new(x,y+.05,z))end
             local phase=Art.phase(style,f.share or 0,false);if seal:GetAttribute('CollectionPhase')~=phase then seal:SetAttribute('CollectionPhase',phase)end
         end

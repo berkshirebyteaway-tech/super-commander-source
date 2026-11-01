@@ -125,6 +125,32 @@ local function demo(frame,img,style,owner)
         end
     end
 end
+local function sealLayer(frame,style,cx,cy,w,h)
+    if (style.tier or 0)<4 then return nil end
+    local Meshes=require(script.Parent.CosmeticMeshes)
+    local view=UI.make('ViewportFrame',frame,{Name='MapSeal',BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=2,Ambient=Color3.fromRGB(148,162,185),LightColor=Color3.fromRGB(241,246,255),LightDirection=Vector3.new(-1,-2,-.6)})
+    local world=Instance.new('WorldModel');world.Parent=view
+    local camera=Instance.new('Camera');camera.FieldOfView=20;camera.Parent=view;view.CurrentCamera=camera
+    local layer={step=0};local dead=false;view.Destroying:Once(function()dead=true end)
+    local function make()
+        if dead then return end
+        if layer.model then layer.model:Destroy();layer.model=nil end
+        if not style.flat or Art.sealMesh(style)then layer.model=Art.territory(style,OURS);layer.model.Parent=world;layer.step=0 end
+        if style.id and not Meshes.ready(style.id)then Meshes.watch(style.id,make)end
+        if layer.last then layer.update(table.unpack(layer.last))end
+    end
+    make()
+    function layer.update(t,step,phase)
+        layer.last={t,step,phase}
+        local size=view.AbsoluteSize;if size.X<1 or size.Y<1 then return end
+        local k=math.max(size.X/w,size.Y/h)
+        camera.CFrame=CFrame.lookAt(Vector3.new(0,size.Y/k/2/math.tan(math.rad(10)),0),Vector3.zero,-Vector3.zAxis)
+        local m=layer.model;if not m then return end
+        if layer.step~=step then layer.step=step;m:PivotTo(CFrame.identity);m:ScaleTo(Art.sealTiles[step]/Art.sealSlab);m:PivotTo(CFrame.new(cx+.5-w/2,.05,cy+.5-h/2))end
+        Art.step(m,t,reduced(),phase)
+    end
+    return layer
+end
 local function territory(parent,item,w,h,owner)
     local full=w==nil
     w,h,owner=w or W,h or H,owner or mapOwner
@@ -135,15 +161,23 @@ local function territory(parent,item,w,h,owner)
     if not ok or not img then return frame end
     label.ImageContent=Content.fromObject(img)
     frame.Destroying:Once(function()pcall(function()img:Destroy()end)end)
+    local tier=style.tier or 0
+    local seal=sealLayer(frame,style,full and CX or w//2,full and CY or h//2,w,h)
     if full and not reduced()then
         local step=demo(frame,img,style,owner)
-        task.defer(function()if frame.Parent then M.run(frame,step)end end)
+        task.defer(function()if frame.Parent then M.run(frame,function(t)step(t)
+            if seal then local s=math.floor(t/LOOP)%3+1;seal.update(t,s,tier>=5 and s or 1)end end)end end)
         return frame
     end
     paint(img,style,1,w,h,owner)
-    if (style.tier or 0)>=5 and not reduced()then
-        task.spawn(function()local phase=1
+    local phase=1
+    if tier>=5 and not reduced()then
+        task.spawn(function()
             while frame.Parent do task.wait(1.6);if not frame.Parent then break end;phase=phase%3+1;paint(img,style,phase,w,h,owner)end end)
+    end
+    if seal then
+        if reduced()then local function pose()seal.update(0,1,1)end;frame:GetPropertyChangedSignal('AbsoluteSize'):Connect(pose);task.defer(pose)
+        else task.defer(function()if frame.Parent then M.run(frame,function(t)seal.update(t,1,phase)end)end end)end
     end
     return frame
 end
