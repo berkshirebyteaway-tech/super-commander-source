@@ -98,6 +98,10 @@ function M.crate(hub,parent,shop,billing,kind,x,y,w,h,slim)
         K.text(card,'ShardCount',string.format('%d/5',shards),w-pad-32,ry,32,16,13,UI.colors.ink,RIGHT,K.heavy)
     end
     local bh=slim and 48 or 46;local by=h-pad-bh
+    if kind=='epic'and FreeDraw.gift(billing)then
+        local b=UI.button(card,'GiftOpen','무료 열기',function()step('crateOpen',{item='epicGift'});shop:drawSupply('epic','gift')end,true);UI.box(b,pad,by,w-pad*2,bh);K.round(b,8);b.Font=K.heavy;UI.enabled(b,not busy);FreeDraw.dot(b,true)
+        return card
+    end
     if billing.testingAvailable and not(kind=='basic'and FreeDraw.ready(billing))then
         if count>0 then local b=UI.button(card,'Open',string.format('열기 (테스트 %d)',count),function()step('crateOpen',{item=kind});shop:drawSupply(kind,'studio')end,kind=='basic');UI.box(b,pad,by,w-pad*2,bh);K.round(b,8);UI.enabled(b,not busy)
             if kind~='basic'then local e=b:FindFirstChildOfClass('UIStroke');if e then e.Color=color;e.Thickness=1.5 end end

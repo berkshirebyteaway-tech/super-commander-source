@@ -35,7 +35,7 @@ function M.geo(fmt,ch)
     local G=GEO[fmt];local base=fmt=='pc'and 560 or fmt=='ph'and 375 or 667
     local k=math.clamp(base-ch,0,60);if k==0 then return G end
     local o=table.clone(G);local function up(name,f)o[name]=table.clone(G[name]);o[name].y=G[name].y-math.floor(k*f)end
-    up('title',.3);up('rank',.3);o.rank.ofY=G.rank.ofY-math.floor(k*.3);up('stats',.3);up('note',.3);up('reward',.5);up('level',.6)
+    up('title',.3);up('rank',.3);o.rank.ofY=G.rank.ofY-math.floor(k*.3);up('stats',.35);up('note',.45);up('reward',.5);up('level',.6)
     o.acts=G.acts-math.floor(k*.75);if G.invite then up('invite',.75)end
     return o
 end

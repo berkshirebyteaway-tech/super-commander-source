@@ -8,8 +8,9 @@ function M.valid(action,value,benefits,studio,localMode)
         if type(value)~='table'or value.version~=Catalog.version or type(value.requestId)~='string'
             or #value.requestId<8 or #value.requestId>80 or not value.requestId:match('^[%w%-]+$')
             or type(value.kind)~='string'or not Commerce.tickets[value.kind]or not whole(value.sequence)then return false,'invalid-request'end
-        if not table.find({'medals','free','ticket','studio'},value.currency)then return false,'invalid-currency'end
+        if not table.find({'medals','free','ticket','studio','gift'},value.currency)then return false,'invalid-currency'end
         if (value.currency=='medals'or value.currency=='free')and value.kind~='basic'then return false,'invalid-currency'end
+        if value.currency=='gift'and value.kind~='epic'then return false,'invalid-currency'end
         if value.currency=='studio'and not(studio and localMode)then return false,'invalid-request'end
     elseif action=='supplyTestGrant'then
         if not(studio and localMode)then return false,'invalid-request'end

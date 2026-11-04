@@ -70,7 +70,7 @@ function P.draw(log,player,value,result)
  local currency=result.currency=='medals'and 'Medals'or Schema.enum('currency',kind,'none')
  log:flow(player,'gacha','draw',{sku=kind,currency=currency,item=P.code(result.id),rarity=r,first_use=result.duplicate~=true,result='granted'})
  if result.currency=='ticket'then log:flow(player,'gacha','ticketSpend',{sku=kind,currency=currency,value=1,result='ok'});if log.benefit then log:benefit(player,kind,'draw')end end
- local paid=type(value)=='table'and value.currency;if paid=='free'or paid=='medals'then log:flow(player,'gacha',paid=='free'and 'freeDraw'or 'coinDraw',{sku=kind,rarity=r,result='granted'})end
+ local paid=type(value)=='table'and value.currency;if paid=='free'or paid=='medals'or paid=='gift'then log:flow(player,'gacha',paid=='free'and 'freeDraw'or paid=='gift'and 'giftDraw'or 'coinDraw',{sku=kind,rarity=r,result='granted'})end
  if result.duplicate then
   if result.medals then log:flow(player,'gacha','dupRefundCoins',{sku=kind,item=P.code(result.id),rarity=r,value=result.medals,result='granted'})end
   if result.fragments then log:flow(player,'gacha','shard',{sku=kind,item=P.code(result.id),rarity=r,value=result.fragmentCount or 0,result='granted'})end

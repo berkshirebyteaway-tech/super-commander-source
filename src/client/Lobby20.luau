@@ -36,7 +36,7 @@ local function build(home)
     c.thumbLine=K.make('Frame',c.thumb,{Name='Line',BackgroundColor3=C.line,BackgroundTransparency=.2,BorderSizePixel=0,ZIndex=29})
     FullBleed.edge(c.thumb)
     c.logo=K.make('Frame',f,{Name='Logo20',BackgroundTransparency=1,ZIndex=31,Active=false})
-    c.super=K.text(c.logo,'Super','SUPER',11,Color3.fromRGB(255,216,74),700);c.commander=K.text(c.logo,'Commander','COMMANDER',22,C.ink,700)
+    c.super=K.text(c.logo,'Super','WORLD PVP',11,Color3.fromRGB(255,216,74),700);c.commander=K.text(c.logo,'Commander','ROFRONT',22,C.ink,700)
     for _,o in ipairs({c.super,c.commander})do o.ZIndex=31;o:SetAttribute('LocalizationSkip',true);o.TextTruncate=Enum.TextTruncate.None;Theme.display(o);BrandMark.word(o,o==c.super and 1.5 or 2.5)end
     c.super.TextColor3=Color3.fromRGB(255,216,74);c.commander.TextColor3=Color3.new(1,1,1)
     for i,t in ipairs(TABS)do
@@ -119,7 +119,7 @@ function M.chrome(home,w,h,lift)
     local lit=l.page and OWNER[l.page]or(not l.page and 'play')or nil
     local n=#TABS;local tw,tx0,ty,tabH
     if fmt=='pc'then
-        local left,right=logoX+K.width('COMMANDER',22,c.commander)+16,px-16;tw=math.min(96,math.floor((right-left)/n));tabH=barH
+        local left,right=logoX+K.width('ROFRONT',22,c.commander)+16,px-16;tw=math.min(96,math.floor((right-left)/n));tabH=barH
         if tw<56 then c.logo.Visible=false;left=math.max(24,(l.topbarLeft or 12)+16);tw=math.min(96,math.floor((right-left)/n))end
         tx0=math.clamp(math.floor((w-tw*n)/2),left,math.max(left,right-tw*n));ty=0
     elseif fmt=='ph'then
@@ -195,16 +195,19 @@ local function buildFloor(home)
     local c=build(home);if c.floor then return c end
     local l=home.lobby;local f=l.frame;c.floor=true
     if not home.single then home.single=require(script.Parent.SinglePlaySheet).new(home)end
-    c.single=door(f,'SingleDoor20',true,'solo','싱글 플레이',function()
-        require(script.Parent.TelemetryStep).step('lobby','homeTile',{item=l.firstLesson and 'lesson'or 'single'})
+    if not home.modeSheet then home.modeSheet=require(script.Parent.ModeSheet20).new(home)end
+    c.single=door(f,'Deploy20',true,'solo','출격',function()
+        require(script.Parent.TelemetryStep).step('lobby','homeTile',{item=l.firstLesson and 'lesson'or require(script.Parent.ModeSheet20).mode(l)})
         M.confirm(c.single.b)
-        if l.firstLesson then require(script.Parent.PressPending).begin();l:closePage();l.callbacks.learn()else home.single:show()end
+        M.deploy(home)
     end)
-    c.multi=door(f,'MultiDoor20',false,'fields','멀티 출전',function()
-        require(script.Parent.TelemetryStep).step('lobby','homeTile',{item='multi'})
-        home:go()
+    c.single.icon.Visible=false;c.single.chev.Visible=false;c.single.title.TextXAlignment=Enum.TextXAlignment.Center
+    c.multi=door(f,'ModeSlot20',false,'fields','매칭',function()
+        require(script.Parent.TelemetryStep).step('lobby','homeTile',{item='status'})
+        M.deploy(home)
     end)
     c.multi.b.onRefuse=function()end
+    c.multi.b.faceStroke.Color=C.line;c.multi.b.faceStroke.Thickness=1;c.multi.b.baseStroke=C.line;c.multi.icon.ImageColor3=C.muted
     c.cancel=K.button(c.multi.b.face,'Cancel20',{kind='plain',text='취소',size=14,weight=800},function()local d=l.deployment;if d and d.callbacks.cancel then d.callbacks.cancel()end end)
     c.cancel.button.Visible=false
     c.tag=K.chip(f,'CampaignTag20','캠페인 1-1','campaign',{size=13});c.tag.ZIndex=c.single.b.face.ZIndex+4
@@ -235,6 +238,27 @@ local function buildFloor(home)
     return c
 end
 function M.confirm(b)K.confirm(b,true)end
+function M.deploy(home)
+    local l=home.lobby;local s=l.data;local q=s and s.queue
+    if l.busy or l.loading then home:go();return end
+    if l.firstLesson and not q then require(script.Parent.PressPending).begin();l:closePage();l.callbacks.learn();return end
+    if q or(s and s.rejoin)then home:go();return end
+    home.modeSheet:show()
+end
+function M.start(home,mode)
+    local l=home.lobby;local s=l.data;local q=s and s.queue;local party=s and s.party;local d=l.deployment
+    local follower=party and #party.users>1 and party.leader~=Players.LocalPlayer.UserId
+    if l.busy or l.loading or q or(s and s.rejoin)then home:go();l:layout();return end
+    if mode=='ranked'then
+        local st=require(script.Parent.Parent.Core.TrophyEntry).state(d and d.trophy,party,q,l.busy)
+        if st.enabled then d.callbacks.rankFind()elseif st.reason then d.callbacks.rankRefuse(st.reason)else l:openPage('ranked')end
+    elseif mode=='campaign'then home.single:side('Campaign')
+    elseif mode=='solo'then home.single:show()
+    elseif follower then home:go()
+    elseif d and d:quickPick()then d:quickJoin()
+    else home:go()end
+    l:layout()
+end
 
 M.folded=false
 function M.toggleFold(home)
@@ -257,23 +281,25 @@ function M.refresh(home)
     if not c.floor then return end
     local s=l.data;local q=s and s.queue;local party=s and s.party;local me=Players.LocalPlayer.UserId
     local follower=party and #party.users>1 and party.leader~=me
-    local title,cap='멀티 출전',nil
-    if q or follower or(s and s.rejoin)then title=home.title.Text
+    local Mode=require(script.Parent.ModeSheet20)
+    local title,cap=Mode.label(l),nil
+    if q and q.mode=='pvp'and not q.trophySolo and q.rules and q.rules.pending then title='매칭';cap=Mode.matchLine(l)
+    elseif q or follower or(s and s.rejoin)then title=home.title.Text
         if q then
             local left=q.remaining and math.max(0,q.remaining-(os.clock()-(l.queueUpdated or os.clock())))
             cap=q.phase=='transferring'and '이동 중'or q.mode=='custom'and string.format('%d/%d명',q.count or 0,q.max or 0)or left and string.format('출발 %d:%02d',math.ceil(left)//60,math.ceil(left)%60)or '곧 출발'
         elseif follower then cap=string.format('파티 %d명',#party.users);title='방장이 고르는 중'
         else local r=s.rejoin;cap=(require(script.Parent.Parent.Maps.MapLoader).meta(r.map)or {}).label or tostring(r.map or '')end
-    elseif party and #party.users>1 then cap=string.format('파티 %d명 함께',#party.users)
-    else
-        local n,people=0,0
-        for _,f in ipairs(l.deployment and l.deployment.fields or {})do if f.kind~='custom'then n+=1;people+=tonumber(f.count)or 0 end end
-        cap=n==0 and '전장 찾는 중'or people>0 and string.format('%d명 대기',people)or string.format('전장 %d곳',n)
+    elseif Mode.mode(l)=='match'then cap=Mode.matchLine(l)
+    elseif Mode.mode(l)=='campaign'then local st=campaignNext(l);cap=st and st.id..' '..st.name or nil
     end
+    if home.modeSheet and home.modeSheet.open then home.modeSheet:refresh()end
+    local slot=(q or follower or(s and s.rejoin))and true or false
+    if c.slotWanted~=slot then c.slotWanted=slot;c.layoutDirty=true end
     local m=c.multi;if m.title.Text~=title then m.title.Text=title;c.layoutDirty=true end
-    if m.cap.Text~=cap then m.cap.Text=cap;c.layoutDirty=true end
-    m.b:setEnabled(home.start:GetAttribute('Enabled')~=false,true)
-    m.title.TextTransparency=m.b.enabled and 0 or .45
+    cap=cap or '';if m.cap.Text~=cap then m.cap.Text=cap;c.layoutDirty=true end
+    local on=home.start:GetAttribute('Enabled')~=false
+    c.single.b:setEnabled(on,true);c.single.title.TextTransparency=c.single.b.enabled and 0 or .45
     c.cancelWanted=q~=nil and q.phase~='transferring'
     c.cancel:setEnabled(not l.busy and not(q and q.locked))
     local st=campaignNext(l);c.stage=st
@@ -339,21 +365,27 @@ function M.home(home,w,h,short,q,lift,portrait)
     require(script.Parent.LobbyJump).set(nil);home.toggleSpot=nil
     local foldable=fmt~='pc'
     local folded=foldable and M.folded
-    local dw,dh,g,R,B
-    if fmt=='pc'then dw,dh,g,R,B=250,88,12,28,28 elseif fmt=='ph'then dw,dh,g,R,B=196,66,8,16,14 else dh,g,R=64,8,16;dw=math.floor((w-R*2-g)/2)end
-    local y=fmt=='pt'and(h-58-(lift or 0)-8-dh)or(h-B-dh-(lift or 0))
-    local x2=w-R-dw;local x1=fmt=='pt'and R or x2-g-dw
+    local dw,dh,g,R,B,sh
+    if fmt=='pc'then dw,dh,sh,g,R,B=460,80,72,12,24,24 elseif fmt=='ph'then dw,dh,sh,g,R,B=300,56,52,8,16,14 else dh,sh,g,R=58,56,8,16;dw=w-R*2 end
+    local dy=fmt=='pt'and(h-58-(lift or 0)-8-dh)or(h-B-dh-(lift or 0))
+    local y=dy-g-sh
+    local x2=w-R-dw;local x1=x2
     local show=not folded
     local party=l.data and l.data.party;local grouped=party~=nil and #party.users>1
-    local mx,mw=x2,dw;if grouped then mx,mw=x1,x2+dw-x1 end
-    c.single.b.button.Visible=show and not grouped;c.multi.b.button.Visible=show
-    placeDoor(c.single,x1,y,dw,dh,fmt,fmt~='pt',nil)
+    local mx,mw=x2,dw
+    local slot=c.slotWanted==true and not l.firstLesson;if not slot then y=dy end
+    c.single.b.button.Visible=show;c.multi.b.button.Visible=show and slot
+    placeDoor(c.single,x2,dy,dw,dh,fmt,false,nil)
+    do local pad=fmt=='pc'and 20 or 12;c.single.icon.Visible=false;c.single.title.TextSize=fmt=='pc'and 30 or fmt=='ph'and 22 or 22
+        K.box(c.single.title,pad,0,dw-pad*2,dh);c.single.title.TextXAlignment=Enum.TextXAlignment.Center end
     local queued=c.cancelWanted==true
-    placeDoor(c.multi,mx,y,mw,dh,fmt,(fmt~='pt'or grouped)and not queued,c.multi.cap.Text)
-    c.cancel.button.Visible=show and queued
+    placeDoor(c.multi,mx,y,mw,sh,fmt,not queued,c.multi.cap.Text)
+    c.multi.capDot.Visible=false;if c.multi.cap.Visible then local p=c.multi.cap.Position;c.multi.cap.Position=UDim2.fromOffset(c.multi.title.Position.X.Offset,p.Y.Offset)end
+    dh=sh
+    c.cancel.button.Visible=show and queued and slot
     if queued then local bw=fmt=='pc'and 72 or 60;local bh=fmt=='pc'and 40 or 34;c.cancel:place(mw-bw-(fmt=='pc'and 14 or 10),(dh-bh)/2,bw,bh)
         c.cancel.button.ZIndex=c.multi.b.face.ZIndex+3;c.cancel.face.ZIndex=c.cancel.button.ZIndex;if c.cancel.label then c.cancel.label.ZIndex=c.cancel.button.ZIndex+1 end end
-    c.tag.Visible=show and c.stage~=nil and not grouped
+    c.tag.Visible=false
     if c.tag.Visible then local ts=fmt=='pc'and 13 or fmt=='ph'and 11 or 12;local th=fmt=='pc'and 24 or fmt=='ph'and 20 or 22
         c.tag.Size=UDim2.fromOffset(c.tag.Size.X.Offset,th);local tw=rechip(c.tag,ts)
         local icon=c.tag:FindFirstChild('Icon');if icon then local is=fmt=='pc'and 14 or fmt=='ph'and 12 or 13;K.box(icon,6,math.floor((th-is)/2),is,is);local t=c.tag:FindFirstChild('Text');K.box(t,6+is+4,0,K.width(t.Text,ts,t)+2,th);tw=6+is+4+K.width(t.Text,ts,t)+6;c.tag.Size=UDim2.fromOffset(tw,th)end
@@ -400,6 +432,7 @@ function M.home(home,w,h,short,q,lift,portrait)
     c.placed=true
     if not c.homeShown then c.homeShown=true;M.enter(home,false)end
     if portrait then home.single:layout(w,h,true,false,math.max(8,(l.topbarHeight or 0)+4))else home.single:layout(w,h,false,short,short and 52 or 0)end
+    home.modeSheet:layout(w,h,portrait,short)
 end
 function M.enter(home,quick)
     local c=home.c20;if not c or not c.floor then return end
@@ -412,6 +445,7 @@ function M.hide(home)
     c.homeShown=false
     local V=require(script.Parent.VipLock);if V.spot then V.spot=nil;if V.wanted~=nil then V.hqPill(V.wanted)end end
     if home.single then home.single.open=false;home.single.frame.Visible=false end
+    if home.modeSheet then home.modeSheet.open=false;home.modeSheet.frame.Visible=false end
     home.fieldPreview:leaveRows()
 end
 return M

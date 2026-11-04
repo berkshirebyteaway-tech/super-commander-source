@@ -21,14 +21,14 @@ M.stages={
     {id='1-1',name='첫 작전',map='world',nations=5,bots=40,intro=true,landAt={x=822,y=143},infiniteTroops=true,
         nationPick={'China','Mongolia','Thailand','India','Kazakhstan'},noAIBoats=true,task={kind='count',key='nationsConquered',n=5,label='나라 5곳 정복'},
         brief='한반도에서 시작해요. 이웃 나라를 정복해요.',tip='나라 5곳을 정복하면 바로 이겨요.'},
-    {id='1-2',name='충원의 법칙',map='yellowsea',nations=1,bots=40,startingGold=150000,task={kind='count',key='growthGreen',n=60,label='충원 초록 시간 60%'},
-        brief='병력은 상한의 절반쯤일 때 가장 빨리 차요. 꽉 차면 멈춰요.',tip='병력 막대가 초록일 때 보내요.'},
+    {id='1-2',name='도시와 충원',map='yellowsea',nations=1,bots=40,startingGold=150000,infiniteGold=true,task={kind='count',key='growthGreen',n=60,label='충원 초록 시간 60%'},
+        brief='이번 판은 건물이 공짜예요. 도시를 지어 병력 상한을 올려요.',tip='병력 막대가 초록일 때 보내요.'},
     {id='1-3',name='넓을수록 큰 군대',map='caucasus',nations=3,bots=40,startingGold=250000,task={kind='built',unit='City',n=2,label='도시 2개 짓기'},
         brief='땅이 넓을수록 병력 상한이 올라가요. 도시는 상한을 크게 올려요.',tip='도시는 국경에서 먼 안쪽에 지어요.'},
     {id='1-4',name='험한 땅',map='lemnos',nations=3,bots=40,startingGold=150000,task={kind='share',key='earlyShare',n=.1,label='3분 안에 영토 10%'},
         brief='산은 평지보다 느리고 병력도 1.5배 들어요. 평지부터 먼저 차지해요.',tip='진한 산줄기는 돌아가요.'},
-    {id='1-5',name='보스: 첫 정복',map='asia',nations=5,bots=80,startingGold=250000,boss=true,task={kind='share',key='earlyShare',n=.12,label='3분 안에 영토 12%'},
-        brief='넓은 대륙에 국가 다섯이 기다려요. 지금까지 배운 걸 모두 써요.',tip='공격 비율은 낮게 자주 보내요.'},
+    {id='1-5',name='보스: 첫 핵',map='asia',nations=5,bots=80,startingGold=250000,infiniteGold=true,boss=true,task={kind='count',key='nukes',n=1,label='핵 1번 발사'},
+        brief='넓은 대륙에 국가 다섯이 기다려요. 미사일 기지를 지어 첫 핵을 쏴요.',tip='공격 비율은 낮게 자주 보내요.'},
     {id='2-1',name='국경 지키기',map='italia',nations=4,bots=60,task={kind='built',unit='DefensePost',n=3,label='방어 시설 3개 짓기'},
         brief='방어 시설 근처를 치는 적은 병력을 5배 잃고 느려져요.',tip='공격받는 국경과 좁은 길목에 세워요.'},
     {id='2-2',name='공장과 철도',map='germany',nations=4,bots=60,startingGold=500000,task={kind='count',key='trainGold',n=1,label='기차로 골드 벌기'},
@@ -100,7 +100,7 @@ local function teamFlag(s)return s.team~=nil end
 function M.settings(stage)
     local ch=M.chapters[stage.chapter]
     local s={difficulty=stage.difficulty or ch.difficulty,nations=stage.nations,bots=stage.bots,startingGold=stage.startingGold or 0,
-        goldMultiplier=stage.goldMultiplier or 1,customAllianceDuration=5,infiniteGold=false,infiniteTroops=stage.infiniteTroops==true,instantBuild=false,landAt=stage.landAt,nationPick=stage.nationPick}
+        goldMultiplier=stage.goldMultiplier or 1,customAllianceDuration=5,infiniteGold=stage.infiniteGold==true,infiniteTroops=stage.infiniteTroops==true,instantBuild=false,landAt=stage.landAt,nationPick=stage.nationPick}
     local gold=s.startingGold
     s.spawnImmunityDuration=stage.peace or (gold>=25000000 and 1500)or (gold>=5000000 and 450)or nil
     if ch.timer then s.maxTimerValue=ch.timer end
@@ -201,6 +201,7 @@ function M.rulesLine(stage)
     table.insert(out,'AI '..(names[s.difficulty]or s.difficulty))
     if s.mapSize=='normal'then table.insert(out,'큰 지도')end
     if (s.startingGold or 0)>=1000000 then table.insert(out,string.format('시작 골드 %d00만',s.startingGold//1000000))end
+    if s.infiniteGold then table.insert(out,'무한 골드')end
     if (s.goldMultiplier or 1)>1 then table.insert(out,'골드 2배')end
     if stage.peace then table.insert(out,string.format('핵 금지 %d분',stage.peace//600))end
     if stage.intro then table.insert(out,'튜토리얼')elseif s.maxTimerValue then table.insert(out,string.format('%d분 경기',s.maxTimerValue))end

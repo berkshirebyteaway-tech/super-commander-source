@@ -44,7 +44,7 @@ function M.draw(lobby,parent,w)
         local note=UI.label(parent,'CustomNote','친구 초대, 모두 준비하면 출발',13,UI.colors.muted);note.TextWrapped=true;UI.box(note,8,y,w-16,48);y+=56
         parent.CanvasSize=UDim2.fromOffset(0,y);return
     end
-    lobby.pageTitle.Text='혼자 하기'
+    lobby.pageTitle.Text='싱글플레이'
     local entry=Onboarding.account(lobby.account)
     if entry~='ready'then
         local failed=entry=='failed'
@@ -236,7 +236,7 @@ function M.draw20(lobby,body)
     local lesson=entry=='ready'and Commands.lesson(lobby)
     local win=W20.open(lobby,body,'solo')
     local fmt=win.fmt;local pt,ph=fmt=='pt',fmt=='ph'
-    W20.head(win,(entry~='ready'or lesson)and '혼자 하기'or '나만의 설정',nil,function()lobby:back()end)
+    W20.head(win,(entry~='ready'or lesson)and '싱글플레이'or '나만의 설정',nil,function()lobby:back()end)
     local listBottom=W20.footer(win,function()M.start(lobby)end,function()lobby:closePage()end)
     local scroll=W20.scroll(win,'Solo',listBottom)
     local w=win.w;local y=0

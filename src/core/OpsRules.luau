@@ -122,9 +122,9 @@ function M.autoLine(p,now,en)
 end
 function M.kickMessage(p,now,en)
     if p.reopenAt and p.reopenAt>now then
-        return string.format(en and 'Super Commander is under maintenance. Please come back in about %s.'or '슈퍼 커맨더 점검 중이에요. 약 %s 뒤에 다시 와 주세요.',M.duration(p.reopenAt-now,en))
+        return string.format(en and 'RoFront is under maintenance. Please come back in about %s.'or 'RoFront 점검 중이에요. 약 %s 뒤에 다시 와 주세요.',M.duration(p.reopenAt-now,en))
     end
-    return en and 'Super Commander is under maintenance. Please come back a little later.'or '슈퍼 커맨더 점검 중이에요. 조금 뒤에 다시 와 주세요.'
+    return en and 'RoFront is under maintenance. Please come back a little later.'or 'RoFront 점검 중이에요. 조금 뒤에 다시 와 주세요.'
 end
 function M.line(text,max)
     if type(text)~='string'then return nil end

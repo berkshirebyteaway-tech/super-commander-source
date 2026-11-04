@@ -10,6 +10,8 @@ M.defaults={
     ranked=true,
     ranked1v1=true,
     rankedWindow='open',
+    rankedAI=true,
+    rankedAICap=1000,
     rankedScreen=false,
     seasonScreen=false,
     sales=true,
@@ -26,6 +28,9 @@ M.defaults={
     spectate=true,
     replays=true,
     bigMaps=true,
+    matchWait=30,
+    matchFull=5,
+    matchMin=2,
     notice='',
     noticeEn='',
     ticker='',
@@ -92,6 +97,9 @@ function M.publish()
     pack:SetAttribute('VipCommsOpen',M.get('commsOpen')==true and not M.salesOpen()and not Run:IsStudio())
     require(pack.Core.SeasonRules).setEnd(M.get('seasonEnd'),os.time())
     require(pack.Core.BattlefieldRules).bigMaps=M.get('bigMaps')~=false
+    local R=require(pack.Core.BattlefieldRules)
+    local function num(key,lo,hi,default)local v=tonumber(M.get(key));if not v or v~=v then return default end;return math.clamp(math.floor(v),lo,hi)end
+    if R.matchOnly then R.waitMaxSeconds=num('matchWait',5,180,30);R.fullSeconds=num('matchFull',0,30,5);R.minHumans=num('matchMin',1,20,2)end
 end
 local started=false
 function M.start()

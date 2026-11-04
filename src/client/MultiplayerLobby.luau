@@ -23,8 +23,8 @@ function M.new(root,notify,callbacks)
     self.deploymentFocus=UI.make('Frame',root,{Name='DeploymentFocus',Size=UDim2.fromScale(1,1),BackgroundColor3=UI.colors.bg,BackgroundTransparency=.48,BorderSizePixel=0,ZIndex=17,Active=false,Visible=false})
     self.frame=UI.make('Frame',root,{Name='MultiplayerLobby',Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ZIndex=18})
     local f=self.frame
-    self.header=UI.panel(f,'Welcome');self.brand=UI.label(self.header,'Brand','COMMANDER',26);self.tag=UI.label(self.header,'Tag','세계를 지휘하라.',12,UI.colors.muted)
-    self.brandTop=UI.label(self.header,'BrandTop','SUPER',10,Color3.fromRGB(255,216,74));self.brand.TextColor3=Color3.new(1,1,1)
+    self.header=UI.panel(f,'Welcome');self.brand=UI.label(self.header,'Brand','ROFRONT',26);self.tag=UI.label(self.header,'Tag','세계를 지휘하라.',12,UI.colors.muted)
+    self.brandTop=UI.label(self.header,'BrandTop','WORLD PVP',10,Color3.fromRGB(255,216,74));self.brand.TextColor3=Color3.new(1,1,1)
     for _,l in ipairs({self.brand,self.brandTop})do Theme.display(l);require(script.Parent.BrandMark).word(l,l==self.brand and 2.5 or 1.5);l:SetAttribute('LocalizationSkip',true)end
     self.profile=UI.button(f,'Profile','',function()self:openPage('records')end)
     self.avatar=UI.corner(UI.make('ImageLabel',self.profile,{Name='Avatar',Image='rbxthumb://type=AvatarHeadShot&id='..Players.LocalPlayer.UserId..'&w=150&h=150',BackgroundColor3=UI.colors.yellow,BorderSizePixel=0}),14)
@@ -96,7 +96,7 @@ function M.new(root,notify,callbacks)
     self.matchRoom=require(script.Parent.MatchRoom).new(root,{
         ready=function(on)self:request('fieldReady',{ready=on})end,
         leave=function()self:leaveRoom()end,
-        depart=function(q)self:depart(q,'countdown')end,
+        depart=function(q)if q.rules and q.rules.pending then return end;self:depart(q,'countdown')end,
         insets=function()self:topbar();return {left=self.topbarLeft,right=self.topbarRight,top=math.max(self.topbarHeight,self.topbarBottom)}end,
         shown=function(on)self:roomCover(on)end,
     })
@@ -321,6 +321,7 @@ function M:announce(q)
     if previous=='go'and key~='go'then Veil.hide();Depart.hide()end
     if key=='go'and previous~='go'then
         local r=self.lastRoom
+        if r and r.field==q.field and q.rules and q.rules.matched then r={field=q.field,rules=q.rules,members=r.members,count=q.count or r.count,ai=math.max(0,(q.rules.maximum or 0)-(q.count or r.count or 0))}end
         if r and r.field==q.field then self:depart(r,'transfer');Depart.ride()else Veil.teleport('전장으로 이동 중…',90)end
     end
     if Depart.shown()and key~='go'and(self.inMenu==false or not q and Depart.age()>3 or q and q.room and q.room.missing~=nil and Depart.age()>1 or Depart.age()>12)then
@@ -541,9 +542,9 @@ function M:topbar()
         local service=game:GetService('GuiService');local device=service:GetInsetArea(Enum.ScreenInsets.DeviceSafeInsets);local bar=service:GetInsetArea(Enum.ScreenInsets.TopbarSafeInsets)
         self.topbarLeft=math.max(12,(bar.Min.X-device.Min.X)/Theme.scale+8)
         self.topbarRight=math.max(12,(device.Max.X-bar.Max.X)/Theme.scale+8)
-        self.topbarHeight=math.max(0,(bar.Max.Y-device.Min.Y)/Theme.scale)
+        self.topbarHeight=math.clamp((bar.Max.Y-device.Min.Y)/Theme.scale,0,140)
         local gi=service:GetGuiInset()
-        self.topbarBottom=math.max(self.topbarHeight,(service.TopbarInset.Max.Y-(device.Min.Y+gi.Y))/Theme.scale)
+        self.topbarBottom=math.clamp((service.TopbarInset.Max.Y-(device.Min.Y+gi.Y))/Theme.scale,self.topbarHeight,140)
     end)
 end
 function M:layout()

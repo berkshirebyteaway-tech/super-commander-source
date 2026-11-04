@@ -8,7 +8,7 @@ function M.games(p)return sum(p,'games')end
 function M.wins(p)return sum(p,'wins')end
 function M.firstGame(before,p)return type(before)=='table'and M.games(before)==0 and M.games(p)>=1 end
 function M.firstWin(before,p)return type(before)=='table'and M.wins(before)==0 and M.wins(p)>=1 end
-M.favoriteStage='1-2'
+M.favoriteStage='1-5'
 local function cleared(p)local c=type(p)=='table'and type(p.campaign)=='table'and p.campaign or {};local s=type(c.stars)=='table'and c.stars or {};return (tonumber(s[M.favoriteStage])or 0)%2==1 end
 function M.favorite(before,p)return type(before)=='table'and not cleared(before)and cleared(p)end
 M.multiGames=2

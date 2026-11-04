@@ -13,7 +13,8 @@ local function parts(cb)
     local e=cb.e;local c=e.controls;local v={}
     cb.v2=v
     v.seg=K.make('Frame',c,{Name='Ratio20',BackgroundColor3=C.bg,BorderSizePixel=0,ZIndex=3,Visible=false});K.round(v.seg,8);v.segStroke=K.stroke(v.seg,C.line,1,0,true)
-    v.on=K.make('Frame',v.seg,{Name='On',AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=C.ink,BorderSizePixel=0,ZIndex=4});K.round(v.on,6)
+    v.on=K.make('Frame',v.seg,{Name='On',AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=Color3.fromRGB(36,49,64),BorderSizePixel=0,ZIndex=4});K.round(v.on,6)
+    v.onLine=K.stroke(v.on,C.ink,1,.86,true)
     v.press=K.make('UIScale',v.on,{Name='Press20'})
     local s=e.dispatchSlider;local down=false
     local function to(goal,t,style)
@@ -95,7 +96,7 @@ local function controlsRow(cb,fmt,ty,troopX,troopW,segX,segW,goldX,goldW,rowH)
     local df=e.dispatchTrack:FindFirstChild('Fill');if df then df.Visible=false end
     local gb=cb.goldBox;gb.Visible=true;gb.Parent=e.hud;K.box(gb,goldX,ty,goldW,rowH);K.round(gb,8)
     gb.BackgroundColor3=GOLD_BG;gb.BackgroundTransparency=0
-    local gs=gb:FindFirstChildOfClass('UIStroke');if gs then gs.Color=C.gold;gs.Transparency=.45;gs.Thickness=1;cb.goldStroke=gs end
+    local gs=gb:FindFirstChildOfClass('UIStroke');if gs then gs.Color=C.gold;gs.Transparency=1;gs:SetAttribute('RestT',1);gs.Thickness=1;cb.goldStroke=gs end
     cb.coin.Visible=false
     if not v.coin then v.coin=K.icon(gb,'coinGold',15,Color3.new(1,1,1),'Coin20')end
     v.coin.Visible=true
@@ -172,7 +173,7 @@ function M.dispatch(cb,fraction,instant)
     for i,p in ipairs(M.PRESETS)do local d=math.abs(math.log(p)-math.log(math.max(.01,fraction)));if d<best then best=d;idx=i end end
     for i,l in ipairs(v.cells)do
         l.Text=math.floor(M.PRESETS[i]*100)..'%'
-        l.TextColor3=i==idx and C.bg or C.muted
+        l.TextColor3=i==idx and C.ink or C.muted
     end
     local ow,oh=math.floor(v.cellW+.5),v.segH-6;local ax,ay=math.floor(ow/2),math.floor(oh/2)
     local goal=UDim2.fromOffset(math.floor(3+(idx-1)*(v.cellW+3)+.5)+ax,3+ay)

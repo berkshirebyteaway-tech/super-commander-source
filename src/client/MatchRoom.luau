@@ -143,6 +143,12 @@ function M:update(q,options)
     self.reduced=options.reduced;self.busy=options.busy
     if q and q.trophySolo then require(script.Parent.TrophyMatchRoom).update(self,q,options);return end
     if self.q and self.q.trophySolo then require(script.Parent.TrophyMatchRoom).stop(self);self.trophyUI=nil;self.key=nil end
+    local Wait=require(script.Parent.MatchWait20)
+    if Wait.is(q)and q.room and not options.practice and q.phase~='transferring'and q.phase~='recovering'then Wait.update(self,q,options);return end
+    if Wait.is(self.q)then Wait.stop(self);self.key=nil
+        if not q or q.field~=self.q.field then Step.step('queue','roomLeave',{value=self.since and math.floor(os.clock()-self.since)or nil,item='match'})end
+        self.q=nil
+    end
     local room=q and q.mode=='pvp'and q.room and not options.practice and q.phase~='transferring'and q.phase~='recovering'and q or nil
     if not room then
         if self.q then self:closed(q)end
@@ -192,6 +198,7 @@ function M:layoutOnce()
     local q=self.q;if not q or not self.open then return end
     local w,h=self:size();if w<1 then return end
     if q.trophySolo then require(script.Parent.TrophyMatchRoom).layout(self,w,h);return end
+    if require(script.Parent.MatchWait20).is(q)then require(script.Parent.MatchWait20).layout(self,w,h);return end
     local fmt=M.format(w,h);local teams,special,mods=self:kind();local r=q.rules or {}
     local count=teams and(q.teamPlan.count or r.teamCount or 2)or 0
     local key=table.concat({fmt,math.floor(w),math.floor(h),tostring(teams),tostring(special),table.concat(mods,','),tostring(r.map),count,tostring(r.teamFormat),L.getLocale(),tostring(self.callbacks.insets and self.callbacks.insets().left or 12),tostring(self.callbacks.insets and math.floor(self.callbacks.insets().top or 0)or 0)},'|')
@@ -284,14 +291,12 @@ function M:build(fmt,W,H,teams,special,mods,teamCount)
         local dots={};local ds=pc and 10 or 7;local dg=pc and 8 or 6
         for i=1,3 do local d=K.make('Frame',c,{Name='SeekDot'..i,BackgroundColor3=C.accent,BorderSizePixel=0,BackgroundTransparency=(i-1)*.3});K.round(d,'pill')
             K.box(d,L0+sw+(pc and 16 or 10)+(i-1)*(ds+dg),sy+math.floor((sfs+4-ds)/2),ds,ds);dots[i]=d
-            if not K.reduced then Tween:Create(d,TweenInfo.new(.45,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,(i-1)*.15),{BackgroundTransparency=.75}):Play()end
         end
         ui.seekDots=dots
         local rs=math.max(20,nfs-barH-8);local radar=K.make('Frame',c,{Name='Radar',BackgroundColor3=C.accent,BackgroundTransparency=.92,BorderSizePixel=0});K.round(radar,'pill')
         K.stroke(radar,C.accent,pc and 2 or 1.5,.35,true);K.box(radar,L0+lw-rs,cy+ndy,rs,rs)
         local sweep=K.make('Frame',radar,{Name='Sweep',BackgroundColor3=C.accent,BorderSizePixel=0,Size=UDim2.fromScale(1,1)});K.round(sweep,'pill')
         local g=K.make('UIGradient',sweep,{Name='Beam',Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,1),NumberSequenceKeypoint.new(.75,.55),NumberSequenceKeypoint.new(1,.2)})})
-        if not K.reduced then Tween:Create(g,TweenInfo.new(2.4,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1),{Rotation=360}):Play()end
         ui.radar=radar
     end
     ui.bar=K.fillBar(c,'ReadyBar',{p=0,fill=C.accent,track=C.raised});K.box(ui.bar.frame,L0+lw-barW,barY,barW,barH)
@@ -324,6 +329,7 @@ end
 function M:draw()
     local q=self.q;local ui=self.ui;if not q or not ui then return end
     if q.trophySolo then local w,h=self:size();require(script.Parent.TrophyMatchRoom).layout(self,w,h);return end
+    if require(script.Parent.MatchWait20).is(q)then return end
     local room=q.room;local go=room.state=='go';local full=room.reason=='full'and go
     local remaining=math.max(0,(self.remaining or 0))
     local limit=room.limit and math.max(0,room.limit-self.elapsed)or remaining
@@ -532,11 +538,6 @@ function M:plus(it)
     local f=K.dashBox(self.ui.list,'PlusOne',C.accent,.2,it.h<30 and 6 or 8,2)
     local fill=K.make('Frame',f,{Name='Fill',BackgroundColor3=C.accent,BackgroundTransparency=.94,BorderSizePixel=0,Size=UDim2.fromScale(1,1)});K.round(fill,it.h<30 and 6 or 8)
     local l=num(f,'Text','+1',it.fs or 15,C.accent,Enum.TextXAlignment.Center);l.Size=UDim2.fromScale(1,1)
-    if not K.reduced then
-        local info=TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true)
-        for _,e in ipairs(f:GetChildren())do if e:IsA('ImageLabel')then Tween:Create(e,info,{ImageTransparency=.7}):Play()end end
-        Tween:Create(fill,info,{BackgroundTransparency=.985}):Play()
-    end
     return {frame=f,label=l}
 end
 function M:col(it)

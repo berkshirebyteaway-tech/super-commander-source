@@ -25,7 +25,7 @@ function M:build(fmt)
     local s=K.make('Frame',self.frame,{Name='Sheet',BackgroundColor3=SHEET,BorderSizePixel=0,Active=true,ZIndex=41});K.round(s,fmt=='pt'and 16 or 8);K.stroke(s,C.line,1);self.sheet=s
     K.make('TextButton',s,{Name='Catch',Text='',BackgroundTransparency=1,Size=UDim2.fromScale(1,1),AutoButtonColor=false,ZIndex=41})
     self.grip=K.make('Frame',s,{Name='Grip',BackgroundColor3=C.line,BorderSizePixel=0,Visible=fmt=='pt',ZIndex=42});K.round(self.grip,'pill')
-    self.title=K.text(s,'Title','싱글 플레이',fmt=='pc'and 24 or fmt=='ph'and 18 or 20,C.ink,800);self.title.ZIndex=42
+    self.title=K.text(s,'Title','싱글플레이',fmt=='pc'and 24 or fmt=='ph'and 18 or 20,C.ink,800);self.title.ZIndex=42
     self.custom=K.make('TextButton',s,{Name='Custom',Text='<u>나만의 설정</u>',RichText=true,TextSize=fmt=='pc'and 14 or 12,TextColor3=C.muted,BackgroundTransparency=1,BorderSizePixel=0,AutoButtonColor=false,ZIndex=42,TextXAlignment=Enum.TextXAlignment.Right})
     if K.fonts[700]then self.custom.FontFace=K.fonts[700]end
     self.custom.Activated:Connect(function()require(script.Parent.ToyAudio).play('click');Step.step('single','pick',{item='custom'});self:close('custom');l.soloChoice='custom';l.deployment.callbacks.solo()end)

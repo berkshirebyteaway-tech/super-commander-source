@@ -11,6 +11,19 @@ M.fillTarget={[10]=10,[20]=20}
 M.rookieGames=3
 M.slots={{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='ffa'},{kind='teams'},{kind='special'},{kind='ffa'},{kind='teams'}}
 M.recruitment={minimum=3,medium=7,maximum=9,mediumAt=10,largeAt=32,warmSeconds=60,presetSlots={1,2,3,4,5,6,7,8,9}}
+local classic={slots=M.slots,recruitment=M.recruitment,waitMaxSeconds=M.waitMaxSeconds,joinFloorSeconds=M.joinFloorSeconds,fullSeconds=M.fullSeconds,minHumans=M.minHumans}
+function M.setMatch(on)
+    M.matchOnly=on==true
+    if on then M.slots={{kind='match'}};M.recruitment={minimum=1,medium=1,maximum=1,mediumAt=10,largeAt=32,warmSeconds=60,presetSlots={1}};M.waitMaxSeconds=30;M.joinFloorSeconds=0;M.fullSeconds=5;M.minHumans=2
+    else for k,v in pairs(classic)do M[k]=v end end
+end
+M.matchTiers={
+    {upTo=5,seats=8,maps={{'japan',17},{'italia',17},{'hawaii',17},{'pangaea',17},{'capecod',19},{'germany',24},{'britannia',19}}},
+    {upTo=12,seats=14,maps={{'asia',116},{'northamerica',72},{'southamerica',63},{'centralamerica',17},{'china',28},{'gulfofmexico',21},{'mars',18}}},
+    {upTo=20,seats=20,maps={{'europe',485},{'giantworldmap',336},{'africa',71},{'france',41},{'marenostrum',31},{'russia',17},{'unitedstates',20}}},
+}
+M.matchWorldShare=.3
+M.setMatch(true)
 M.seatCap=20
 M.maxTimerValue=nil
 M.overtimeMinutes=30
@@ -112,8 +125,32 @@ function M.valid(r)
     end
     return byKey[r.map]~=nil
 end
+function M.matchTier(n)
+    for _,t in ipairs(M.matchTiers)do if n<=t.upTo then return t end end
+    return M.matchTiers[#M.matchTiers]
+end
+function M.matchCard()
+    return {version=M.version,map='world',mode='ffa',minimum=2,maximum=M.seatCap,spawn='select',pending=true,settings={difficulty='Medium',nations='disabled',bots=100,startingGold=0,goldMultiplier=1,customAllianceDuration=5,spawnImmunityDuration=50}}
+end
+function M.matchRules(s,n)
+    local function roll(k)s.seed=(s.seed*48271)%2147483647;return s.seed%k end
+    local tier=M.matchTier(n);local banned={}
+    for i=math.max(1,#s.history-M.recent+1),#s.history do banned[s.history[i]]=true end
+    local list,total={},0
+    for _,e in ipairs(tier.maps)do if byKey[e[1]]and not banned[e[1]]then table.insert(list,{e[1],e[2]});total+=e[2]end end
+    if #list==0 then for _,e in ipairs(tier.maps)do if byKey[e[1]]then table.insert(list,{e[1],e[2]});total+=e[2]end end end
+    if not banned.world or #list==0 then local w=math.max(1,math.floor(total*M.matchWorldShare/(1-M.matchWorldShare)+.5));table.insert(list,{'world',w});total+=w end
+    local pick=roll(total);local key=list[1][1]
+    for _,e in ipairs(list)do if pick<e[2]then key=e[1];break end;pick-=e[2]end
+    local meta=byKey[key];local normal=M.hasNormal(meta)
+    local nationCount=#meta.nations>0 and (normal and #meta.nations or math.max(1,math.floor(#meta.nations*.25)))or 0
+    local settings={difficulty='Medium',nations=nationCount==0 and 'disabled'or nationCount,bots=normal and 400 or 100,mapSize=normal and 'normal'or nil,startingGold=0,goldMultiplier=1,
+        customAllianceDuration=5,maxTimerValue=M.maxTimerValue,donateGold=false,donateTroops=false,spawnImmunityDuration=50,overtime={enabled=true,startMinutes=M.overtimeMinutes}}
+    return {version=M.version,map=key,mode='ffa',minimum=2,maximum=math.max(tier.seats,n),spawn='select',settings=settings,matched=true}
+end
 function M.next(s,slot,presetSlot)
     local preset=M.slots[presetSlot or slot];assert(preset,'Unknown official slot')
+    if preset.kind=='match'then return M.matchCard()end
     local function roll(n)s.seed=(s.seed*48271)%2147483647;return s.seed%n end
     local function chance()return roll(1000000)/1000000 end
     local kind=preset.kind or preset.mode

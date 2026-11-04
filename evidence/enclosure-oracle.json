@@ -1,17 +1,20 @@
 {
-  "commit": "e02eeba66b4801ebae0b686e1b0e4bc03fbf3654",
+  "commit": "030274df6e377a57e784a9f6f9865720b0dfbbba",
   "sources": {
-    "src/core/game/GameMap.ts": "a537540512803d95ed64701ad72b55e54dee7ee16554f0f12793de778f5ada9b",
-    "src/core/game/TileSet.ts": "0b5cca82b0447ef802ebb63c62d97d1bb47cdef44c71f210d896fc873f6b2d10",
-    "src/core/game/GameImpl.ts": "4993171e0eb98bb0bfdd47177afcba126bdce763bd3949209a100070bb3b1dbb",
-    "src/core/game/TileTraversalScratch.ts": "faebef619230ed3a48eeea76e7f6b6220a7713034724ea80d25a7228b9ba25c1",
-    "src/core/game/Game.ts": "0f2045babcdc50e4c696bd5d63129c605058df7559377dc55afc6bd79696eca7",
-    "src/core/execution/PlayerExecution.ts": "f64137566138b27f35d3d0d35afb52f6abb3586ff12d8d63035ceffabe91925f"
+    "packages/engine-lib/src/game/GameMapImpl.ts": "3c094040f4c3fe88933d7e25210952a64b755cae6ddceb410f0e264784dc2744",
+    "packages/engine-lib/src/game/TileSet.ts": "91162da3173b40f5f533b8dc1821c807b8eea7fbd79d309aa5a84f57f464e357",
+    "packages/engine/src/game/GameImpl.ts": "fc5fc1a1fa6233c8775c761d51da6fdf9c26b0c63618771c561d8ff3cc09e603",
+    "packages/engine/src/game/TileTraversalScratch.ts": "e636b5c712d7d1efbb16aa7e63e8825773c8576ece4ce2a16407851912637dd8",
+    "packages/engine-api/src/game/GameTypes.ts": "3f8ca954f56840565aeead1f8916865098926f0f6a44930adb2fe6a64da3d638",
+    "packages/engine/src/execution/PlayerExecution.ts": "cbd67f505fe0df47cb881f76cd7b0f57222e4c171648aaeb6eaef4065e969b0e"
   },
   "fixtureModules": [
     "EnclosureGolden_001",
     "EnclosureGolden_002",
     "EnclosureGolden_003"
+  ],
+  "severedModules": [
+    "SeveredGolden_001"
   ],
   "cases": [
     {
@@ -86,12 +89,12 @@
     },
     {
       "name": "mixed-1",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-2",
-      "captured": 3,
+      "captured": 0,
       "whole": []
     },
     {
@@ -101,17 +104,17 @@
     },
     {
       "name": "mixed-4",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-5",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-6",
-      "captured": 5,
+      "captured": 3,
       "whole": []
     },
     {
@@ -121,12 +124,12 @@
     },
     {
       "name": "mixed-8",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-9",
-      "captured": 5,
+      "captured": 2,
       "whole": []
     },
     {
@@ -136,32 +139,32 @@
     },
     {
       "name": "mixed-11",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-12",
-      "captured": 5,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-13",
-      "captured": 3,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-14",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-15",
-      "captured": 1,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-16",
-      "captured": 3,
+      "captured": 1,
       "whole": []
     },
     {
@@ -171,17 +174,17 @@
     },
     {
       "name": "mixed-18",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-19",
-      "captured": 3,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-20",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
@@ -191,17 +194,17 @@
     },
     {
       "name": "mixed-22",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-23",
-      "captured": 4,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-24",
-      "captured": 6,
+      "captured": 3,
       "whole": []
     },
     {
@@ -211,12 +214,12 @@
     },
     {
       "name": "mixed-26",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-27",
-      "captured": 3,
+      "captured": 0,
       "whole": []
     },
     {
@@ -231,7 +234,7 @@
     },
     {
       "name": "mixed-30",
-      "captured": 5,
+      "captured": 0,
       "whole": []
     },
     {
@@ -271,7 +274,7 @@
     },
     {
       "name": "mixed-38",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
@@ -281,12 +284,12 @@
     },
     {
       "name": "mixed-40",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-41",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
@@ -296,12 +299,12 @@
     },
     {
       "name": "mixed-43",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-44",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
@@ -321,17 +324,17 @@
     },
     {
       "name": "mixed-48",
-      "captured": 8,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-49",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-50",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
@@ -341,17 +344,17 @@
     },
     {
       "name": "mixed-52",
-      "captured": 5,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-53",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-54",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
@@ -366,27 +369,27 @@
     },
     {
       "name": "mixed-57",
-      "captured": 4,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-58",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-59",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-60",
-      "captured": 7,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-61",
-      "captured": 5,
+      "captured": 6,
       "whole": []
     },
     {
@@ -411,7 +414,7 @@
     },
     {
       "name": "mixed-66",
-      "captured": 5,
+      "captured": 1,
       "whole": []
     },
     {
@@ -456,27 +459,27 @@
     },
     {
       "name": "mixed-75",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-76",
-      "captured": 6,
+      "captured": 4,
       "whole": []
     },
     {
       "name": "mixed-77",
-      "captured": 2,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-78",
-      "captured": 3,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-79",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
@@ -486,7 +489,7 @@
     },
     {
       "name": "mixed-81",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
@@ -501,32 +504,32 @@
     },
     {
       "name": "mixed-84",
-      "captured": 7,
+      "captured": 3,
       "whole": []
     },
     {
       "name": "mixed-85",
-      "captured": 5,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-86",
-      "captured": 4,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-87",
-      "captured": 4,
+      "captured": 3,
       "whole": []
     },
     {
       "name": "mixed-88",
-      "captured": 8,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-89",
-      "captured": 3,
+      "captured": 0,
       "whole": []
     },
     {
@@ -536,22 +539,22 @@
     },
     {
       "name": "mixed-91",
-      "captured": 2,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-92",
-      "captured": 5,
+      "captured": 2,
       "whole": []
     },
     {
       "name": "mixed-93",
-      "captured": 3,
+      "captured": 1,
       "whole": []
     },
     {
       "name": "mixed-94",
-      "captured": 5,
+      "captured": 2,
       "whole": []
     },
     {
@@ -561,23 +564,378 @@
     },
     {
       "name": "mixed-96",
-      "captured": 1,
+      "captured": 0,
       "whole": []
     },
     {
       "name": "mixed-97",
-      "captured": 4,
-      "whole": []
-    },
-    {
-      "name": "mixed-98",
       "captured": 2,
       "whole": []
     },
     {
-      "name": "mixed-99",
-      "captured": 3,
+      "name": "mixed-98",
+      "captured": 1,
       "whole": []
+    },
+    {
+      "name": "mixed-99",
+      "captured": 2,
+      "whole": []
+    }
+  ],
+  "severed": [
+    {
+      "n": 10,
+      "whole": null
+    },
+    {
+      "n": 6,
+      "whole": null
+    },
+    {
+      "n": 11,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 7,
+      "whole": null
+    },
+    {
+      "n": 4,
+      "whole": null
+    },
+    {
+      "n": 5,
+      "whole": null
+    },
+    {
+      "n": 4,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 5,
+      "whole": null
+    },
+    {
+      "n": 7,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 4,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 9,
+      "whole": null
+    },
+    {
+      "n": 6,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 10,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 10,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 4,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 4,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": [
+        1,
+        2
+      ]
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 3,
+      "whole": [
+        3,
+        2
+      ]
+    },
+    {
+      "n": 2,
+      "whole": [
+        1,
+        2
+      ]
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 2,
+      "whole": null
+    },
+    {
+      "n": 0,
+      "whole": null
+    },
+    {
+      "n": 1,
+      "whole": null
     }
   ],
   "scope": "Actual upstream removeClusters, topology/ownership/order/conquest calls; no production gold/economy or full engine tick"

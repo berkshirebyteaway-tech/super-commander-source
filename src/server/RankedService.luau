@@ -5,6 +5,7 @@ local Rules=if Core then require(Core.RankedRules)else require('../core/RankedRu
 local Season=if Core then require(Core.MonthlySeason)else require('../core/MonthlySeason')
 local Outgame=if Core then require(Core.OutgameRules)else require('../core/OutgameRules')
 local War=if Core then require(Core.ClanWarRules)else require('../core/ClanWarRules')
+local AI=if Core then require(Core.RankedAI)else require('../core/RankedAI')
 local BoardWriter=if script then require(script.Parent.RankedBoardWriter)else require('./RankedBoardWriter')
 local S={};S.__index=S
 S.boardSize=50
@@ -94,7 +95,7 @@ end
 function S:track(id,saved,result,before)
     if result.trophySolo then
         local r=saved.lastTrophySolo
-        if r and r.id==result.id then log(id,'result',{item='r1v1',result=r.won and 'won'or 'lost',amount=r.delta,value=math.abs(r.delta),level=r.t})end
+        if r and r.id==result.id then log(id,'result',{item=result.ai and 'r1v1ai'or 'r1v1',result=r.won and 'won'or 'lost',amount=r.delta,value=math.abs(r.delta),level=r.t,count=result.ai and result.aiLevel or nil})end
         return
     end
     local ladder=result.ladder;local now=os.time()
@@ -188,7 +189,10 @@ function S:joinTrophy(queue,ids,now)
     if not trophy then return false,'전적 확인 필요'end
     if Rules.trophyBanLeft(trophy,self.a.time())>0 then return false,'랭크 잠시 대기'end
     local last=trophy.recent[#trophy.recent]
-    return queue:joinField(ids,{field='ranked-r1v1',revision=0,ratings={[tostring(id)]=trophy.t},previous=last and last.o or nil,window=self:trophyLive().get('rankedWindow')},now)
+    local live=self:trophyLive()
+    local ai=AI.plan(trophy,self.a.random or math.random,{enabled=live.get('rankedAI')==true,cap=live.get('rankedAICap')})
+    if ai and script then task.spawn(function()pcall(function()require(script.Parent.RankedAIAvatar).face(ai)end)end)end
+    return queue:joinField(ids,{field='ranked-r1v1',revision=0,ratings={[tostring(id)]=trophy.t},previous=last and last.o or nil,window=live.get('rankedWindow'),ai=ai},now)
 end
 function S:noShow(id,matchId,time)
     local worker=self.careers.worker
@@ -251,8 +255,12 @@ function S:result(room,id,won)
     if room.trophySolo then
         local opponent
         for other in pairs(room.members)do if other~=id then opponent=other;break end end
-        if not opponent then return nil end
         room.resultTime=room.resultTime or self.a.time()
+        local ai=room.rankedAI
+        if not opponent and ai then
+            return {ladder='1v1',trophySolo=true,time=room.resultTime,mine=(room.ratings or {})[id]or 0,opponent=ai.t,opponents={ai.userId},ai=true,aiLevel=ai.level}
+        end
+        if not opponent then return nil end
         return {ladder='1v1',trophySolo=true,time=room.resultTime,mine=(room.ratings or {})[id]or 0,
             opponent=(room.ratings or {})[opponent]or 0,opponents={opponent}}
     end

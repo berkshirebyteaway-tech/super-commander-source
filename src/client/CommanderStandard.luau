@@ -19,8 +19,8 @@ function M.watch(context)
         scan+=dt
         if scan>=.25 then scan=0
             local Stage=require(script.Parent.LobbyStage)
-            for _,p in ipairs(Players:GetPlayers())do
-                local s=Stage.standFor(p);local c=s and s.clone or p.Character;local hand=c and(c:FindFirstChild('RightHand')or c:FindFirstChild('Right Arm'))
+            for _,p in ipairs(require(script.Parent.CommanderRoster).list())do
+                local s=not require(script.Parent.CommanderRoster).isAI(p)and Stage.standFor(p)or nil;local c=s and s.clone or p.Character;local hand=c and(c:FindFirstChild('RightHand')or c:FindFirstChild('Right Arm'))
                 local raw=p:GetAttribute('CommanderStandardStyle');local item=Rules.find(raw)
                 local id=item and item.supply and raw or Rules.effective(raw,p:GetAttribute('CommanderLevel')or 1)
                 local old=states[p]

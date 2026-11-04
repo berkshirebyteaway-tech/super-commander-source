@@ -188,7 +188,8 @@ function M:joinFieldNow(ids,ticket,now,invited,request)
     end
     local groupId=#ids>1 and Http:GenerateGUID(false)or nil
     local op={kind='joinGroup',users=ids,tokens=tokens,names=names,levels=levels,clans=clans,friends=friends,group=groupId,leader=ids[1],field=ticket.field,revision=ticket.revision,invited=invited==true,ratings=ranked and ticket.ratings or nil,clan=ranked=='clanwar'and ticket.clan or nil,
-        previous=ranked=='r1v1'and ticket.previous or nil,window=ranked=='r1v1'and ticket.window or nil}
+        previous=ranked=='r1v1'and ticket.previous or nil,window=ranked=='r1v1'and ticket.window or nil,
+        ai=ranked=='r1v1'and #ids==1 and ticket.ai and {[tostring(ids[1])]=ticket.ai}or nil}
     local destination=self.live and self:bucket(op)or (custom and 'room:'..ticket.field or ranked and 'ranked'or 'official')
     local retired={};for _,id in ipairs(ids)do if self.live and self.active[id]and self.locations[id]~=destination then retired[id]={token=self.active[id],bucket=self.locations[id]}end end
     request.tokens=tokens;request.destination=destination
@@ -383,6 +384,7 @@ function M:transfer(id,m,ticket)
     if self.telemetry then for _,member in ipairs(players)do self.telemetry:prepareTransfer(member,ticket.match)end end
     if self.callbacks and self.callbacks.departing and (self.attempts[ids[1]]or 0)<=1 then pcall(self.callbacks.departing,ids)end
     if self.telemetry and (self.attempts[ids[1]]or 0)<=1 then local n=0;for _ in pairs(m.members or {})do n+=1 end;for _,uid in ipairs(ids)do self.telemetry:flowUser(uid,'queue','depart',{result='accepted',count=n,value=n})end end
+    if m.ai and self.telemetry and (self.attempts[ids[1]]or 0)<=1 then for _,uid in ipairs(ids)do self.telemetry:flowUser(uid,'ranked','aiFill',{item='r1v1ai',result='accepted',count=m.ai.level,value=ticket.joined and math.max(0,os.time()-ticket.joined)or nil})end end
     local ok=pcall(function()Teleport:TeleportAsync(Config.matchPlaceId,players,options)end)
     if self.telemetry and not ok then for _,member in ipairs(players)do self.telemetry:emit(member,'transfer_result',{stage='sending',result='failed',reason='network'})end end
     if not ok then for _,uid in ipairs(ids)do self.sending[uid]=nil;self.retryAt[uid]=os.clock()+3 end end

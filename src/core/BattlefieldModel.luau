@@ -15,7 +15,7 @@ local function promote(s,slot,now)
     for other,f in ipairs(s.fields)do if other~=slot and f.rules.map==rules.map then rules=R.next(s,slot,preset);break end end
     assert(R.valid(rules));s.serial+=1
     local field={id=(s.fieldPrefix or 'official')..'-'..slot..'-'..s.serial,revision=s.serial,slot=slot,rules=rules,created=now,emptyAt=now,rotateAt=now+R.emptySeconds+(not old and (slot-1)*20 or 0)}
-    table.insert(s.history,rules.map);if #s.history>8 then table.remove(s.history,1)end
+    if not rules.pending then table.insert(s.history,rules.map);if #s.history>8 then table.remove(s.history,1)end end
     field.next=R.next(s,slot,preset);s.fields[slot]=field;return field
 end
 local function find(s,id)for _,f in ipairs(s.fields)do if f.id==id then return f end end;return s.customs and s.customs[id]end
@@ -161,7 +161,8 @@ function M.apply(previous,now,op)
         if not s.notice then
             for _,uid in ipairs(ids)do remove(s,uid,now)end
             for _,uid in ipairs(ids)do s.tickets[uid]={field=op.field,revision=0,token=op.tokens[uid],host=op.host,joined=now,seen=now,name=string.sub((op.names or {})[uid]or '',1,80),rp=op.ratings[uid],ready=false,group=#ids>1 and op.group or nil,leader=#ids>1 and op.leader or nil,clan=Ranked.ladderOf(op.field)=='clanwar'and op.clan or nil,
-                window=op.field=='ranked-r1v1'and (op.window=='normal'and 'normal'or 'open')or nil,previous=op.field=='ranked-r1v1'and op.previous or nil}end
+                window=op.field=='ranked-r1v1'and (op.window=='normal'and 'normal'or 'open')or nil,previous=op.field=='ranked-r1v1'and op.previous or nil,
+                ai=op.field=='ranked-r1v1'and #ids==1 and type(op.ai)=='table'and Ranked.copyAI(op.ai[uid])or nil}end
         end
     elseif op.kind=='joinGroup'then
         local f=find(s,op.field);local ids,seen={},{};local valid=type(op.users)=='table'and #op.users>=1 and #op.users<=5 and type(op.tokens)=='table'
@@ -271,6 +272,7 @@ function M.apply(previous,now,op)
     elseif op.kind=='fieldReady'then
         local uid=tostring(op.userId);local t=s.tickets[uid];local f=t and not t.match and find(s,t.field)
         if not f or f.kind=='custom'or Ranked.ladderOf(t.field)or t.token~=op.token or t.host~=op.host then s.notice='stale'
+        elseif R.matchOnly then t.ready=false
         elseif op.ready==true and count(s,f)<R.minHumans then t.ready=false;s.notice='alone'
         else t.ready=op.ready==true end
     elseif op.kind=='cancel'then
@@ -320,11 +322,11 @@ function M.apply(previous,now,op)
         elseif not R.canFill(f.rules,users,groups)then f.deadline=nil else
             local ready=0;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id and t.ready then ready+=1 end end
             f.fillFirst=f.fillFirst or now;local limit=f.fillFirst+R.waitMaxSeconds
-            if not f.readyAt and ready>=R.majority(n)then f.readyAt=now end
+            if not f.readyAt and ready>=R.majority(n)and not R.matchOnly then f.readyAt=now end
             if n>=f.rules.maximum then f.fullAt=f.fullAt or now else f.fullAt=nil end
             local d=limit
             if f.readyAt then d=math.min(d,f.readyAt+R.readySeconds)end
-            if f.joinFloor then d=math.max(d,math.min(f.joinFloor,limit+R.readySeconds))end
+            if f.joinFloor and not R.matchOnly then d=math.max(d,math.min(f.joinFloor,limit+R.readySeconds))end
             if f.fullAt then d=math.min(d,f.fullAt+R.fullSeconds)end
             if f.lockedTeams and f.deadline then d=math.min(d,f.deadline)end
             f.deadline=d
@@ -333,7 +335,9 @@ function M.apply(previous,now,op)
             end
             if now>=f.deadline and op.nextMatch and size(s.matches)<R.maxMatches then
                 local mid=op.nextMatch..'-'..slot
-                local match={creator=op.host,phase='reserving',expires=now+25,rules=R.copy(f.rules),field=f.id,revision=f.revision,members={},groups={},leaders={}}
+                local rules=R.copy(f.rules)
+                if rules.pending then rules=R.matchRules(s,n);table.insert(s.history,rules.map);if #s.history>8 then table.remove(s.history,1)end end
+                local match={creator=op.host,phase='reserving',expires=now+25,rules=rules,field=f.id,revision=f.revision,members={},groups={},leaders={}}
                 for uid,t in pairs(s.tickets)do if not t.match and t.field==f.id then t.match=mid;match.members[uid]=t.token;match.groups[uid]=t.group;if t.group then match.leaders[t.group]=t.leader end end end
                 match.teams=f.lockedTeams and R.copy(f.lockedTeams)or nil
                 s.matches[mid]=match;promote(s,slot,now)
@@ -389,7 +393,7 @@ function M.phase(f)return f.deadline and 'countdown'or 'waiting'end
 function M.room(s,f,now)
     local n,ready=0,0;for _,t in pairs(s.tickets)do if not t.match and t.field==f.id then n+=1;if t.ready then ready+=1 end end end
     local reason=f.fullAt and 'full'or f.readyAt and 'majority'or 'timeout'
-    return {state=(f.readyAt or f.fullAt)and 'go'or 'gather',ready=ready,need=R.majority(n),reason=reason,missing=n<R.minHumans and R.minHumans-n or nil,limit=f.fillFirst and math.max(0,f.fillFirst+R.waitMaxSeconds-now)or nil,
+    return {state=(f.readyAt or f.fullAt or R.matchOnly and f.deadline)and 'go'or 'gather',ready=ready,need=R.majority(n),reason=reason,missing=n<R.minHumans and R.minHumans-n or nil,limit=f.fillFirst and math.max(0,f.fillFirst+R.waitMaxSeconds-now)or nil,
         extended=f.joinFloor~=nil and f.deadline~=nil and f.deadline==f.joinFloor and f.joinFloor>now or nil,locked=f.lockedTeams~=nil or nil}
 end
 function M.status(s,id,token,now)
@@ -406,7 +410,7 @@ function M.selection(m,users)
         local sorted=table.clone(users);table.sort(sorted);local teams,ratings={},{}
         for _,id in ipairs(sorted)do teams[id]=m.rules.mode=='teams'and m.teams[tostring(id)]or nil;ratings[id]=m.ratings[tostring(id)]end
         local parties={};for _,id in ipairs(sorted)do local g=m.groups and m.groups[tostring(id)];if g then parties[g]=parties[g]or {leader=m.leaders[g],users={}};table.insert(parties[g].users,id)end end
-        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,trophySolo=m.trophySolo,clanwar=m.clanwar and {size=m.warSize or 2,count=m.warCount or 2,clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties}
+        return {users=sorted,teams=teams,mode=m.rules.mode,queueMode='pvp',map=m.rules.map,spawn=m.rules.spawn,settings=R.copy(m.rules.settings),official=true,ranked=not m.clanwar and m.rules.ranked or nil,trophySolo=m.trophySolo,clanwar=m.clanwar and {size=m.warSize or 2,count=m.warCount or 2,clans=(function()local out={};for _,id in ipairs(sorted)do out[id]=m.clans[tostring(id)]end;return out end)()}or nil,ratings=ratings,rulesVersion=m.rules.version,fill={ai=0},field=m.field,fieldRevision=0,parties=parties,rankedAI=m.ai}
     end
     local out=(m.kind=='custom'and C or R).selection(m.rules,users,m.groups,m.teams);out.field=m.field;out.fieldRevision=m.revision
     if m.kind~='custom'and m.teams then for _,id in ipairs(users)do out.teams[id]=m.teams[tostring(id)]or out.teams[id]end;out.fill=R.fill(m.rules,users,out.teams)end

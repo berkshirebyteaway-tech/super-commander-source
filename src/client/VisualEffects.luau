@@ -237,7 +237,7 @@ function M:receive(event)
         self:burst(Vector3.new(event.position[1],event.position[2],event.position[3]),style,event.kind=="settle")
         if root and not self.reduced then
             self:pose(char)
-            local b=Instance.new("BillboardGui");b.Name="CommanderSpawn";b.Size=UDim2.fromOffset(140,40);b.StudsOffsetWorldSpace=Vector3.new(0,4,0);b.Adornee=root;b.Parent=self.folder
+            local b=Instance.new("BillboardGui");b.Name="CommanderSpawn";b.Size=UDim2.fromOffset(140,40);b.StudsOffsetWorldSpace=Vector3.new(0,4,0);b.SizeOffset=Vector2.new(0,1.4);b.Adornee=root;b.Parent=self.folder
             local t=Instance.new("TextLabel");t.BackgroundTransparency=1;t.Size=UDim2.fromScale(1,1);t.Text=L.text(event.kind=="settle" and "여기서 시작" or "자리 이동");t.TextColor3=color(style.accent);t.TextStrokeTransparency=.25;t.Font=Enum.Font.BuilderSansBold;t.TextSize=20;t.Parent=b
             TweenService:Create(b,TweenInfo.new(1.1),{StudsOffsetWorldSpace=Vector3.new(0,6.5,0)}):Play();TweenService:Create(t,TweenInfo.new(.5,Enum.EasingStyle.Quad,Enum.EasingDirection.In,0,false,.6),{TextTransparency=1,TextStrokeTransparency=1}):Play();Debris:AddItem(b,1.2)
         end

@@ -3,6 +3,7 @@ local Theme=require(script.Parent.Theme)
 local Step=require(script.Parent.TelemetryStep)
 local Claims=require(script.Parent.GoalClaims)
 local Campaign=require(script.Parent.Parent.Core.CampaignRules)
+local WorldConquest=require(script.Parent.WorldConquest)
 local C=K.colors
 local M={}
 local FLAME=Color3.fromRGB(236,112,52);local FLAME_TEXT=Color3.fromRGB(242,154,98)
@@ -74,7 +75,7 @@ local function chapterRow(hub,root,W,fmt,v,shown,redraw)
         local state=chapterState(v,ch.id);local on=ch.id==shown;local lock=state=='lock'
         local b=K.button(root,'Chapter'..ch.id,{kind='none',r=8},function(btn)
             if lock then K.refuse(btn);return end
-            if hub.campaignChapter~=ch.id then hub.campaignChapter=ch.id
+            if hub.campaignChapter~=ch.id or not hub.worldZoom then hub.campaignChapter=ch.id;hub.worldZoom=true
                 local list=chapterStages(ch.id);local pick=list[1];for _,s in ipairs(list)do if not won(v,s.id)and unlocked(v,s.id)then pick=s;break end end
                 hub.campaignPick=pick and pick.id;Step.step('goals','campaignChapter',{item='chapter_'..ch.id});redraw()end
         end)
@@ -178,12 +179,50 @@ local function stagePath(hub,root,W,H,fmt,v,list,pickId,onPick,newly)
     end
     for i,f in ipairs(fills)do fillEdge(f[1],nodeButtons[f[2]],i==1)end
 end
+local function stagePips(hub,root,W,H,fmt,v,list,pickId,onPick,newly)
+    local x0,y,w,h,gap
+    if fmt=='pc'then x0,y,w,h,gap=40,228,860,48,12 elseif fmt=='ph'then x0,y,w,h,gap=16,140,396,30,6 else x0,y,w,h,gap=16,222,343,34,6 end
+    local cw=(w-gap*(#list-1))/#list
+    for i,s in ipairs(list)do
+        local isWon=won(v,s.id);local open=unlocked(v,s.id);local now=s.id==pickId;local boss=s.boss==true
+        local ring=now and C.accent or boss and C.gold or isWon and C.gold or C.line
+        local b=K.button(root,'Stage_'..s.id,{kind='none',r=fmt=='pc'and 10 or 8,hit=40},function(btn)if not open and not boss then K.refuse(btn)end;onPick(s.id)end)
+        b.face.BackgroundColor3=now and NOW_BG or open and NODE_BG or C.panel;b.face.BackgroundTransparency=open and 0 or .4;b.baseFill=b.face.BackgroundColor3;b.baseAlpha=b.face.BackgroundTransparency
+        b.faceStroke.Enabled=true;b.faceStroke.Color=ring;b.faceStroke.Thickness=now and 2 or 1;b.faceStroke.Transparency=(isWon and not now and not boss)and .3 or 0;b.baseStroke=ring
+        b:place(x0+(i-1)*(cw+gap),y,cw,h)
+        local f=b.face;local ns=fmt=='pc'and 20 or fmt=='ph'and 13 or 14
+        local id=K.num(f,'Id',s.id,ns,now and C.accent or open and C.ink or C.muted);local iw=K.width(s.id,ns,id)
+        local ss=fmt=='pc'and 14 or fmt=='ph'and 10 or 8;local right
+        if isWon then right=stars(f,Campaign.count((v.stars or {})[s.id]),3,ss,1)
+        elseif boss then right=K.icon(f,'crown',ss+4,C.gold,'Crown');right.Size=UDim2.fromOffset(ss+4,ss+4)
+        elseif not open then right=K.icon(f,'lock',ss+2,C.dim,'Lock');right.Size=UDim2.fromOffset(ss+2,ss+2)end
+        local rw=right and right.Size.X.Offset or 0;local total=iw+(right and (fmt=='pc'and 10 or 5)+rw or 0)
+        if total>cw-8 and right then right:Destroy();right=nil;rw=0;total=iw end
+        local sx=(cw-total)/2;K.box(id,sx,0,iw+1,h)
+        if right then local rh=right.Size.Y.Offset;K.box(right,sx+iw+(fmt=='pc'and 10 or 5),(h-rh)/2,rw,rh)end
+        if newly and newly[s.id]and not K.reduced then K.appear(b.button,{scaleFrom=.9,t=.2})end
+    end
+    return y+h
+end
+local function worldMap(hub,root,W,H,fmt,v,pickId,top)
+    local x,y,w,h
+    if fmt=='pc'then x,y,w,h=40,top+8,860,H-40-(top+8)elseif fmt=='ph'then x,y,w,h=16,top+6,396,H-10-(top+6)else x,y,w,h=16,top+8,343,math.min(171,437-(top+8))end
+    local focus=hub.worldZoom and hub.campaignChapter or nil
+    local map=WorldConquest.map(root,'WorldMap',w,h,{v=v,gold=pickId,focus=focus,tap=function()
+        hub.worldZoom=not hub.worldZoom;Step.step('goals','worldZoom',{item=hub.worldZoom and 'chapter_'..tostring(hub.campaignChapter)or 'world'});hub:drawPage()end})
+    if not map then return false end
+    K.box(map,x,y,w,h)
+    local big=fmt=='pc'and 40 or 22;local pad=fmt=='pc'and 16 or 8
+    WorldConquest.share(map,v,pad,pad-4,big)
+    local th=fmt=='pc'and 32 or 26;WorldConquest.tomorrow(map,hub,w-pad,h-pad-th,th)
+    return true
+end
 local function stageCard(hub,root,W,H,fmt,v,s)
     local ch=Campaign.chapter(s.chapter);local mask=(v.stars or {})[s.id]or 0;local open=unlocked(v,s.id);local first=mask%2==0
     local x,y,w,h,pad
     if fmt=='pc'then x,y,w,h,pad=940,228,W-940-40,H-228-40,20 elseif fmt=='ph'then x,y,w,h,pad=420,98,W-420-12,H-98-10,10 else x,y,w,h,pad=12,445,351,156,13 end
     local card=K.panel(root,'StageCard','card',8);K.box(card,x,y,w,h)
-    local mapW=fmt=='pt'and 72 or w-pad*2;local mapH=fmt=='pc'and 200 or fmt=='ph'and 78 or 72
+    local mapW=fmt=='pt'and 72 or w-pad*2;local mapH=fmt=='pc'and math.clamp(h-pad*2-232,72,200)or fmt=='ph'and 78 or 72
     local map=K.map(card,'Map',s.map,mapW,mapH,6);K.box(map,pad,pad,mapW,mapH)
     local tx=fmt=='pt'and pad+mapW+10 or pad;local ty=fmt=='pt'and pad or pad+mapH+(fmt=='pc'and 16 or 8)
     local ns=fmt=='pc'and 24 or fmt=='ph'and 16 or 18
@@ -242,7 +281,10 @@ local function drawCampaign(hub,root,W,H,fmt)
     for _,s in ipairs(Campaign.stages)do if won(v,s.id)then now[s.id]=true;if seen and not seen[s.id]then newly[s.id]=true;count+=1 end end end
     if count>1 then newly={}end
     if (hub.account.progress or {}).campaign~=nil then hub.campaignWonSeen=now end
-    stagePath(hub,content,W,H,fmt,v,list,pick.id,onPick,newly)
+    if not(WorldConquest.load()and worldMap(hub,content,W,H,fmt,v,pick.id,stagePips(hub,content,W,H,fmt,v,list,pick.id,onPick,newly)))then
+        for _,o in ipairs(content:GetChildren())do if o.Name:match('^Stage_')then o:Destroy()end end
+        stagePath(hub,content,W,H,fmt,v,list,pick.id,onPick,newly)
+    end
     cardHolder.card=stageCard(hub,content,W,H,fmt,v,pick)
     Step.once('campaignView','goals','campaignView',{value=v.total or 0})
     return content

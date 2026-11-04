@@ -30,6 +30,8 @@ local function standing(d)if d.area~='campaign'or d.step~='quit'then return nil 
  local r,g=d.position,d.growth_ratio
  return (not r and 'rx'or r==1 and 'r1'or r==2 and 'r2'or r<=5 and 'r3_5'or 'r6p')..'_'..(not g and 'gx'or g<.15 and 'low'or g>=.85 and 'full'or 'mid')end
 local function standingRow(d)if not standing(d)then return -1 end;return type(d.value)=='number'and d.value>=0 and d.value or 0 end
+local function reachRow(d)return type(d.reach)=='string'and type(d.day_index)=='string'and 1 or -1 end
+local function returnRow(d)return not d.first_visit and reachRow(d)or -1 end
 local function idleBucket(d)local t=d.idle_seconds;return not t and 'unknown'or t<10 and 'lt10s'or t<20 and 'lt20s'or t<30 and 'lt30s'or t<60 and 'lt60s'or t<180 and 'lt3m'or 'ge3m'end
 M.buckets={humans=humans,matches=matches,gap=gap,fps=fps,ping=ping,memory=memory,party=party,wait=waitBucket,minutes=minutes,pay=pay}
 M.views={
@@ -42,7 +44,7 @@ M.views={
  device_profile={{'SC_Device','device_class','viewport_bucket'},{'SC_Locale','locale','device_class'}},
  client_health_window={{'SC_ClientFps','phase',fps},{'SC_FpsDevice','device_class',fps},{'SC_PingBucket','input_mode',ping},{'SC_ClientMemory','phase',memory}},
  request_result={{'SC_Request',request,outcome}},
- visit_closed={{'SC_ExitPhase','phase',matches},{'SC_SessionSeconds','phase',matches,'elapsed_seconds'},{'SC_ExitStage','journey','where'},{'SC_ExitMinutes','journey',minutes},{'SC_FirstSession',firstMinutes,'journey',firstRow}},
+ visit_closed={{'SC_ExitPhase','phase',matches},{'SC_SessionSeconds','phase',matches,'elapsed_seconds'},{'SC_ExitStage','journey','where'},{'SC_ExitMinutes','journey',minutes},{'SC_FirstSession',firstMinutes,'journey',firstRow},{'SC_DayReach','day_index','reach',reachRow}},
  queue_exit={{'SC_QueueWait','result',waitBucket}},
  capture_observed={{'SC_FirstCaptureSeconds','mode','input_mode','elapsed_seconds'}},
  tutorial_step={{'SC_TutorialStep','stage','result'}},
@@ -66,7 +68,7 @@ M.views={
  flow_step={{'SC_Elim',elimCause,'journey',elimRow},{'SC_ElimIdle',elimCause,idleBucket,elimRow},{'SC_Flow','area','step'},{'SC_FlowItem',areaStep,'item',function(d)return d.item and 1 or -1 end},{'SC_FlowResult',areaStep,outcomeReason,hasResult},{'SC_FlowValue',areaStep,'item',hasValue},{'SC_Pay','sku',pay,payRow},{'SC_PayWhere',payWhere,'origin',payWhereRow},
   {'SC_CampaignStage','item',campaignOut,campaignRow},{'SC_CampaignQuit','item',standing,standingRow}},
  commerce_grant_result={{'SC_CommerceGrant','sku','result'}},
- return_observed={{'SC_Return',gap,'result'}},
+ return_observed={{'SC_Return',gap,'result'},{'SC_ReturnReach','day_index','reach',returnRow}},
  profile_load_result={{'SC_ProfileLoadMs','result','operation','duration_ms'}},
  action_flow={{'SC_ActionFlow','stage','action'}},
  command_feedback_seen={{'SC_CommandFeedback','action','result'}},

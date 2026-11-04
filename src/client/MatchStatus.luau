@@ -37,7 +37,7 @@ function M:update(state)
         local ladder=state.ranked=='2v2'and '랭크 2대2'or state.ranked=='1v1'and '랭크 1대1'or state.ranked=='ffa'and '랭크 개인전'or nil
         local cw=type(state.clanwar)=='table'and state.clanwar or {size=2,count=2}
         local war=state.clanwar and ((cw.count or 2)>2 and string.format('클랜전 %d파전 %d인',cw.count,cw.size or 2)or string.format('클랜전 %d대%d',cw.size or 2,cw.size or 2))
-        local mode=war or state.queueMode=='custom'and '커스텀'or (state.ranked or state.queueMode=='ranked')and (ladder or '랭크')or state.multiplayer and '공식 전장'or '혼자 하기'
+        local mode=war or state.queueMode=='custom'and '커스텀'or (state.ranked or state.queueMode=='ranked')and (ladder or '랭크')or state.multiplayer and '공식 전장'or '싱글플레이'
         local difficulty=not(state.clanwar or state.ranked or state.queueMode=='ranked')and require(script.Parent.Parent.Core.MatchOptions).difficultyLabels[(state.settings or {}).difficulty]or ''
         self.mode.Text=self.lastMinute and self.mode.Text or require(script.Parent.Localization).text(mode)..(difficulty~=''and ' '..require(script.Parent.Localization).text(difficulty)or '')
     end

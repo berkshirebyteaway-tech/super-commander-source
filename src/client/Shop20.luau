@@ -98,6 +98,9 @@ end
 
 local function action(ctx,kind)
     local billing,shop=ctx.billing,ctx.shop;local busy=shop.busy;local count=held(billing,kind)
+    if kind=='epic'and FreeDraw.gift(billing)then
+        return {key='GiftOpen',style='pri',label='무료 열기',enabled=not busy,run=function()step('crateOpen',{item='epicGift'});shop:drawSupply('epic','gift')end}
+    end
     if billing.testingAvailable and not(kind=='basic'and FreeDraw.ready(billing))then
         if count>0 then return {key='TestOpen',style='open',label=string.format('열기 (테스트 %d)',count),enabled=not busy,run=function()step('crateOpen',{item=kind});shop:drawSupply(kind,'studio')end}end
         return {key='TestGrant',style='plain',label='테스트 보급 받기',enabled=not busy,run=function()shop:run(function()shop:request('supplyTestGrant')end)end}

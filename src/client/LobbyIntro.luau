@@ -48,8 +48,8 @@ function M.play(parent,displayName,finalCFrame,focus,onDone)
     end
     local kicker,kickerStroke=sticker("Kicker","TAKE THE MAP!",18,Color3.fromRGB(255,216,74),-5,-ws-40)
     pcall(function()kicker.Font=Enum.Font.LuckiestGuy end)
-    local top=label(overlay,"TitleTop","SUPER",ws,Color3.fromRGB(255,216,74));top.Position=UDim2.new(cx,0,ay,-math.floor(ws*.5));top.Size=UDim2.fromOffset(640,ws)
-    local title=label(overlay,"Title","COMMANDER",ws,Color3.new(1,1,1));title.Position=UDim2.new(cx,0,ay,math.floor(ws*.45));title.Size=UDim2.fromOffset(640,ws)
+    local top=label(overlay,"TitleTop","WORLD PVP",math.floor(ws*.5),Color3.fromRGB(255,216,74));top.Position=UDim2.new(cx,0,ay,-math.floor(ws*.5));top.Size=UDim2.fromOffset(640,ws)
+    local title=label(overlay,"Title","ROFRONT",ws,Color3.new(1,1,1));title.Position=UDim2.new(cx,0,ay,math.floor(ws*.45));title.Size=UDim2.fromOffset(640,ws)
     for _,o in ipairs({top,title})do BrandMark.word(o,math.max(3,math.floor(ws*.12)));o.Ink.Transparency=1;o.Rotation=-3 end
     local titleScale=UI.make("UIScale",title,{Scale=1.18});local topScale=UI.make("UIScale",top,{Scale=1.25})
     local L=require(script.Parent.Localization)

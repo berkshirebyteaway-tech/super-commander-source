@@ -61,7 +61,7 @@ function M:update(state,factions)
     if not self.frame.Visible then return end
     self.target=factions[self.targetId];local f=self.target
     local name=f and L.nation(f) or '—';if self.name.Text~=name then self.name.Text=name;UI.fit(self.name,self.name.Size.X.Offset,18,12)end
-    self.avatar.Image=f and f.userId and f.userId>0 and 'rbxthumb://type=AvatarHeadShot&id='..f.userId..'&w=150&h=150'or '';self.npc.Visible=self.avatar.Image==''
+    local ai=require(script.Parent.RankedAIFace).apply(self.avatar,f and f.userId);self.npc.Visible=not ai and self.avatar.Image==''
     self.relation.Text=not f and '대상 탈락'or f.teammate and '같은 팀'or f.allied and ('동맹 '..math.max(0,math.ceil(((f.allianceExpires or state.tick)-state.tick)/10))..'초')or f.incomingRequest and '동맹 요청 받음'or f.requested and '동맹 응답 대기'or '상대'
     self:refreshStats()
     local sig=table.concat({tostring(f and f.allied),tostring(f and f.teammate),tostring(f and f.incomingRequest),tostring(f and f.requested),state.phase},':')

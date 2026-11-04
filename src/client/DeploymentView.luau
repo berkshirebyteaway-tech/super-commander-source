@@ -14,7 +14,7 @@ local C=K.colors
 local M={};M.__index=M
 local function SF()return require(script.Parent.LobbyHomeB).START_FLOW end
 local function clock(n)local s=math.max(0,math.ceil(n or 0));return string.format('%d:%02d',s//60,s%60)end
-local function title(f)return f.kind=='world'and '난입전'or (Maps.meta(f.rules.map)or {}).label or f.rules.map end
+local function title(f)return f.kind=='world'and '난입전'or f.rules and f.rules.pending and '매칭'or (Maps.meta(f.rules.map)or {}).label or f.rules.map end
 local function modeKey(f)return f.rules.mode=='teams'and 'teams'or f.rules.mode=='coop'and 'coop'or 'ffa'end
 local function teamWord(r,plan)
     if r.teamFormat==TeamFormat.humansVsNations then return '사람 대 국가'end
@@ -41,7 +41,7 @@ function M.new(parent,callbacks)
     K.make('TextButton',self.sheet,{Name='Catch',Text='',BackgroundTransparency=1,AutoButtonColor=false,Size=UDim2.fromScale(1,1),ZIndex=1})
     self.list=S.scroll(self.sheet,'Fields',0,0,10,10);self.list.ZIndex=2
     self.empty=K.text(self.list,'Empty','전장 목록을 확인하는 중…',15,C.muted,700,Enum.TextXAlignment.Center);self.empty.TextWrapped=true
-    self.emptyCreate=K.button(self.list,'EmptyCreate',{kind='out',text='협동 방 만들기',size=15},function()if self.party and #self.party.users>1 then callbacks.partyCoop(false)else callbacks.create(self.sub=='pvp'and 'ffa'or 'coop')end end)
+    self.emptyCreate=K.button(self.list,'EmptyCreate',{kind='out',text='협동 방 만들기',size=15},function()if self.party and #self.party.users>1 then callbacks.partyCoop(false)else callbacks.create(self.filter~='custom'and(self.sub=='pvp'and 'ffa'or 'coop')or nil)end end)
     self.emptyCreate.button.Visible=false
     self.trophyRow=require(script.Parent.TrophyRankRow).new(self.list,{
         find=callbacks.rankFind,inspect=callbacks.rankInspect,refuse=callbacks.rankRefuse,restore=callbacks.matchRoom,
@@ -69,7 +69,7 @@ function M:setOpen(open)
     self:render()
     if self.callbacks.toggled then self.callbacks.toggled(open)end
 end
-function M:open(filter,id)self.filter=SF()and filter~='ranked'and 'all'or filter or 'all';self.sub='all';self.selected=id;self:setOpen(true)end
+function M:open(filter,id)self.filter=SF()and filter~='ranked'and filter~='custom'and 'all'or filter or 'all';self.sub='all';self.selected=id;self:setOpen(true)end
 function M:setFilter(filter)
     if filter=='watch'then self.callbacks.watch();return end
     if filter=='ranked'then self.callbacks.ranked();return end
@@ -126,6 +126,7 @@ function M:joinWorld()
     if self.callbacks.world then self.callbacks.world()end
 end
 function M:worldField()
+    if require(script.Parent.Parent.Core.BattlefieldRules).matchOnly then return nil end
     local w=self.world;if not w or self.filter=='ranked'or self.filter=='custom'or self.sub=='coop'then return nil end
     local f=self.worldRow or {id='world',kind='world',phase='running',rules={map='world',mode='ffa',maximum=20}};self.worldRow=f
     f.count=w.humans or 0;f.rules.maximum=w.seats or 20
@@ -322,11 +323,11 @@ function M:render()
     local world=self:worldField();self.lookup.world=world
     if self.watchButton then
         local n=self.liveCount or 0
-        if self.watchCount~=n then self.watchCount=n;self:buildHead()end
+        if self.watchCount~=n or self.headFilter~=self.filter then self.watchCount=n;self:buildHead()end
     end
     local pick=self:quickPick()
     if self.quick then
-        self.quick.button.Visible=pt and not ranked and not self.queue and pick~=nil
+        self.quick.button.Visible=pt and not ranked and self.filter~='custom'and not self.queue and pick~=nil
         self.quick:setEnabled(not self.busy and pick~=nil)
     end
     local listTop=self.listTop+(pt and self.quick and self.quick.button.Visible and 68 or 0)
@@ -372,7 +373,7 @@ function M:render()
     K.box(self.empty,0,entryHeight+16,lw,40)
     local ec=index==0 and (self.filter=='custom'or grouped)and not self.directoryError and not ranked
     self.emptyCreate.button.Visible=ec
-    if ec then self.emptyCreate:setText(self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),entryHeight+64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
+    if ec then self.emptyCreate:setText(self.filter=='custom'and not grouped and '방 만들기'or self.sub=='pvp'and not grouped and '대전 방 만들기'or '협동 방 만들기');self.emptyCreate:place(math.floor((lw-220)/2),entryHeight+64,220,44);self.emptyCreate:setEnabled(not self.busy and not follower)end
     S.canvas(self.list,index==0 and entryHeight+(ec and 116 or 64)or y-gap)
     if want then
         if not self.frame.Visible or self.leavingNow or self.entering then
@@ -429,7 +430,7 @@ function M:buildHead()
     if self.head then for _,o in ipairs(self.head)do o:Destroy()end end
     local parent=self.sheet;local made={}
     local before={};for _,o in ipairs(parent:GetChildren())do before[o]=true end
-    local h=S.head(parent,fmt,sw,'공식 전장',function()self:setOpen(false)end)
+    self.headFilter=self.filter;local h=S.head(parent,fmt,sw,self.filter=='custom'and '커스텀'or '공식 전장',function()self:setOpen(false)end)
     local n=self.liveCount or 0;self.watchCount=n
     local watch,ww=S.headButton(parent,'Watch',fmt,'watch','관전',function()self.callbacks.watch()end,n>0 and tostring(n)or nil,'live')
     watch:place(h.right-ww,h.y+(h.h-watch.h)/2,ww,watch.h);local right=h.right-ww-(pt and 8 or 10)

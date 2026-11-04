@@ -203,13 +203,13 @@ function M:layout2(x,y,width)
             for _,l in ipairs({b.key,b.cost,b.count})do if K.fonts.num then l.FontFace=K.fonts.num end;l.BackgroundTransparency=1 end
             local pc=b.cost:FindFirstChildOfClass('UICorner');if pc then pc.CornerRadius=UDim.new(0,0)end
             if kind=='pc'then
-                UI.box(b.key,6,4,10,15);b.key.TextSize=10;b.key.TextXAlignment=Enum.TextXAlignment.Left
+                UI.box(b.key,6,4,10,15);b.key.TextSize=11;b.key.TextXAlignment=Enum.TextXAlignment.Left
                 UI.box(b.art,math.floor((cw-15)/2),3,15,15)
-                UI.box(b.cost,0,19,cw,15);b.cost.TextSize=10;b.cost.TextXAlignment=Enum.TextXAlignment.Center
+                UI.box(b.cost,0,19,cw,15);b.cost.TextSize=11;b.cost.TextXAlignment=Enum.TextXAlignment.Center
                 local n=tonumber(b.count.Text)or 0;b.count.Visible=n>=1;b.count.TextSize=11;UI.box(b.count,cw-14,4,10,15);b.count.TextXAlignment=Enum.TextXAlignment.Right
             elseif kind=='ph'then
-                local pw=math.min(cw-30,K.width(b.cost.Text,10,b.cost)+2);local gx=math.floor((cw-(15+3+pw))/2)
-                UI.box(b.art,gx,math.floor((v.ch-15)/2),15,15);UI.box(b.cost,gx+18,math.floor((v.ch-15)/2),pw,15);b.cost.TextSize=10;b.cost.TextXAlignment=Enum.TextXAlignment.Left
+                local pw=math.min(cw-30,K.width(b.cost.Text,11,b.cost)+2);local gx=math.floor((cw-(15+3+pw))/2)
+                UI.box(b.art,gx,math.floor((v.ch-15)/2),15,15);UI.box(b.cost,gx+18,math.floor((v.ch-15)/2),pw,15);b.cost.TextSize=11;b.cost.TextXAlignment=Enum.TextXAlignment.Left
                 local n=tonumber(b.count.Text)or 0;b.count.Visible=n>=1;b.count.TextSize=11;UI.box(b.count,cw-12,1,10,12);b.count.TextXAlignment=Enum.TextXAlignment.Right
             else
                 UI.box(b.art,math.floor((cw-17)/2),2,17,17)

@@ -117,7 +117,7 @@ function M:update(state,visible,incoming,ownColor)
     local inMatch=state~=nil and state.phase~="menu";self.active=inMatch
     local byUser={}
     for _,f in ipairs(state and state.factions or {})do if f.userId then byUser[tonumber(f.userId)]=f end end
-    for _,player in ipairs(Players:GetPlayers())do
+    for _,player in ipairs(require(script.Parent.CommanderRoster).list())do
         local c=player.Character;local root=c and c:FindFirstChild("HumanoidRootPart")
         local f=player==Players.LocalPlayer and state and state.player or byUser[player.UserId]
         local show=inMatch and not(state.drop and state.drop.active)and root~=nil and f~=nil and (player==Players.LocalPlayer or visible(player))
@@ -146,7 +146,8 @@ function M:update(state,visible,incoming,ownColor)
         t.avatar.Visible=not applied;t.avatarRing.Color=color
         if not applied and t.avatar:GetAttribute("UserId")~=player.UserId then
             local avatar,userId=t.avatar,player.UserId;avatar:SetAttribute("UserId",userId)
-            Avatar.request(userId,function(url) if avatar.Parent and avatar:GetAttribute("UserId")==userId then avatar.Image=url end end)
+            if require(script.Parent.RankedAIFace).isAI(userId)then require(script.Parent.RankedAIFace).apply(avatar,userId)
+            else Avatar.request(userId,function(url) if avatar.Parent and avatar:GetAttribute("UserId")==userId then avatar.Image=url end end)end
         end
         t.name.Text=player.DisplayName
         Badge.update(t.benefit,player:GetAttribute('CommanderPermanent'),player:GetAttribute('CommanderVIP'))

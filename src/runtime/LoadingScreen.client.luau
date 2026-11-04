@@ -57,9 +57,9 @@ local function tape(parent,name,value,size,rotation,order,fill)
     make("UIPadding",t,{PaddingLeft=UDim.new(0,10),PaddingRight=UDim.new(0,10),PaddingTop=UDim.new(0,2)});make("UICorner",t,{CornerRadius=UDim.new(0,6)});inked(t,3,true)
     return t
 end
-face(tape(column,"Kicker",korean and "슈퍼 커맨더" or "TAKE THE MAP!",short and 13 or 17,-5,1),Enum.Font.LuckiestGuy)
-local brandTop=face(inked(text("BrandTop","SUPER",brandSize,yellow,2),math.max(3,math.floor(brandSize*.12))),Enum.Font.LuckiestGuy)
-local brand=face(inked(text("Brand","COMMANDER",brandSize,Color3.new(1,1,1),3),math.max(3,math.floor(brandSize*.12))),Enum.Font.LuckiestGuy)
+face(tape(column,"Kicker",korean and "지도를 차지해요!" or "TAKE THE MAP!",short and 13 or 17,-5,1),Enum.Font.LuckiestGuy)
+local brandTop=face(inked(text("BrandTop","WORLD PVP",math.floor(brandSize*.5),yellow,2),math.max(3,math.floor(brandSize*.12))),Enum.Font.LuckiestGuy)
+local brand=face(inked(text("Brand","ROFRONT",brandSize,Color3.new(1,1,1),3),math.max(3,math.floor(brandSize*.12))),Enum.Font.LuckiestGuy)
 for _,o in ipairs({brandTop,brand})do o.Rotation=-3;o.Size=UDim2.new(1,0,0,brandSize-2)end
 local seal=face(tape(column,"Seal","NO PAY-TO-WIN",short and 12 or 15,3,4,paper),Enum.Font.FredokaOne)
 local barW=narrow and 260 or short and 260 or 420

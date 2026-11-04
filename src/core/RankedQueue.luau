@@ -1,5 +1,6 @@
 local Rules=if script then require(script.Parent.RankedRules)else require('./RankedRules')
 local War=if script then require(script.Parent.ClanWarRules)else require('./ClanWarRules')
+local AI=if script then require(script.Parent.RankedAI)else require('./RankedAI')
 local M={}
 M.windows={{0,100},{15,200},{30,350},{45,500},{60,math.huge}}
 M.duoGap=500
@@ -17,7 +18,7 @@ function M.entries(s,ladder)
     local by,list={},{}
     for uid,t in pairs(s.tickets)do if not t.match and t.field==M.field(ladder)then
         local key=t.group or uid;local e=by[key]
-        if not e then e={key=key,users={},rp=0,joined=t.joined,group=t.group,clan=t.clan,previous=t.previous,window=t.window};by[key]=e;table.insert(list,e)end
+        if not e then e={key=key,users={},rp=0,joined=t.joined,group=t.group,clan=t.clan,previous=t.previous,window=t.window,ai=t.ai};by[key]=e;table.insert(list,e)end
         table.insert(e.users,tonumber(uid));e.rp+=t.rp or Rules.start;e.joined=math.min(e.joined,t.joined)
     end end
     for _,e in ipairs(list)do e.rp=e.rp/#e.users;table.sort(e.users)end
@@ -64,6 +65,13 @@ function M.pickTrophy(list,now)
         end
     end
     return {a,best}
+end
+function M.copyAI(p)return AI.copy(p)end
+function M.pickAI(list,now)
+    for _,e in ipairs(list)do
+        if #e.users==1 and AI.valid(e.ai)and now-e.joined>=e.ai.after then return e end
+    end
+    return nil
 end
 local function teamsFor(ladder,group)
     local teams={}
@@ -112,14 +120,16 @@ function M.match(s,now,nextMatch,maxMatches,host)
     local function size(t)local n=0;for _,m in pairs(t)do if m.phase~='cancelled'then n+=1 end end;return n end
     for index,ladder in ipairs(M.queues)do
         while size(s.matches)<maxMatches do
-            local group=M.pick(M.entries(s,ladder),ladder,now);if not group then break end
+            local list=M.entries(s,ladder);local group=M.pick(list,ladder,now);local ai
+            if not group and ladder=='r1v1'then local e=M.pickAI(list,now);if e then group={e};ai=AI.copy(e.ai)end end
+            if not group then break end
             s.seed=(s.seed*48271)%2147483647
             local seats=0;for _,e in ipairs(group)do seats+=#e.users end
             local war=ladder=='clanwar'
             local rules=war and War.rules(#group,#group[1].users,s.seed)or Rules.rules(M.rulesLadder(ladder),s.seed,seats)
             local mid=nextMatch..'-r'..index..'-'..(s.serial+1);s.serial+=1
             local m={creator=host,kind='ranked',phase='reserving',expires=now+25,rules=rules,field=M.field(ladder),revision=0,members={},groups={},leaders={},teams={},ratings={},clanwar=war or nil,clans=war and {}or nil,warSize=war and #group[1].users or nil,warCount=war and #group or nil,
-                trophySolo=ladder=='r1v1'or nil,foundAt=ladder=='r1v1'and now or nil,departAt=ladder=='r1v1'and now+Rules.trophy.countdown or nil}
+                trophySolo=ladder=='r1v1'or nil,foundAt=ladder=='r1v1'and now or nil,departAt=ladder=='r1v1'and now+Rules.trophy.countdown or nil,ai=ai}
             for uid,team in pairs(teamsFor(war and 'clanwar'or M.rulesLadder(ladder),group))do m.teams[tostring(uid)]=team end
             for _,e in ipairs(group)do for _,id in ipairs(e.users)do local uid=tostring(id);local t=s.tickets[uid]
                 t.match=mid;m.members[uid]=t.token;m.groups[uid]=t.group;m.ratings[uid]=t.rp or Rules.start;if t.group then m.leaders[t.group]=t.leader end
@@ -130,6 +140,7 @@ function M.match(s,now,nextMatch,maxMatches,host)
     end
 end
 function M.viable(m,arrived)
+    if m.ai then return arrived==m.rules.maximum-1 end
     if m.rules.ranked=='ffa'and not m.clanwar then return arrived>=Rules.minimum.ffa end
     return arrived==m.rules.maximum
 end
@@ -144,6 +155,7 @@ function M.status(s,uid,t,now)
         if m then for other in pairs(m.members)do if other~=uid then local x=s.tickets[other]
             table.insert(cards,{userId=tonumber(other),name=x and x.name or '',t=m.ratings[other]or 0})
         end end end
+        if m and m.ai then table.insert(cards,{userId=m.ai.userId,name=m.ai.name,t=m.ai.t,look=m.ai.look})end
     end
     return {mode='ranked',ladder=ladder,field=t.field,rules=m and m.rules or nil,count=m and seats or waiting,max=seats,minimum=ladder=='clanwar'and seats or Rules.minimum[M.rulesLadder(ladder)]or seats,
         joined=t.joined,waited=math.max(0,now-t.joined),window=trophy and M.trophyWindow(now-t.joined,t.window)or M.window(now-t.joined),partyCount=t.group and party or nil,warSize=ladder=='clanwar'and party or nil,

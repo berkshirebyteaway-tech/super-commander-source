@@ -30,8 +30,8 @@ function M.fill(frame)
 end
 function M.pulse(stroke,color)
     if not stroke then return end
-    local base=stroke.Color;stroke.Thickness=2;stroke.Transparency=0;if color then stroke.Color=color end
-    game:GetService('TweenService'):Create(stroke,TweenInfo.new(.35,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Thickness=1}):Play()
+    local base=stroke.Color;local baseT=stroke:GetAttribute('RestT');if baseT==nil then baseT=stroke.Transparency;stroke:SetAttribute('RestT',baseT)end;stroke.Thickness=2;stroke.Transparency=0;if color then stroke.Color=color end
+    game:GetService('TweenService'):Create(stroke,TweenInfo.new(.35,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Thickness=1,Transparency=baseT}):Play()
     if color then task.delay(.35,function()stroke.Color=base end)end
 end
 return M

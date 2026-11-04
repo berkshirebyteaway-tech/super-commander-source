@@ -53,7 +53,6 @@ function M.new(lobby)
     self.mark=line(self.start,'Mark','»',38,UI.colors.bg);self.mark.TextXAlignment=Enum.TextXAlignment.Center;Theme.display(self.mark)
     self.glow=self.start:FindFirstChildOfClass('UIStroke')
     if self.glow then self.glow.Color=UI.colors.ice;self.glow.Thickness=2
-        self.pulse=Tween:Create(self.glow,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Transparency=.85});self.pulse:Play()
     end
     self.quick=glass(UI.button(f,'QuickJoin','',function()self:quickJoin()end),.2)
     self.quickTitle=line(self.quick,'Title','빠른 참가',18,UI.colors.ink,true);self.quickTitle.TextXAlignment=Enum.TextXAlignment.Center
@@ -156,7 +155,7 @@ function M:refresh()
     local op=Daily.current((l.account.progress or {}).dailyOp,os.time())
     do local p=l.account.progress or {};local streak=p.login and p.login.streak or 0
         l.medals.Text=UI.number(p.medals or 0)..(streak>0 and '  🔥'..streak or '');l.medals.TextWrapped=false end
-    FreeDraw.dot(l.navButtons.shop,FreeDraw.ready(l.account.billing))
+    FreeDraw.dot(l.navButtons.shop,FreeDraw.any(l.account.billing))
     if l.firstLesson and not q then title,sub='첫 작전','튜토리얼, 점령과 병력 기초'
     elseif q then
         local left=q.remaining and math.max(0,q.remaining-(os.clock()-(l.queueUpdated or os.clock())))
@@ -333,7 +332,7 @@ function M:layout(w,h)
         if narrow and icon and icon.Visible and Icons.available(icon)then RedDot.onIcon(b,icon)
         else local word=TextService:GetTextSize(b.Text,b.TextSize,b.Font,Vector2.new(400,th));local pl=pad and pad.PaddingLeft.Offset or 0;local pt=pad and pad.PaddingTop.Offset or 0
             RedDot.anchor(b,pl+(tw-pl-word.X)/2,pt+(th-pt-word.Y)/2,word.X)end end
-    FreeDraw.dot(l.navButtons.shop,FreeDraw.ready(l.account.billing))
+    FreeDraw.dot(l.navButtons.shop,FreeDraw.any(l.account.billing))
     local cw=narrow and w-24 or short and 232 or 300
     local sh=narrow and 68 or short and 60 or 76;local selH=short and 40 or narrow and 44 or 48
     local sx=narrow and 12 or short and 12 or 24

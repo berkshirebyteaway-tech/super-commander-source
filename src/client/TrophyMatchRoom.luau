@@ -60,8 +60,7 @@ local function paintCard(c,data,mine,view,animate)
         c.tier=tier;c.emblem=Emblem.create(c.body,'Emblem',c.size,tier,nil);K.box(c.emblem,math.floor((c.w-c.size)/2),c.ey,c.size,c.size)
     end
     local fresh=c.userId~=data.userId;c.userId=data.userId
-    local avatar=data.userId and data.userId>0 and 'rbxthumb://type=AvatarHeadShot&id='..tostring(data.userId)..'&w=150&h=150'or ''
-    if c.face.Image~=avatar then c.face.Image=avatar end
+    require(script.Parent.RankedAIFace).apply(c.face,data.userId)
     local name=data.name or '지휘관';local value=Theme.commas(data.t or 0)
     c.name.Text=name;c.value.Text=value
     if c.nameKey~=name then
@@ -153,7 +152,7 @@ function M.layout(room,W,H)
             if remaining>0 then ui.barTween=Tween:Create(ui.bar.value,TweenInfo.new(remaining,Enum.EasingStyle.Linear),{Value=0});ui.barTween:Play()end
         end
     elseif ui.barTween then ui.barTween:Cancel();ui.barTween=nil;ui.deadline=nil;ui.lastCount=nil end
-    local moving=room.open and not found and not room.reduced and not K.reduced
+    local moving=false
     if moving and not ui.radarTween then
         ui.radarTween=Tween:Create(ui.radarArm,TweenInfo.new(2,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1),{Rotation=ui.radarArm.Rotation+360});ui.radarTween:Play()
     elseif not moving and ui.radarTween then ui.radarTween:Cancel();ui.radarTween=nil;ui.radarArm.Rotation=0 end

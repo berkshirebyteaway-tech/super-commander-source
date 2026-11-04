@@ -56,8 +56,8 @@ end
 local function paint(v,it)
     v.item=it;local pc=v.pc;local f=v.frame
     local renew=it.kind=='renew'
-    v.face.Image=it.userId and it.userId>0 and('rbxthumb://type=AvatarHeadShot&id='..it.userId..'&w=150&h=150')or ''
-    v.npc.Visible=v.face.Image==''
+    local ai=require(script.Parent.RankedAIFace).apply(v.face,it.userId)
+    v.npc.Visible=not ai and v.face.Image==''
     v.name.Text=it.name or '';v.name:SetAttribute('LocalizationSkip',true)
     v.hand.Visible=not(renew and not pc);v.again.Visible=renew and not pc
     if pc then
@@ -133,7 +133,7 @@ function M.render()
     local cap=pc and 2 or 1;local shown=math.min(#list,cap)
     local _,clockBottom=X.clock(panel,fmt)
     local y=clockBottom+(pc and 12 or 6)
-    if fmt=='pt'then y=math.max(y,X.columnBottom()+8)end
+    if fmt=='pt'then y=math.max(y,X.columnBottom()+8)end;local chip=panel:FindFirstChild('CampaignTask20');if chip and chip.Visible then y=math.max(y,chip.Position.Y.Offset+chip.Size.Y.Offset+6)end
     if inst.y and inst.y~=y and c.Visible and not K.reduced then tween(c,.12,{Position=UDim2.fromOffset(12,y)})else c.Position=UDim2.fromOffset(12,y)end
     inst.y=y
     local want={}

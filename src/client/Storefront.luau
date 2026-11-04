@@ -134,7 +134,7 @@ function S:drawSupply(kind,currency)
         local r=self:request('supplyDraw',pending)
         if r and r.ok then
             self.pendingDraw=nil;self.lastSupply=r.result;self.supplyArrival=r.result and r.result.requestId;self.redraw()
-            if r.result then require(script.Parent.SupplyReveal).open(self,r.result,function()self:drawSupply(kind,currency=='free'and 'medals'or currency)end)end
+            if r.result then require(script.Parent.SupplyReveal).open(self,r.result,function()self:drawSupply(kind,currency=='free'and 'medals'or currency=='gift'and 'ticket'or currency)end)end
         elseif r then self.pendingDraw=nil;Telemetry.step('gacha','drawFailed',{sku=kind,result='rejected'})
         else Telemetry.step('gacha','drawFailed',{sku=kind,result='failed',reason='network'})end
     end)

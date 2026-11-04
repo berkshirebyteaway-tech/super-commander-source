@@ -262,8 +262,8 @@ function M:place(x,y,viewW,viewH)
     self.frame.Position=UDim2.fromOffset(math.max(8,px),math.max(8,py));self.docked=false
 end
 local MET={
-    pc={w=300,wmax=360,px=11,py=9,r1=28,r2=24,r3=22,bar=18,name=15,num=15,cap=12,icon=15,chip=20,ts=12,close=28,xi=16,group=16,bi=14,bnum=12,bgap=10,minName=96},
-    ph={w=230,wmax=230,px=9,py=7,r1=24,r2=20,r3=20,bar=14,name=13,num=13,cap=11,icon=13,chip=18,ts=11,close=24,xi=14,group=10,bi=14,bnum=12,bgap=8,minName=64},
+    pc={w=300,wmax=360,px=11,py=9,r1=28,r2=24,r3=22,bar=18,name=15,num=15,cap=15,icon=15,chip=20,ts=12,close=28,xi=16,group=16,bi=14,bnum=12,bgap=10,minName=96},
+    ph={w=230,wmax=230,px=9,py=7,r1=24,r2=20,r3=20,bar=14,name=13,num=13,cap=13,icon=13,chip=18,ts=11,close=24,xi=14,group=10,bi=14,bnum=12,bgap=8,minName=64},
 }
 local function attitude20(a)
     if a< -50 then return '적대','enemy' elseif a<0 then return '불신','grey' elseif a<50 then return '중립','grey' end
@@ -297,8 +297,8 @@ function M:tag20(name,icon)
 end
 local function tagWidth(t,text,ts)return X.width(text,ts,t.label)+12+(t.icon and ts+3 or 0)end
 local LOOK={
-    grey=function()return K.colors.raised,1,nil,K.colors.muted end,
-    enemy=function()return K.colors.danger,0,K.colors.danger,X.DANGER_INK end,
+    grey=function()return K.colors.raised,0,nil,K.colors.muted end,
+    enemy=function()return K.colors.danger,0,nil,X.DANGER_INK end,
     traitor=function()return K.colors.danger,.18,nil,X.DANGER_INK end,
     ally=function()return K.colors.ally,.14,nil,K.colors.ally end,
     team=function()return K.team,.14,nil,K.team end,
@@ -502,7 +502,7 @@ function M:show20(ctx)
             g.icon.Visible=true;g.num.Visible=true;g.num.Text=values[i]
             K.box(g.icon,x,y2+math.floor((m.r2-m.icon)/2),m.icon,m.icon);x+=m.icon+5
             K.box(g.num,x,y2,widths[i]+2,m.r2);x+=widths[i]
-            if i==1 and capText then v.cap.Visible=true;v.cap.Text=capText;x+=4;K.box(v.cap,x,y2+1,capW+2,m.r2);x+=capW end
+            if i==1 and capText then v.cap.Visible=true;v.cap.Text=capText;x+=4;K.box(v.cap,x,y2,capW+2,m.r2);x+=capW end
             x+=group
         end
         bottom=y2+m.r2

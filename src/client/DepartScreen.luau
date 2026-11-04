@@ -48,16 +48,16 @@ local function build()
     local y0=t+(pt and n(72)or short and n(28)or n(64))
     local body=make('Frame',cover,{Name='Body',BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=3})
     local kfs,tfs,cfs,ch=pt and n(13)or n(15),pt and n(40)or short and n(34)or n(60),pt and n(12)or n(13),pt and n(24)or n(28)
-    local kicker=text(body,'Kicker',L.text('출격'),kfs,C.accent,900);K.box(kicker,x0,y0,200,kfs+4)
+    local kicker=text(body,'Kicker',L.text(r0.matched and '이번 전장'or '출격'),kfs,C.accent,900);K.box(kicker,x0,y0,200,kfs+4)
     local meta=Maps.meta(r0.map)or {}
     local title=text(body,'Title',L.text(meta.label or r0.map or ''),tfs,C.ink,900);title:SetAttribute('LocalizationSkip',true)
     K.box(title,x0,y0+kfs+n(6),x1-x0,tfs+n(6))
     local chips=make('Frame',body,{Name='Chips',BackgroundTransparency=1});K.box(chips,x0,y0+kfs+n(12)+tfs,x1-x0,ch)
     make('UIListLayout',chips,{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,n(6)),SortOrder=Enum.SortOrder.LayoutOrder})
     local teams=r0.mode=='teams'
-    chip(chips,'Mode',L.text(teams and '팀전'or '개인전'),teams and Tags.colors.teams or Tags.colors.ffa,.8,teams and Color3.fromRGB(196,176,255)or Color3.fromRGB(142,184,255),ch,cfs).LayoutOrder=1
+    if not r0.matched then chip(chips,'Mode',L.text(teams and '팀전'or '개인전'),teams and Tags.colors.teams or Tags.colors.ffa,.8,teams and Color3.fromRGB(196,176,255)or Color3.fromRGB(142,184,255),ch,cfs).LayoutOrder=1 end
     local people=info.members or {}
-    chip(chips,'People',L.text('사람')..' '..#people,C.raised or C.panel,0,C.ink,ch,cfs).LayoutOrder=2
+    chip(chips,'People',r0.matched and string.format(L.text('%d명'),#people)or L.text('사람')..' '..#people,C.raised or C.panel,0,C.ink,ch,cfs).LayoutOrder=2
     if (info.ai or 0)>0 then chip(chips,'AI',string.format('AI %d',info.ai),C.raised or C.panel,0,C.muted,ch,cfs).LayoutOrder=3 end
     local sh,lfs=n(6),pt and n(12)or n(13)
     local sy=v.Y-b-(pt and n(40)or short and n(26)or n(48))-lfs-n(8)-sh

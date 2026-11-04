@@ -275,8 +275,12 @@ end
 function M:setAltView(on)
     if (self.altView==true)==(on==true)then return end;self.altView=on==true;require(script.Parent.TelemetryStep).step('map_ui','altView',{result=self.altView and 'active'or 'inactive'});self.affiliationKey=nil;self:applyAffiliation()
 end
+function M:spotlight(colors)
+    self.spot=colors;self.affiliationKey=nil;self:applyAffiliation()
+end
 function M:applyAffiliation()
     local table_,key=nil,'off';if self.altView then table_,key=self:affiliationFor(self.lastState)end
+    if self.spot then table_,key=self.spot,'spot'end
     if key==self.affiliationKey then return end;self.affiliationKey=key
     for _,c in ipairs(self.chunks or {})do c.raster.affiliation=table_;c.raster.force=true end
 end

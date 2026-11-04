@@ -60,8 +60,8 @@ function M:layout(w,h,obscured,battle)
         self.bar=UI.make('Frame',self.panel,{Name='TimeLeft',BackgroundColor3=UI.colors.gold,BorderSizePixel=0,ZIndex=self.panel.ZIndex+1})
     end
     local c=self.current;local f=c and c.f
-    self.avatar.Image=f and f.userId and f.userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..f.userId..'&w=150&h=150')or ''
-    self.avatar.Visible=self.avatar.Image~=''
+    local ai=require(script.Parent.RankedAIFace).apply(self.avatar,f and f.userId)
+    self.avatar.Visible=ai or self.avatar.Image~=''
     require(script.Parent.DiplomacyInbox).card(self.panel,{edge=self.edge,avatar=self.avatar,name=self.title,line=self.detail,bar=self.bar,fraction=c and c.left/M.WINDOW or 1,
         buttons={self.renew,self.focus,self.ignore},color=UI.colors.gold},w)
     self.title:SetAttribute('LocalizationSkip',true)

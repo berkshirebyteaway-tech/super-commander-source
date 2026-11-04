@@ -169,7 +169,7 @@ end
 M.trophy={schema=1,start=0,base=30,gapDivisor=20,minDelta=20,maxDelta=40,
     bronzeLoss=.5,repeatSeconds=86400,repeatHalfAt=6,repeatZeroAt=11,
     noShowWindow=3600,noShowSeconds={120,300,900},countdown=5,rematchWait=10,
-    normalWindows={{0,300},{15,600},{30,math.huge}},legendTop=100}
+    normalWindows={{0,300},{15,600},{30,math.huge}},legendTop=100,aiRecent=5}
 M.trophyTiers={
     {id='bronze',name='브론즈',min=0,color={201,138,75}},
     {id='silver',name='실버',min=400,color={191,201,212}},
@@ -201,6 +201,12 @@ function M.trophyRead(raw,time)
     p.t=math.max(p.floor,p.t);p.games=trophyNumber(p.games);p.wins=math.min(p.games,trophyNumber(p.wins))
     p.recent=type(p.recent)=='table'and table.clone(p.recent)or {}
     p.ban=type(p.ban)=='table'and table.clone(p.ban)or {}
+    if p.aiGames~=nil or p.aiWins~=nil or p.aiRecent~=nil then
+        p.aiGames=trophyNumber(p.aiGames);p.aiWins=math.min(p.aiGames,trophyNumber(p.aiWins))
+        local recent={};if type(p.aiRecent)=='table'then for _,v in ipairs(p.aiRecent)do if v==0 or v==1 then table.insert(recent,v)end end end
+        while #recent>M.trophy.aiRecent do table.remove(recent,1)end
+        p.aiRecent=recent
+    end
     return p
 end
 function M.trophyDelta(mine,opponent,won)
@@ -237,6 +243,11 @@ function M.trophyApply(raw,result)
     local before=p.t;p.t=math.max(p.floor,p.t+d)
     p.best=math.max(p.best,p.t);p.floor=math.max(p.floor,M.trophyTier(p.t).min)
     p.games+=1;p.wins+=result.won and 1 or 0
+    if result.ai then
+        p.aiGames=(p.aiGames or 0)+1;p.aiWins=(p.aiWins or 0)+(result.won and 1 or 0)
+        p.aiRecent=p.aiRecent and table.clone(p.aiRecent)or {};table.insert(p.aiRecent,result.won and 1 or 0)
+        while #p.aiRecent>M.trophy.aiRecent do table.remove(p.aiRecent,1)end
+    end
     table.insert(p.recent,{o=tostring(result.opponents[1]),t=result.time})
     p.recent=trophyRecent(p.recent,result.time)
     return p,p.t-before

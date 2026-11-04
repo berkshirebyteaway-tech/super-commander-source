@@ -22,6 +22,8 @@ local Billing=require(script.Parent.LaunchBilling)
 local Sale=require(pack.Core.LaunchSale)
 local Guards=require(pack.Core.AbuseGuards)
 local Halloween=require(pack.Core.HalloweenEvent)
+local ReturnReach=require(pack.Core.ReturnReach)
+local Supply=require(pack.Core.SupplyRules)
 local S={};S.__index=S
 local messages={
     ["busy"]="저장 중",
@@ -145,9 +147,12 @@ function S:load(player)
         pcall(function()for key,v in pairs(type(a.profile.preferences)=='table'and a.profile.preferences or {})do if type(v)=='boolean'or type(v)=='number'then
             self.analytics:flow(player,'settings','snapshot',{item=key,active=type(v)=='boolean'and v or nil,value=type(v)=='number'and v or nil,result='ok'})
         end end end)
+        local reach,day
         pcall(function()local o=a.profile.outgame;local pvp=0;for _,k in ipairs({'pvp','coop'})do local st=type(o.stats)=='table'and o.stats[k];pvp+=type(st)=='table'and tonumber(st.games)or 0 end
-            self.analytics:journeyProfile(player,{new=observed.new==true,basics=o.basicsComplete==true,pvpGames=pvp})end)
-        self.analytics:emit(player,'return_observed',{first_visit=observed.new,elapsed_seconds=type(observed.previous)=='table'and math.max(0,os.time()-(observed.previous.lastAt or os.time()))or nil,result=observed.previous and 'ok'or 'unknown'})
+            reach=ReturnReach.reach(type(o.campaign)=='table'and o.campaign.stars,pvp)
+            day=ReturnReach.day(type(observed.previous)=='table'and observed.previous.firstAt or nil)
+            self.analytics:journeyProfile(player,{new=observed.new==true,basics=o.basicsComplete==true,pvpGames=pvp,reach=reach,day=day})end)
+        self.analytics:emit(player,'return_observed',{first_visit=observed.new,elapsed_seconds=type(observed.previous)=='table'and math.max(0,os.time()-(observed.previous.lastAt or os.time()))or nil,result=observed.previous and 'ok'or 'unknown',reach=reach,day_index=day})
         if not a.visitRecorded then a.visitRecorded=true;task.spawn(function()self:updateProgress(player.UserId,function(p)
             local previous=p.telemetryVisit or {};p.telemetryVisit={firstAt=previous.firstAt or os.time(),lastAt=os.time(),visits=(previous.visits or 0)+1};return p
         end)end)end
@@ -159,7 +164,9 @@ function S:checkIn(player,a)
     local saved,err=self:updateProgress(player.UserId,function(p)
         local out,result=O.checkIn(p.outgame,claimAt);if not out then return nil,result end
         if not result then current=p;return nil,'already-checked-in'end
-        info=result;p.outgame=out;return p
+        info=result;p.outgame=out
+        if result.claims==Supply.giftClaim then local c,armed=Supply.rookieGift(p.commerce);if c then p.commerce=c;if armed then info.giftEpic=1 end end end
+        return p
     end,'TimedReward','checkIn')
     if saved and info then a.profile=saved;a.checkIn=info;self.analytics:emit(player,'daily_reward_claimed',{sku='checkIn',result='granted'});self.analytics:flow(player,'lobby','checkIn',{value=info.medals,count=info.streak,item='step'..tostring(info.rewardStep or 0),result='granted'})end
     if not saved and err~='already-checked-in'then self.analytics:flow(player,'lobby','checkIn',{result='failed',reason=require(pack.Core.TelemetrySchema).reason(err)})end

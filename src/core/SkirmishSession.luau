@@ -458,6 +458,7 @@ function M:produce()
         end
         if self.bots[id] then self.bots[id]:tick(self.sim.ticks) end
         if self.nations[id] then self.nations[id]:tick(self.sim.ticks) end
+        if self.commanders and self.commanders[id] then self.commanders[id]:tick(self.sim.ticks) end
     end
 end
 function M:upgrade(id,amount)

@@ -84,8 +84,8 @@ function M:update(state)
         self.timeFraction=math.clamp(left/total,0,1)
         local face
         for _,f in ipairs(state.factions or {})do if f.id==self.request.from then face=f end end
-        self.avatar.Image=face and face.userId and face.userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..face.userId..'&w=150&h=150')or ''
-        self.avatar.Visible=true;self.hands.Visible=self.avatar.Image==''
+        local ai=require(script.Parent.RankedAIFace).apply(self.avatar,face and face.userId)
+        self.avatar.Visible=true;self.hands.Visible=not ai and self.avatar.Image==''
         local pw=self.panel.Size.X.Offset;if pw>24 then self.timeLine.Size=UDim2.fromOffset(math.floor((pw-24)*self.timeFraction),3)end
         self.title.Text=string.format('동맹 요청 %d초',left)
         UI.enabled(self.accept,not state.paused and not self.pending and state.phase=='playing');UI.enabled(self.reject,not state.paused and not self.pending and state.phase=='playing')

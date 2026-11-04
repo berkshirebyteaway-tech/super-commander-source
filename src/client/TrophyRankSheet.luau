@@ -93,6 +93,8 @@ function M:draw()
             end
         end
         height=#tiers*(rh+gap)-gap
+        local note=K.text(self.list,'AINote','1,000 트로피 아래는 오래 기다리면 AI 지휘관과 붙어요',ph and 12 or 13,C.muted,600);note.TextWrapped=true
+        K.box(note,8,height+(ph and 8 or 12),lw-16,ph and 32 or 36);height+=(ph and 8 or 12)+(ph and 32 or 36)
     else
         local heading=K.text(self.list,'Top','TOP 100',14,C.gold,800);K.box(heading,8,0,lw-16,24)
         local rows={};for _,r in ipairs(v.board or {})do local row=table.clone(r);row.valueLabel=Theme.commas(r.value or 0);table.insert(rows,row)end

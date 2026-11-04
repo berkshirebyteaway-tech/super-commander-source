@@ -35,8 +35,6 @@ local offers={
         perks={{'reward','신화 뽑기권 포함'},{'xp','평생 계정 XP 2배'},{'custom','커스텀 설정 12칸'},{'marshal','프라임 커맨더 마크'},{'clan','클랜 만들기와 가입'}}},
 }
 M.offers=offers
-local Tween=game:GetService('TweenService')
-local function loop(o,info,goal)local ok,t=pcall(function()return Tween:Create(o,info,goal)end);if ok and t then t:Play()end end
 local function glow(card,cx,cy,r,color,alpha)
     for i=3,1,-1 do
         local d=r*(.45+i*.28)
@@ -53,7 +51,6 @@ local function rays(card,cx,cy,len,color)
 end
 local function sparkle(card,x,y,s,color,delay)
     local d=UI.make('Frame',card,{Name='Sparkle',AnchorPoint=Vector2.new(.5,.5),Rotation=45,BackgroundColor3=color,BackgroundTransparency=.1,BorderSizePixel=0,ZIndex=3});UI.box(d,x,y,s,s)
-    loop(d,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,delay),{BackgroundTransparency=.85})
 end
 M.offerHeight=426
 local function shortBody(body)return body.AbsoluteSize.Y>0 and body.AbsoluteSize.Y/require(script.Parent.Theme).scale<330 end
@@ -118,8 +115,7 @@ function M.offerCard(hub,body,shop,billing,sku,x,y,w,options)
         UI.make('UIGradient',buy,{Rotation=90,Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(200,200,200))})
         local shine=UI.make('Frame',buy,{Name='Shine',AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(-.3,0,.5,0),Size=UDim2.new(0,46,2,0),Rotation=20,BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.55,BorderSizePixel=0,Active=false})
         UI.make('UIGradient',shine,{Rotation=0,Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(1,1)})})
-        loop(shine,TweenInfo.new(1.1,Enum.EasingStyle.Quad,Enum.EasingDirection.InOut,-1,false,2.4),{Position=UDim2.new(1.3,0,.5,0)})
-        if bedge then loop(bedge,TweenInfo.new(1.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Thickness=3})end
+        shine.Visible=false
     end
     UI.enabled(buy,owned and not options.inPage or (not owned and price~=nil and not shop.busy))
     if owned and options.inPage then buy.TextTransparency=0 end

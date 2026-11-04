@@ -5,7 +5,7 @@ local Reveal=if script then require(script.Parent.SupplyRevealRules)else require
 local M={}
 local function integer(n)return type(n)=='number'and n==n and n%1==0 and n>=0 and n<=1e12 end
 local function copy(t)if type(t)~='table'then return t end;local r={};for k,v in pairs(t)do r[k]=copy(v)end;return r end
-function M.new()return {version=1,tickets={basic=0,epic=0,legendary=0,mythic=0},fragments={basic=0,epic=0,legendary=0,mythic=0},owned={},serials={},receipts={},draws={},history={},presets={},drawSequence=0,dailyClub=-1,dailyFree=-1,permanentWelcome=false}end
+function M.new()return {version=1,tickets={basic=0,epic=0,legendary=0,mythic=0},fragments={basic=0,epic=0,legendary=0,mythic=0},owned={},serials={},receipts={},draws={},history={},presets={},drawSequence=0,dailyClub=-1,dailyFree=-1,permanentWelcome=false,giftEpic=0,giftEpicGiven=false}end
 function M.decode(raw)
     if raw==nil then return M.new()end
     if type(raw)~='table'or raw.version~=1 then return nil,'invalid-commerce'end
@@ -17,6 +17,7 @@ function M.decode(raw)
     end
     if not integer(out.drawSequence)or type(out.dailyClub)~='number'or out.dailyClub~=out.dailyClub or out.dailyClub%1~=0 or type(out.permanentWelcome)~='boolean'then return nil,'invalid-commerce'end
     if type(out.dailyFree)~='number'or out.dailyFree~=out.dailyFree or out.dailyFree%1~=0 then return nil,'invalid-commerce'end
+    if not integer(out.giftEpic)or out.giftEpic>10 or type(out.giftEpicGiven)~='boolean'then return nil,'invalid-commerce'end
     return out
 end
 function M.pool(kind,items)
@@ -57,6 +58,7 @@ function M.draw(raw,kind,currency,requestId,entropy,medals,paidAllowed,now,items
     if not integer(medals)or type(entropy)~='number'or entropy~=entropy or entropy<0 or entropy>=1 then return nil,'invalid-request'end
     if currency=='medals'then if kind~='basic'then return nil,'invalid-currency'end;if medals<Config.medalDrawCost then return nil,'insufficient-medals'end;medals-=Config.medalDrawCost
     elseif currency=='free'then if kind~='basic'then return nil,'invalid-currency'end;local day=math.floor(now/86400);if c.dailyFree>=day then return nil,'free-draw-used'end;c.dailyFree=day
+    elseif currency=='gift'then if kind~='epic'then return nil,'invalid-currency'end;if c.giftEpic<1 then return nil,'insufficient-tickets'end;c.giftEpic-=1
     elseif currency=='ticket'then if paidAllowed~=true then return nil,'paid-random-restricted'end;if c.tickets[kind]<1 then return nil,'insufficient-tickets'end;c.tickets[kind]-=1
     else return nil,'invalid-currency'end
     local selected=pool[#pool].item;local sum=0;for _,row in ipairs(pool)do sum+=row.probability;if entropy<sum then selected=row.item;break end end
@@ -88,6 +90,12 @@ function M.daily(raw,subscribed,now)
     local day=math.floor(now/86400)
     if subscribed~=true or c.dailyClub>=day then return c,0 end
     c.dailyClub=day;c.tickets.basic+=Config.clubDailyTickets;return c,Config.clubDailyTickets
+end
+M.giftClaim=2
+function M.rookieGift(raw)
+    local c,err=M.decode(raw);if not c then return nil,err end
+    if c.giftEpicGiven then return c,false end
+    c.giftEpicGiven=true;c.giftEpic+=1;return c,true
 end
 function M.freeDrawAt(c)return c.dailyFree>=0 and (c.dailyFree+1)*86400 or 0 end
 function M.ownedLoadout(raw,id,items)

@@ -6,6 +6,7 @@ M.features=set('expansion construction navy trade railway diplomacy support sign
 M.enums={
  comms_kind=set('emoji signal target quickChat text other'),scope=set('all team allies player spectators lobby unknown'),
  locale=set('en ko ja zh es pt fr de ru tr vi id th pl it ar other'),
+ reach=set('none op1 op2 op3 op4 op5 ch2p none_mp op1_mp op2_mp op3_mp op4_mp op5_mp ch2p_mp'),day_index=set('d0 d1 d2_6 d7p'),
  action=M.actions,feature=M.features,
  input_mode=set('mouse touch gamepad unknown'),viewport_bucket=set('small medium large portrait unknown'),
  phase=set('boot lobby queue transfer drop playing spectate result closed unknown'),
@@ -45,7 +46,7 @@ local events={}
 local function add(names,origin,priority,extra)
  for name in names:gmatch('%S+')do local fields=set(common..' '..(extra or ''));events[name]={origin=origin,priority=priority or 1,fields=fields}end
 end
-add('visit_entered visit_relinked visit_checkpoint visit_phase_window visit_closed connection_closed return_observed profile_load_result','server',3,'first_visit matches checkpoint journey where marker journey_seconds')
+add('visit_entered visit_relinked visit_checkpoint visit_phase_window visit_closed connection_closed return_observed profile_load_result','server',3,'first_visit matches checkpoint journey where marker journey_seconds reach day_index')
 add('boot_stage screen_viewed tutorial_started tutorial_step tutorial_exit battlefield_impression battlefield_selected action_flow command_feedback_seen nuclear_aim_started nuclear_aim_warning_changed nuclear_aim_ended structure_range_viewed result_viewed result_action offer_impression offer_selected purchase_prompt_result asset_load_summary ui_layout_anomaly','client',1,'version command_id position eligible available warning intro completed memory_mb samples')
 add('room_created room_status_changed party_action party_ready_changed party_entry_check team_change party_match_summary queue_entered queue_state_changed queue_exit transfer_started transfer_stage transfer_result match_admission_result drop_started drop_landed drop_ended first_operation_outcome player_outcome match_outcome spectate_state','server',2,'human_count ai_count neutral_count seat_cap team_size team_count party_size ready_count version simulation_seconds paused_seconds fallback random landed intro final correction revision multiplier')
 add('drop_render_ready drop_input_window drop_rally','client',1,'version render_ms movement_count dive_count rally_count window_seconds')

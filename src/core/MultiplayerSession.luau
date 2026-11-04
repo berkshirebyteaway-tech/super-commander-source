@@ -20,8 +20,19 @@ function M.new(map,settings,roster,mode)
     local self=setmetatable(S.new(map,cfg,roster[1].name,mode),M)
     self.mode=mode;self.roster=roster;self.spawned={};self.eliminated={}
     self.playerEvents={}
+    self.commanders={}
+    for _,c in ipairs(cfg.commanderAI or {})do
+        local id=c.seat;local r=self.resources[id]
+        if type(id)=="number"and roster[id]and self.sim.players[id]and r then
+            r.relations=r.relations or {}
+            local ai=Nation.new(self,id,"commander-"..tostring(c.key),c.difficulty)
+            ai.rate=math.max(1,math.floor(ai.rate*(c.pace or 1)+.5));ai.offset=ai.offset%ai.rate
+            self.commanders[id]=ai
+        end
+    end
     return self
 end
+function M:commanderAI(id)return self.commanders and self.commanders[id]end
 function M:spawnHuman(id,tile)
     if self.phase~="spawn" or not self.roster[id] then return false,"시작 위치 확정됨" end
     if type(tile)~="number" or tile%1~=0 or tile<0 or tile>=self.map.meta.width*self.map.meta.height then return false,"육지 선택" end

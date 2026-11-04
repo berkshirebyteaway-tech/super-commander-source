@@ -14,9 +14,9 @@ local Nukes=if script then require(script.Parent.NationNukes) else require("./Na
 local Annex=if script then require(script.Parent.NationBotAnnex) else require("./NationBotAnnex")
 local AttackLogic=if script then require(script.Parent.AttackLogic) else require("./AttackLogic")
 local M={};M.__index=M
-function M.new(w,id,key)
+function M.new(w,id,key,difficulty)
     local r=R.new(Tribe.hash(key)+Tribe.hash(w.settings.seed or "frontier"))
-    local self=setmetatable({world=w,id=id,player=w.sim.players[id],random=r,difficulty=w.settings.difficulty or "Medium",botSent=0,active=true,initialized=false,embargoMalus={}},M)
+    local self=setmetatable({world=w,id=id,player=w.sim.players[id],random=r,difficulty=difficulty or w.settings.difficulty or "Medium",botSent=0,active=true,initialized=false,embargoMalus={}},M)
     self.trigger=r:nextInt(50,60)/100;self.reserve=r:nextInt(30,40)/100;self.expand=r:nextInt(10,20)/100
     local range=({Easy={65,100},Medium={55,70},Hard={45,60},Impossible={30,50}})[self.difficulty]
     assert(range,"Unsupported nation difficulty")

@@ -114,6 +114,7 @@ local function expand(parts:{string},length:number):buffer
     local packed,size=base64(parts)
     return inflate(packed,size,length)
 end
+function M.unpack(parts:{string},length:number):buffer return expand(parts,length) end
 local previewCache={}
 function M.preview(key)
     local cached=previewCache[key]

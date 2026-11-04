@@ -60,7 +60,7 @@ end
 function M.face(parent,userId,size,x,y)
     local i=UI.make('ImageLabel',parent,{Name='Face',BackgroundColor3=Style.colors.cell,BorderSizePixel=0,ZIndex=parent.ZIndex+1,
         Image=userId and userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..userId..'&w=150&h=150')or ''})
-    UI.box(i,x or 0,y or 0,size,size);Style.round(i,size//2);return i
+    UI.box(i,x or 0,y or 0,size,size);Style.round(i,size//2);require(script.Parent.RankedAIFace).apply(i,userId);return i
 end
 function M.lock(parent,size,color)
     local i=Icons.create(parent,'lock',size or 12,color or C.muted);i.ZIndex=parent.ZIndex+2;return i

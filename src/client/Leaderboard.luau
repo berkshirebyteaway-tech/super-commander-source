@@ -64,8 +64,8 @@ local function fill(o,f,rank,ownColor)
     local mine=f.id==1;o.me=mine
     o.rank.Text=tostring(rank);o.rank.TextColor3=mine and C.accent or rank==1 and C.gold or C.muted
     o.dot.BackgroundColor3=FactionColors.get(f.id,f.kind,ownColor)
-    local face=f.userId and f.userId>0 and ('rbxthumb://type=AvatarHeadShot&id='..f.userId..'&w=150&h=150')or ''
-    if o.face.Image~=face then o.face.Image=face end;o.face.Visible=face~='';o.dot.Visible=face==''
+    local ai=require(script.Parent.RankedAIFace).apply(o.face,f.userId)
+    o.face.Visible=ai or o.face.Image~='';o.dot.Visible=not o.face.Visible
     o.name.Text=f.name or "";o.name.TextColor3=mine and C.accent or C.ink
     local h=Honor.of(f);Honor.pill(o.name,h and h.plate,4)
     o.land.Text=share(f.share);o.troops.Text=UI.troops(f.troops)
@@ -132,7 +132,7 @@ function M:draw20()
         local ox=plate and INSET or 0;local rw=plate and W-INSET*2 or W
         UI.box(o.root,ox,y,rw,h);K.round(o.root,6)
         o.root.BackgroundColor3=K.colors.accent;o.root.BackgroundTransparency=plate and .9 or 1
-        o.stroke.Enabled=plate;o.stroke.Color=K.colors.accent;o.stroke.Transparency=.45;o.stroke.Thickness=1
+        o.stroke.Enabled=false
         for _,l in ipairs({o.rank,o.land})do if K.fonts.num then l.FontFace=K.fonts.num end;l.TextSize=12 end
         o.rank.TextXAlignment=Left;UI.box(o.rank,11-ox,0,18,h);o.rank.TextColor3=plate and K.colors.accent or K.colors.muted
         o.dot.Position=UDim2.fromOffset(31-ox,math.floor((h-8)/2));o.dot.Size=UDim2.fromOffset(8,8)

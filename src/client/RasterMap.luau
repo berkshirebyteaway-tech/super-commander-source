@@ -34,7 +34,7 @@ local function onBoard(tint)
     return k
 end
 local function territory(self,c,id,edge,tile)
-    if self.affiliation then local a=self.affiliation[id]or self.affiliation.neutral;if edge then return a end;return c:Lerp(a,.45)end
+    if self.affiliation and self.affiliation[id]~=false then local a=self.affiliation[id]or self.affiliation.neutral;if edge then return a end;return c:Lerp(a,.45)end
     local kind=self.factionKinds and self.factionKinds[id]
     local tint=FactionColors.get(id,kind,self.territoryColor or colors.ours)
     local defended=self.defense~=nil and tile~=nil and Defense.covered(self.defense,id,tile)

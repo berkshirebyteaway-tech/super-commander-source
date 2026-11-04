@@ -6,6 +6,7 @@ local Core=game.ReplicatedStorage.FrontierNative.Core
 local Schema=require(Core.TelemetrySchema)
 Schema.maps={};for _,map in ipairs(require(game.ReplicatedStorage.FrontierNative.Maps.MapLoader).catalog)do Schema.maps[map.key]=true end
 local Model=require(Core.TelemetryModel)
+local ReturnReach=require(Core.ReturnReach)
 local Release=require(Core.TelemetryRelease)
 local Config=require(script.Parent.TelemetryConfig)
 local Live=require(script.Parent.LiveConfig)
@@ -193,6 +194,7 @@ function M.funnelEvent(name,id,step,label)return {funnel='SC_'..name..'_v1',sess
 function M:journeyProfile(p,info)
  local s=self:session(p);if not s or type(info)~='table'then return end
  s.marker=s.marker or (info.new and 'new'or 'return');s.basics=info.basics==true;s.pvpGames=tonumber(info.pvpGames)or 0;s.profileKnown=true
+ if type(info.reach)=='string'then s.reach=info.reach end;if type(info.day)=='string'then s.dayIndex=info.day end
  if s.onboarding or game.PrivateServerId~=''or not(info.new or s.pvpGames==0)then return end
  s.onboarding=guid()
  if s.basics then local key='Onboarding:'..s.onboarding;s.funnels[key]={id=s.onboarding,step=4};s.nativeFunnelSent['SC_Onboarding_v1:'..s.onboarding]=4
@@ -309,7 +311,7 @@ function M:observe(p,pr,map,mode)
   self:flushCommands(p,true);self:phase(p,'result')
   local data={outcome=Schema.enum('outcome',pr.outcome),mode=Schema.enum('mode',mode),elapsed_seconds=pr.seconds,revision=pr.revision,final=pr.final==true,correction=s.outcomeLogged==true}
   self:emit(p,'player_outcome',data,{suppressProjection=s.lastOutcome==pr.outcome});if s.intro then self:emit(p,'first_operation_outcome',data);self:flow(p,'tutorial','firstOpEnd',{item=data.outcome,value=pr.seconds})end;s.lastOutcome=pr.outcome;s.outcomeLogged=true
-  if s.intro then s.basics=true;self:milestone(p,'opEnd')elseif Native.realMatch(s.context.mode)then if not s.counted then s.counted=true;s.pvpGames=(s.pvpGames or 0)+1 end;self:milestone(p,'result')end
+  if s.intro then s.basics=true;self:milestone(p,'opEnd')elseif Native.realMatch(s.context.mode)then if not s.counted then s.counted=true;s.pvpGames=(s.pvpGames or 0)+1;if s.reach then s.reach=ReturnReach.withMultiplayer(s.reach)end end;self:milestone(p,'result')end
   self:aggregate(p,'SC_MatchSeconds',pr.seconds,Schema.enum('mode',mode),Schema.enum('outcome',pr.outcome))
   if s.outcomeDetail~=pr then s.outcomeDetail=pr;pcall(self.matchSummary,self,p,pr,mode)end
  end
@@ -516,7 +518,8 @@ function M:flow(p,area,step,data)
  local s=p and self.sessions[p];if not s then return end
  if d.area=='commerce'and d.step=='receipt'and d.result=='granted'and d.sku then s.paid=s.paid or {};s.paid[d.sku]=true
  elseif d.area=='goals'and d.step=='goalClaim'and d.result=='granted'then self:milestone(p,'claim')end
- if d.area=='campaign'then if d.step=='start'then self:campaignQuit(p,'cancelled');s.campaign={item=d.item,at=os.clock()};s.standing=nil elseif d.step=='campaignEnd'then s.campaign=nil end end
+ if d.area=='campaign'then if d.step=='start'then self:campaignQuit(p,'cancelled');s.campaign={item=d.item,at=os.clock()};s.standing=nil elseif d.step=='campaignEnd'then s.campaign=nil
+  if d.result=='won'and s.reach and type(d.item)=='string'then s.reach=ReturnReach.raise(s.reach,(d.item:gsub('^stage_',''):gsub('_','-')))end end end
 end
 function M:campaignQuit(p,result)
  local s=p and self.sessions[p];local c=s and s.campaign;if not c then return end
@@ -564,7 +567,7 @@ function M:leaving(p)
   if journey=='preLobby'or journey=='arrival'then self:flow(p,'lobby','loadExit',{item=journey..'_'..where,value=os.clock()-s.at})end
   local x=self.exitState and self.exitState(p);if x then self:flow(p,'goals','exitBacklog',{count=x.count,value=x.value,available=x.available,result=x.count>0 and 'pending'or 'complete'})end
  end)end
- self:emit(p,s.phase=='transfer'and 'connection_closed'or 'visit_closed',{phase=s.phase,reason=s.phase=='transfer'and 'none'or 'disconnected',elapsed_seconds=os.clock()-s.at,matches=s.matches,journey=journey,where=where,journey_seconds=seconds,marker=s.marker});self:flushCommands(p,true);self.departed[p]=true;self.sessions[p]=nil
+ self:emit(p,s.phase=='transfer'and 'connection_closed'or 'visit_closed',{phase=s.phase,reason=s.phase=='transfer'and 'none'or 'disconnected',elapsed_seconds=os.clock()-s.at,matches=s.matches,journey=journey,where=where,journey_seconds=seconds,marker=s.marker,reach=s.reach,day_index=s.dayIndex});self:flushCommands(p,true);self.departed[p]=true;self.sessions[p]=nil
 end
 function M:close()
  if self.closed then return end;for p in pairs(self.sessions)do self:leaving(p)end

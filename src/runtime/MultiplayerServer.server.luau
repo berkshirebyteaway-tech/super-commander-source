@@ -18,6 +18,7 @@ local PlazaLayout=require(pack.Core.PlazaLayout)
 local Cosmetics=require(pack.Core.CosmeticCatalog)
 local Config=require(services.MultiplayerConfig)
 local DropService=require(services.SpawnDropService)
+local RankedAIDriver=require(services.RankedAIDriver)
 local analytics=require(services.ExperienceAnalytics).new()
 DropService.telemetry=analytics
 local CommandGate=require(pack.Core.CommandGate)
@@ -498,6 +499,8 @@ local function createRoom(selection,single)
         cfg.simSpeed=GameSpeed.forMatch(Live.get('gameSpeed'),modes,selection,single)
         cfg.simUnits=GameSpeed.unitsForMatch({nuke=Live.get('nukeSpeed'),transport=Live.get('transportSpeed'),warship=Live.get('warshipSpeed')},modes,selection,single)
     end
+    local rankedAI=selection.trophySolo and #roster==1 and require(pack.Core.RankedAI).copy(selection.rankedAI)or nil
+    if rankedAI then table.insert(roster,{userId=rankedAI.userId,name=rankedAI.name,ai=true});cfg.commanderAI={require(pack.Core.RankedAI).seat(rankedAI,#roster)}end
     preparing+=1
     for _,id in ipairs(selection.users)do local e=entries[id];e.loading=true;e.loadingMap=selection.map;e.loadingCampaign=selection.campaign;updates:FireClient(e.player,baseState(e))end
     task.wait()
@@ -514,7 +517,7 @@ local function createRoom(selection,single)
         session.unitSystem.nav:waterFinder()
         return session
     end)
-    if ok then pcall(function()for index,r in ipairs(roster)do local pl=user(r.userId);local acc=pl and accounts:snapshot(pl);if acc and s.resources[index] then s.resources[index].flag=acc.flag end end end)end
+    if ok then pcall(function()for index,r in ipairs(roster)do local pl=not r.ai and user(r.userId);local acc=pl and accounts:snapshot(pl);if acc and s.resources[index] then s.resources[index].flag=acc.flag end end end)end
     preparing-=1
     for _,id in ipairs(selection.users)do if entries[id]then entries[id].loading=false;entries[id].loadingMap=nil;entries[id].loadingCampaign=nil end end
     for _,id in ipairs(selection.users)do if not user(id)then return false,"참가자 퇴장  준비 취소"end end
@@ -527,7 +530,7 @@ local function createRoom(selection,single)
         room.replayLog=ReplayLog.new({map=selection.map,mode=selection.mode,settings=replayInput.settings,roster=replayInput.roster,flags=flags,place=game.PlaceVersion,started=os.time()})
     end
     s.chatManaged=true;room.replaySettings=replaySettings;room.customRules=selection.customRules and Outgame.copy(selection.customRules)or nil
-    room.analyticsHumans=#roster
+    room.analyticsHumans=#roster-(rankedAI and 1 or 0)
     room.intro=selection.intro==true;room.guides={}
     room.awaitFirst=room.intro or nil
     room.casual=selection.casual==true;room.joined={}
@@ -535,8 +538,10 @@ local function createRoom(selection,single)
     room.hostUserId=selection.custom and selection.hostUserId or nil
     room.globalMatch=selection.globalMatch;room.liveCode=selection.liveCode;room.official=selection.official==true
     room.ranked=selection.ranked;room.ratings=selection.ratings;room.clanwar=selection.clanwar;room.trophySolo=selection.trophySolo
+    room.rankedAI=rankedAI
     table.insert(rooms,room)
     for index,r in ipairs(roster)do
+        if r.ai then continue end
         if entries[r.userId].room then release(entries[r.userId],false)end
         local e=entries[r.userId];room.members[r.userId]=index;e.room=room;e.faction=index;e.version=nextVersion();e.player:SetAttribute("FrontierRoom",room.id)
         e.player:SetAttribute('FrontierUnrecorded',room.unrecorded and true or nil)
@@ -560,6 +565,7 @@ local function createRoom(selection,single)
         for _,id in ipairs(party.users)do parties[id]=party end
     end end
     DropService.begin(room,roster,os.clock(),selection.spawn=='random'or single and cfg.randomSpawn==true,parties)
+    if rankedAI then RankedAIDriver.begin(room,#roster,DropService)end
     if room.casual then
         for index,r in ipairs(roster)do room.joined[r.userId]=os.time()end
         local seen={};for index,r in ipairs(roster)do local party=parties[r.userId]
@@ -828,7 +834,8 @@ local function handle(p,action,value,extra,requestId,version)
         elseif action=="spawn"and validTile(s,value)then if room.single then ok,message=s:spawn(value)else ok,message=s:spawnHuman(id,value)end;if ok then placeCharacter(p,value,room);if room.replayLog then room.replayLog:add(s.sim.ticks,id,'spawn',value)end end
         elseif s.phase~="playing"or s.sim.players[id].tiles.size==0 or s.resources[id].forfeited then ok=false;message="경기 중에만"
         else
-            ok,message=RoomCommands.apply(s,id,room.single,action,value,extra)
+            room.tutorial=room.tutorial or {};local guard=require(pack.Core.TutorialGuard);local held,why=guard.check(s,id,room.campaign,action,room.tutorial)
+            if held==false then ok,message=false,why else ok,message=RoomCommands.apply(s,id,room.single,action,value,extra);guard.note(room.tutorial,action,ok)end
             if ok and room.replayLog then local v,x=RoomCommands.record(action,value,extra);room.replayLog:add(s.sim.ticks,id,action,v,x)end
         end
         if ok and table.find({"attack","build","upgrade"},action)then emit(room,p,action,(action=="build"or action=="attack")and extra or nil)end
@@ -1413,7 +1420,7 @@ local function finish(room)
         local eligible=room.mode=="duel" and #s.roster==2 and os.time()-room.startedAt>=60
         local opponent=1000;for other in pairs(room.members)do if other~=id then opponent=before[other]end end
         local humans=0;for _ in pairs(room.members)do humans+=1 end
-        local career={id=room.id,startedAt=room.startedAt,won=won==true,forfeited=forfeited,ranked=Config.rankedEnabled and room.mode=="duel",eligible=eligible,opponent=opponent,counted=(room.official or room.ranked~=nil or room.mode=="duel")and humans>=2}
+        local career={id=room.id,startedAt=room.startedAt,won=won==true,forfeited=forfeited,ranked=Config.rankedEnabled and room.mode=="duel",eligible=eligible,opponent=opponent,counted=(room.official or room.ranked~=nil or room.mode=="duel")and (humans>=2 or room.rankedAI~=nil)}
         for k,v in pairs(ranked:result(room,id,won==true)or {})do career[k]=v end
         careers:record(id,career)
     end
@@ -1422,7 +1429,7 @@ local function finish(room)
     if log and not log.overflow then
         local winner=s.winnerId and s.resources[s.winnerId]and s.resources[s.winnerId].name or nil
         local rows={};local seconds=os.time()-room.startedAt;local mode=LiveModel.mode(s)
-        for faction,r in pairs(s.roster)do if r.userId and s.sim.players[faction].kind=='HUMAN'then
+        for faction,r in pairs(s.roster)do if r.userId and not r.ai and s.sim.players[faction].kind=='HUMAN'then
             local p=s.sim.players[faction];local won=not s.resources[faction].forfeited and (s.winnerTeam and p.team==s.winnerTeam or s.winnerId==faction)
             rows[r.userId]=ReplayLog.row(room.id,log.header,seconds,won and 'won'or 'lost',mode)
         end end
@@ -1435,6 +1442,7 @@ local function stepRoom(room,dt,now)
         if room.warming then return end
         local s=room.session
         local okA,errA=pcall(analytics.room,analytics,room,now);if not okA then warn('TOYFRONT telemetry room error',room.id,errA)end
+        if room.aiCommander then local okAI,errAI=pcall(RankedAIDriver.step,room,now,dt);if not okAI then warn('TOYFRONT ranked AI',room.id,errAI)end end
         if s.phase=='spawn'and room.drop then DropService.step(room,now,function(id,tile)
             local p=room.session.roster and room.session.roster[id]and user(room.session.roster[id].userId)or room.single and user(next(room.members))
             if p then emit(room,p,'settle',tile)end
@@ -1556,6 +1564,7 @@ local function lobbyTick(now)
         careers:forgetDeparted(entries)
         replayStore:forgetDeparted(entries)
         liveMatches:sync(rooms)
+        pcall(RankedAIDriver.sweep,rooms)
         for _,e in pairs(entries)do if e.player.Parent==Players then matchChat:sync(e)end end
         matchChat:clean()
         for _,e in pairs(entries)do if not e.room and e.player.Character then local r=e.player.Character:FindFirstChild("HumanoidRootPart");if r and (r.Position.Y<PlazaLayout.y-3 or math.abs(r.Position.X-PlazaLayout.x)>PlazaLayout.width/2+4 or math.abs(r.Position.Z-PlazaLayout.z)>PlazaLayout.depth/2+4)then placeCharacter(e.player,nil,nil)end end end

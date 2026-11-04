@@ -4,9 +4,8 @@ local G=require(script.Parent.Parent.Core.WorldGeometry)
 local UnitRules=require(script.Parent.Parent.Core.UnitRules)
 local Step=require(script.Parent.TelemetryStep)
 local M={active=false}
-M.length=8;M.landAt=6.6
+M.length=5;M.landAt=4
 M.skipAfter=1.2
-local rank={City=0,Port=1,MissileSilo=2,Factory=3,SAMLauncher=4,DefensePost=5}
 local function smooth(t)t=math.clamp(t,0,1);return t*t*(3-2*t)end
 local function landBox(world,state,mine)
     local m=world.map.meta;local W,H=m.width,m.height;local owners=world.playback.owners
@@ -19,24 +18,26 @@ local function landBox(world,state,mine)
     if x0==math.huge then return nil end
     return {x0=x0-s,y0=y0-s,x1=x1+s,y1=y1+s}
 end
-local function pickLots(world,state,mine)
-    local W=world.map.meta.width;local list={}
-    for _,u in ipairs(state.units or {})do if mine[u.owner] and UnitRules.structures[u.kind]and u.tile then table.insert(list,u)end end
-    table.sort(list,function(a,b)
-        local la,lb=a.level or 1,b.level or 1;local ca,cb=a.kind=='City'and 1 or 0,b.kind=='City'and 1 or 0
-        if ca~=cb then return ca>cb end;if la~=lb then return la>lb end
-        if rank[a.kind]~=rank[b.kind]then return rank[a.kind]<rank[b.kind]end;return (a.id or 0)<(b.id or 0)
-    end)
-    local out={}
-    for _,u in ipairs(list)do
-        local far=true;for _,o in ipairs(out)do
-            local dx,dy=u.tile%W-o.tile%W,math.floor(u.tile/W)-math.floor(o.tile/W);if dx*dx+dy*dy<400 then far=false;break end end
-        if far and #out>=1 and u.kind==out[1].kind then for _,v in ipairs(list)do if v.kind~=u.kind and not table.find(out,v)then far=false;break end end end
-        if far then table.insert(out,u)end
-        if #out>=3 then break end
-    end
-    if #out<3 then for _,u in ipairs(list)do if #out>=3 then break end;if not table.find(out,u)then table.insert(out,u)end end end
-    return out
+local function sweepPoints(world,mine)
+    local m=world.map.meta;local W,H=m.width,m.height;local owners=world.playback.owners
+    local s=math.max(2,math.ceil(math.sqrt(W*H/40000)))
+    local pts,inner={},{};local k=3*s
+    local function own(x,y)return x>=0 and y>=0 and x<W and y<H and mine[owners[y*W+x]]end
+    for y=0,H-1,s do local row=y*W;for x=0,W-1,s do if mine[owners[row+x]]then local p=Vector2.new(x,y);table.insert(pts,p)
+        if own(x-k,y)and own(x+k,y)and own(x,y-k)and own(x,y+k)then table.insert(inner,p)end end end end
+    if #pts==0 then return {}end
+    if #inner>=3 then pts=inner end
+    local function far(from)local best,bd=pts[1],-1;for _,p in ipairs(pts)do local d=(p-from).Magnitude;if d>bd then best,bd=p,d end end;return best end
+    local a=far(pts[math.floor(#pts/2)+1]);local b=far(a)
+    local c,cd=a,-1;for _,p in ipairs(pts)do local d=math.min((p-a).Magnitude,(p-b).Magnitude);if d>cd then c,cd=p,d end end
+    if (a-b).Magnitude<s*6 then return {a}end
+    return {a,c,b}
+end
+local function along(points,u)
+    local n=#points;if n==1 then return points[1]end
+    local f=math.clamp(u,0,1)*(n-1);local i=math.min(n-1,math.floor(f)+1);local t=f-(i-1)
+    local p0,p1,p2,p3=points[math.max(1,i-1)],points[i],points[i+1],points[math.min(n,i+2)]
+    return .5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t)
 end
 local function cframe(shot)
     local h=math.cos(shot.tilt)*shot.d
@@ -60,15 +61,16 @@ function M.play(world,state,reduced,land,done)
     local fitD=math.max(40,span*G.scale/(2*math.tan(math.rad(25))*aspect))
     local start={focus=world.focus or centre(W/2,H/2),d=(cam.CFrame.Position-(world.focus or cam.Focus.Position)).Magnitude,tilt=world.tilt,yaw=world.yaw}
     local whole={focus=centre((box.x0+box.x1)/2,(box.y0+box.y1)/2),d=fitD,tilt=world.tilt,yaw=world.yaw}
-    local up={focus=whole.focus,d=fitD*1.08,tilt=world.tilt,yaw=world.yaw}
-    local shots={}
-    if not reduced then
-        for i,u in ipairs(pickLots(world,state,mine))do
-            local x,y,z=G.toWorld(u.tile,W,H);local f=Vector3.new(x,y,z)
-            local yaw=world.yaw+(i%2==0 and -.35 or .35)
-            table.insert(shots,{a={focus=f,d=34,tilt=math.rad(52),yaw=yaw-.18},b={focus=f,d=30,tilt=math.rad(48),yaw=yaw+.18}})
-        end
-    end
+    local mapD=math.max(40,math.max(W,H*aspect)*1.04*G.scale/(2*math.tan(math.rad(25))*aspect))
+    local map={focus=centre(W/2,H/2),d=mapD,tilt=world.tilt,yaw=world.yaw}
+    local hold={focus=map.focus,d=mapD*1.04,tilt=world.tilt,yaw=world.yaw}
+    local route={}
+    if not reduced then for _,p in ipairs(sweepPoints(world,mine))do table.insert(route,centre(p.X,p.Y))end end
+    local flyD=math.clamp(fitD*.34,40,130);local flyTilt=math.rad(54)
+    local function fly(u)return {focus=along(route,u),d=flyD,tilt=flyTilt,yaw=world.yaw+(u-.5)*.5}end
+    local share=state.player and state.player.share
+    if not share then for _,f in ipairs(state.factions or {})do if f.id==1 then share=f.share end end end
+    local tint=Color3.fromRGB(table.unpack(require(script.Parent.Parent.Core.CosmeticCatalog).get(state.style).territory))
     local length=reduced and .6 or M.length;local landAt=reduced and .1 or M.landAt
     M.active=true
     local t0=os.clock();local hidden={};local hid=false;local landed=false;local finished=false
@@ -82,6 +84,7 @@ function M.play(world,state,reduced,land,done)
     local sc=require(script.Parent.Theme).scale or 1;bandGui:SetAttribute('UIScale',sc);require(script.Parent.FullBleed).watch(bandGui)
     local band=Instance.new('Frame');band.Name='Main';band.BackgroundTransparency=1;band.Size=UDim2.fromScale(1/sc,1/sc);band.Parent=bandGui
     local bs=Instance.new('UIScale');bs.Scale=sc;bs.Parent=band
+    if not reduced then band.Size=UDim2.fromScale(1/sc,1.55/sc)end
     local function hideUi()
         for _,g in ipairs(guiParent:GetChildren())do if g:IsA('ScreenGui')and g~=sinkGui and g~=bandGui and g.Enabled then g.Enabled=false;table.insert(hidden,g)end end
     end
@@ -93,32 +96,54 @@ function M.play(world,state,reduced,land,done)
         local last=world.cinemaCamera;world.cinemaCamera=nil
         if last then world.dropExitCamera={cf=last.cf,at=os.clock()}end
         showUi();sinkGui:Destroy();task.delay(1.5,function()bandGui:Destroy()end)
-        Step.step('result','cinematic',{result=skipped and 'skipped'or 'complete',value=math.floor((os.clock()-t0)*10)/10,total=#shots})
-        if not landed then landed=true;pcall(land)end
+        Step.step('result','cinematic',{result=skipped and 'skipped'or 'complete',value=math.floor((os.clock()-t0)*10)/10,total=#route})
+        if not landed and not skipped then landed=true;pcall(land)end
         pcall(done)
     end
     table.insert(conns,sink.Activated:Connect(function()if os.clock()-t0>M.skipAfter then finish(true)end end))
     table.insert(conns,UIS.InputBegan:Connect(function(input)
         if input.UserInputType==Enum.UserInputType.Keyboard and os.clock()-t0>M.skipAfter then finish(true)end
     end))
+    local counted,flashed,lit=false,false,false
+    local Lighting=game:GetService('Lighting')
+    local grade=Instance.new('ColorCorrectionEffect');grade.Name='VictoryFlash';grade.TintColor=Color3.new(1,1,1);grade.Parent=Lighting
+    table.insert(conns,{Disconnect=function()grade:Destroy()end})
+    local function light()
+        local spot={neutral=Color3.fromRGB(18,24,32)};for id in pairs(mine)do spot[id]=false end;world:spotlight(spot)
+    end
+    table.insert(conns,{Disconnect=function()if lit then pcall(world.spotlight,world,nil)end end})
+    local function flash()
+        local TS=game:GetService('TweenService');grade.TintColor=Color3.new(1,1,1):Lerp(tint,.45);grade.Brightness=.3
+        TS:Create(grade,TweenInfo.new(.55,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Brightness=0,TintColor=Color3.new(1,1,1)}):Play()
+    end
+    local function countUp()
+        local UI=require(script.Parent.Theme);local L=require(script.Parent.Localization)
+        local l=UI.label(band,'Share','',30,tint);UI.display(l);l.AnchorPoint=Vector2.new(.5,.5);l.Position=UDim2.fromScale(.5,.53)
+        l.Size=UDim2.fromOffset(320,44);l.TextXAlignment=Enum.TextXAlignment.Center;l.TextWrapped=false;l.ZIndex=90
+        local from=os.clock();local goal=math.floor(share*100+.5)
+        local c;c=game:GetService('RunService').RenderStepped:Connect(function()
+            local u=smooth((os.clock()-from)/.8);l.Text=L.text('영토')..' '..math.floor(goal*u+.5)..'%'
+            if u>=1 or not l.Parent then c:Disconnect()end
+        end)
+    end
     local lastDetail=0
     table.insert(conns,game:GetService('RunService').RenderStepped:Connect(function()
         local t=os.clock()-t0
         if t>=length then finish(false);return end
-        if t>=.6 and not hid and not landed then hid=true;hideUi()end
+        if t>=.4 and not hid and not landed then hid=true;hideUi()end
         if not landed and t>=landAt then landed=true;pcall(land,band)end
+        if not reduced and share and t>=3 and not counted then counted=true;pcall(countUp)end
+        if not reduced and t>=.4 and not lit then lit=true;pcall(light)end
+        if not reduced and t>=3.3 and not flashed then flashed=true;pcall(flash)end
         local shot
         if reduced then shot=whole
-        elseif t<.6 then shot=start
-        elseif t<2.6 then shot=mix(start,whole,smooth((t-.6)/2))
-        elseif #shots>0 and t<6.2 then
-            local per=3.6/#shots;local i=math.min(#shots,math.floor((t-2.6)/per)+1);local u=(t-2.6-(i-1)*per)/per
-            local s=shots[i];local prev=i==1 and whole or shots[i-1].b
-            shot=u<.35 and mix(prev,s.a,smooth(u/.35))or mix(s.a,s.b,(u-.35)/.65)
-        else
-            local from=#shots>0 and shots[#shots].b or whole
-            shot=mix(from,up,smooth((t-6.2)/1.2))
-        end
+        elseif t<.4 then shot=start
+        elseif #route==0 then shot=t<2.8 and mix(start,whole,smooth((t-.4)/2.4))or mix(whole,map,smooth((t-2.8)/1.2))
+        elseif t<2.8 then
+            local u=smooth((t-.4)/2.4);local s=fly(u)
+            shot=t<1 and mix(start,s,smooth((t-.4)/.6))or s
+        elseif t<4 then shot=mix(fly(1),map,smooth((t-2.8)/1.2))
+        else shot=mix(map,hold,(t-4)/(length-4))end
         local cf=cframe(shot)
         world.cinemaCamera={cf=cf,focus=shot.focus}
         if os.clock()-lastDetail>.25 and world.lastState then lastDetail=os.clock();pcall(world.setState,world,world.lastState)end

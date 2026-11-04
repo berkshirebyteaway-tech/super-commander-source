@@ -68,7 +68,7 @@ do
     local loading=make("Frame",root,{Name="LoadingCover",Size=UDim2.fromScale(1,1),BackgroundColor3=C.bg,BackgroundTransparency=0,ZIndex=35,Active=true,Visible=false,ClipsDescendants=true})
     for i=1,23 do make("Frame",loading,{Name="GridV",Position=UDim2.fromScale(i/24,0),Size=UDim2.new(0,1,1,0),BackgroundColor3=C.line,BackgroundTransparency=.55,BorderSizePixel=0,ZIndex=35})end
     for i=1,11 do make("Frame",loading,{Name="GridH",Position=UDim2.fromScale(0,i/12),Size=UDim2.new(1,0,0,1),BackgroundColor3=C.line,BackgroundTransparency=.55,BorderSizePixel=0,ZIndex=35})end
-    local brand=label(loading,"Brand","SUPER COMMANDER",14,C.accent);UI.display(brand);brand:SetAttribute("LocalizationSkip",true);brand.Position=UDim2.fromOffset(20,16);brand.Size=UDim2.fromOffset(240,22);brand.ZIndex=36
+    local brand=label(loading,"Brand","ROFRONT",14,C.accent);UI.display(brand);brand:SetAttribute("LocalizationSkip",true);brand.Position=UDim2.fromOffset(20,16);brand.Size=UDim2.fromOffset(240,22);brand.ZIndex=36
     local kicker=label(loading,"Kicker","출격 준비",14,C.accent);UI.display(kicker,true);kicker.AnchorPoint=Vector2.new(.5,.5);kicker.Position=UDim2.new(.5,0,.5,-58);kicker.Size=UDim2.new(1,-32,0,22);kicker.TextXAlignment=Enum.TextXAlignment.Center;kicker.ZIndex=36
     local title=label(loading,"Title","작전 지도를 펼치는 중…",40,C.ink);UI.display(title);title.AnchorPoint=Vector2.new(.5,.5);title.Position=UDim2.new(.5,0,.5,-18);title.Size=UDim2.new(1,-32,0,52);title.TextXAlignment=Enum.TextXAlignment.Center;title.ZIndex=36
     local track=make("Frame",loading,{Name="Track",AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(.5,0,.5,26),Size=UDim2.fromOffset(280,3),BackgroundColor3=C.line,BorderSizePixel=0,ZIndex=36,ClipsDescendants=true})
@@ -329,7 +329,7 @@ armsUI.ghostReason=label(armsUI.ghostTip,"Reason","",12,C.danger);armsUI.ghostRe
 local range=make("Frame",markerLayer,{Name="DefenseRange",AnchorPoint=Vector2.new(.5,.5),BackgroundTransparency=1,Visible=false});UI.corner(range,999);UI.stroke(range,C.gold,1)
 local unitMarkers={}
 local hud=UI.panel(gamePanel,"HUD");hud.ZIndex=10
-local hudBrand=label(hud,"Brand","SUPER COMMANDER",16,C.accent);UI.display(hudBrand);hudBrand:SetAttribute("LocalizationSkip",true)
+local hudBrand=label(hud,"Brand","ROFRONT",16,C.accent);UI.display(hudBrand);hudBrand:SetAttribute("LocalizationSkip",true)
 armsUI.growthBadge=button(hud,'Recruitment','',function()if state and state.player then require(pack.Client.MatchBubble).growth(root,armsUI.growthBadge,armsUI.lastRecruitment,state.player)end end);armsUI.growthBadge.BackgroundTransparency=1
 armsUI.growthFace=make('Frame',armsUI.growthBadge,{Name='Face',BackgroundColor3=C.good,BackgroundTransparency=.82,BorderSizePixel=0});UI.corner(armsUI.growthFace,3)
 armsUI.growthStroke=UI.stroke(armsUI.growthFace,C.good,1)
@@ -786,7 +786,7 @@ openModal=function(mode)
         modalLabel("Copyright","© OpenFront and Contributors",0,42,nil,17)
         do local l=modalLabel("SourceCode","수정 소스: github.com/berkshirebyteaway-tech/super-commander-source",40,18,C.muted,13);l.TextWrapped=false;l.TextScaled=true;make("UITextSizeConstraint",l,{MaxTextSize=13,MinTextSize=8})end
         modalLabel("Sources","OpenFront의 코드를 Roblox / Luau용으로 수정해 이식했습니다. OpenFront 공식 작품이 아닙니다.\n\n코드: GNU AGPL v3 + 원작 추가 조건\n지도, 건물, 유닛, 메뉴 아이콘: OpenFront, CC BY-SA 4.0\n원본 Compact 지도 데이터를 보존하고 3D 표시를 적용했습니다.",60,190,C.muted,14)
-        modalLabel("Links","원작: https://github.com/openfrontio/OpenFrontIO\n지도 라이선스: https://creativecommons.org/licenses/by-sa/4.0/\n코드 라이선스: https://www.gnu.org/licenses/agpl-3.0.html\n\nSUPER COMMANDER by Berkshire Byteaway\n코드와 지도는 각 라이선스에 따라 사용합니다.",265,210,C.muted,13)
+        modalLabel("Links","원작: https://github.com/openfrontio/OpenFrontIO\n지도 라이선스: https://creativecommons.org/licenses/by-sa/4.0/\n코드 라이선스: https://www.gnu.org/licenses/agpl-3.0.html\n\nROFRONT by Berkshire Byteaway\n코드와 지도는 각 라이선스에 따라 사용합니다.",265,210,C.muted,13)
         modalBody.CanvasSize=UDim2.fromOffset(0,490)
     elseif mode=='recap'then
         modalTitle.Text='작전 분석'
@@ -1911,7 +1911,7 @@ end
 task.spawn(function()
     while gui.Parent do
         local seen=armsUI.avatarSeen or setmetatable({},{__mode='k'});armsUI.avatarSeen=seen
-        for _,player in ipairs(Players:GetPlayers()) do if player~=me and player.Character then
+        for _,player in ipairs(require(pack.Client.CommanderRoster).list()) do if player~=me and player.Character then
             local visible=roomVisible(player)and not renderer.dropActive;local key=tostring(visible)..':'..tostring(state and state.phase)
             local last=seen[player.Character]
             if last and last.key==key and os.clock()-last.at<5 then continue end
@@ -2068,10 +2068,8 @@ RunService:BindToRenderStep('HUD',202,function(dt)
     end
     if armsUI.resultSeen and state and state.phase=='menu'and not state.loading and multiplayerLobby and multiplayerLobby.frame.Visible and multiplayerLobby.account.ready then
         armsUI.resultSeen=false
-        local games=armsUI.games(multiplayerLobby.account.progress);local party=multiplayerLobby.data and multiplayerLobby.data.party
-        if not armsUI.favoriteAsked and games==5 then armsUI.favoriteAsked=true
-            task.delay(1.5,function()pcall(function()game:GetService('AvatarEditorService'):PromptSetFavorite(game.PlaceId,Enum.AvatarItemType.Asset,true)end)end)
-        elseif not armsUI.notifyAsked and party and #party.users>1 then armsUI.notifyAsked=true
+        local party=multiplayerLobby.data and multiplayerLobby.data.party
+        if not armsUI.notifyAsked and party and #party.users>1 then armsUI.notifyAsked=true
             task.spawn(function()local service=game:GetService('ExperienceNotificationService')
                 local ok,can=pcall(function()return service:CanPromptOptInAsync()end);if ok and can then task.wait(1.5);pcall(function()service:PromptOptIn()end)end end)
         end

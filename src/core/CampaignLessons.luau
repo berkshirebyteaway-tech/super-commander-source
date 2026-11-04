@@ -3,20 +3,25 @@ local M={}
 M.maxHints=3
 M.byStage={
     ['1-1']={title='첫 작전',learned='빈 땅부터 넓히고 부족을 흡수해요'},
-    ['1-2']={title='충원의 법칙',art='growth',learned='병력은 절반쯤에서 가장 빨리 차요',
-        lines={'병력이 상한의 절반쯤일 때 가장 빨리 차요.','꽉 차면 멈춰요. 초록일 때 보내요.'},
-        hints={{id='full',text='병력이 거의 꽉 찼어요. 충원이 멈춰요. 지금 보내요',focus='troops'},
+    ['1-2']={title='도시가 군대를 키워요',art='area',learned='도시를 지으면 병력 상한이 올라요',
+        lines={'이번 판은 건물이 공짜예요.','도시 하나마다 상한 +25,000이에요.'},
+        hints={{id='build',text='건물이 공짜예요. 도시를 지어요',focus='build'},
+            {id='full',text='병력이 거의 꽉 찼어요. 충원이 멈춰요. 지금 보내요',focus='troops'},
             {id='low',text='병력이 바닥이에요. 잠깐 모아요',focus='troops',tone='warn'}}},
     ['1-3']={title='넓을수록 큰 군대',art='area',learned='땅이 넓을수록, 도시가 많을수록 상한이 커요',
         lines={'땅이 넓을수록 병력 상한이 올라가요.','도시 하나마다 상한 +25,000이에요.'},
         hints={{id='double',text='땅이 두 배가 됐어요. 병력 상한도 올랐어요',focus='troops'},
-            {id='city',text='도시 지을 골드가 모였어요. 도시는 상한을 +25,000 올려요',focus='build'}}},
+            {id='city',text='도시 지을 골드가 모였어요. 도시는 상한을 +25,000 올려요',focus='build'},
+            {id='low',text='병력이 바닥이에요. 잠깐 모아요',focus='troops',tone='warn'}}},
     ['1-4']={title='험한 땅',art='terrain',learned='산은 느리고 병력이 많이 들어요',
         lines={'평지 1배, 언덕 1.2배, 산 1.5배.','산은 느리고 병력도 많이 들어요. 평지부터 차지해요.'},
-        hints={{id='mountain',text='산을 넘는 중이에요. 느리고 병력이 많이 들어요. 평지로 돌아가면 빨라요'}}},
-    ['1-5']={title='작게 자주',art='ratio',learned='공격은 작게 자주 보내야 국경이 안 비어요',
-        lines={'한 번에 다 보내면 국경이 비어요.','공격 비율을 낮춰 자주 보내요.'},
-        hints={{id='allIn',text='병력을 거의 다 보냈어요. 국경이 비면 역습을 받아요'}}},
+        hints={{id='mountain',text='산을 넘는 중이에요. 느리고 병력이 많이 들어요. 평지로 돌아가면 빨라요'},
+            {id='low',text='병력이 바닥이에요. 잠깐 모아요',focus='troops',tone='warn'}}},
+    ['1-5']={title='첫 핵',art='nuke',learned='미사일 기지를 짓고 핵을 쏴요',
+        lines={'이번 판은 건물과 핵이 공짜예요.','미사일 기지를 짓고 적 도시에 핵을 쏴요.'},
+        hints={{id='silo',text='건물이 공짜예요. 미사일 기지를 지어요',focus='build'},
+            {id='fire',text='미사일 기지가 준비됐어요. 적 도시에 핵을 쏴요',focus='build'},
+            {id='low',text='병력이 바닥이에요. 잠깐 모아요',focus='troops',tone='warn'}}},
     ['2-1']={title='방어 시설',art='defense',learned='방어 시설 근처를 치면 병력을 5배 잃어요',
         lines={'방어 시설 근처를 치는 적은 병력을 5배 잃어요.','공격받는 국경과 길목에 세워요.'},
         hints={{id='underAttack',text='공격받고 있어요. 그 국경에 방어 시설을 세워요',focus='build'}}},
@@ -115,14 +120,19 @@ function M.check(id,s,memo,now,map)
         if not cond then memo[key]=nil;return false end
         memo[key]=memo[key]or now;return now-memo[key]>=seconds
     end
+    local function low()return now-memo.startAt>30 and held('floorAt',ratio<.10,2)end
     if id=='1-2'then
+        if low()then return 'low'end
+        if now-memo.startAt>3 and now-memo.startAt<45 and mine(s,'City')==0 then return 'build'end
         if held('fullAt',ratio>=.85,10)then return 'full'end
         if now-memo.startAt>60 and held('lowAt',ratio<.15,8)then return 'low'end
     elseif id=='1-3'then
+        if low()then return 'low'end
         if p.tiles>=memo.startTiles*2 and p.tiles>=memo.startTiles+40 then return 'double'end
         local cost=s.costs and s.costs.City
         if cost and mine(s,'City')==0 and gold(p.gold)>=gold(cost)then return 'city'end
     elseif id=='1-4'then
+        if low()then return 'low'end
         for _,o in ipairs(s.operations or {})do
             if o.direction=='outgoing'and o.kind=='land'then
                 local b=terrainAt(map,o.frontTile)
@@ -133,6 +143,11 @@ function M.check(id,s,memo,now,map)
         end
         memo.mountainAt=nil
     elseif id=='1-5'then
+        if low()then return 'low'end
+        local cp=s.personalResult and s.personalResult.campaign
+        local fired=cp and cp.id==id and (tonumber(cp.taskValue)or 0)>=1
+        if not fired and now-memo.startAt>3 and mine(s,'MissileSilo')==0 then return 'silo'end
+        if not fired and mine(s,'MissileSilo',true)>0 then return 'fire'end
         for _,o in ipairs(s.operations or {})do
             if o.direction=='outgoing'and o.kind=='land'and o.target~=0 and (o.troops or 0)>math.max(1,p.troops or 0)*4 then return 'allIn'end
         end

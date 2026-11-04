@@ -32,7 +32,7 @@ function M.close(keep)
 end
 local function againCost(result)
     if result.currency=='medals'or result.currency=='free'then return string.format('코인 %s',UI.commas(Launch.medalDrawCost))end
-    if result.currency=='ticket'then return '뽑기권 1'end
+    if result.currency=='ticket'or result.currency=='gift'then return '뽑기권 1'end
 end
 local function safeArea()
     local view=workspace.CurrentCamera.ViewportSize
@@ -194,7 +194,8 @@ function M.open(shop,result,again,settled)
         local fall=life*.4;if u<life-fall then return 1 end
         return 1-ease((u-(life-fall))/fall,true)
     end
-    local function refresh()retry:setEnabled(not shop.busy);if equip then equip:setEnabled(not state.equipped and not shop.busy)end end
+    local function canAgain()local b=shop.account and shop.account.billing;return result.currency~='gift'or type(b)=='table'and b.paidRandomAllowed==true and ((b.tickets or {}).epic or 0)>0 end
+    local function refresh()retry:setEnabled(not shop.busy and canAgain());if equip then equip:setEnabled(not state.equipped and not shop.busy)end end
     local function drive(t,instant)
         if tm and not state.sealed and t>=tm.s0 then state.sealed=true;if not instant then Audio.play('supplySeal',.6)end end
         local e=light(t)
